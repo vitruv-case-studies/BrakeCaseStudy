@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<genmodel:GenModel xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:genmodel="http://www.eclipse.org/emf/2002/GenModel"
+    modelDirectory="/tools.vitruv.methodologisttemplate.model/target/generated-sources/ecore"
+    creationIcons="false" modelPluginID="brakesystem" modelName="Brakesystem" rootExtendsClass="org.eclipse.emf.ecore.impl.MinimalEObjectImpl$Container"
+    codeFormatting="true" importerID="org.eclipse.emf.importer.ecore" complianceLevel="23.0"
+    copyrightFields="false" operationReflection="true" importOrganizing="true">
+  <foreignModel>brakesystem.ecore</foreignModel>
+  <testsDirectory xsi:nil="true"/>
+  <genPackages prefix="Brakesystem" disposableProviderFactory="true" ecorePackage="brakesystem.ecore#/">
+    <genClasses ecoreClass="brakesystem.ecore#//Brakesystem">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//Brakesystem/specificationType"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//Brakesystem/instanceName"/>
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference brakesystem.ecore#//Brakesystem/BrakeComponents"/>
+    </genClasses>
+    <genClasses image="false" ecoreClass="brakesystem.ecore#//BrakeComponent">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeComponent/specificationType"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeComponent/OEM_number"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeComponent/fittingPosition"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeComponent/id"/>
+    </genClasses>
+    <genClasses ecoreClass="brakesystem.ecore#//ABSSensor">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//ABSSensor/sensorType"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//ABSSensor/fittingDepth"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//ABSSensor/numberOfPins"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//ABSSensor/lengthInMM"/>
+    </genClasses>
+    <genClasses ecoreClass="brakesystem.ecore#//BrakeCaliper">
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference brakesystem.ecore#//BrakeCaliper/brakePads"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeCaliper/pistonDiameterInMM"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeCaliper/brakeDiskThickness"/>
+    </genClasses>
+    <genClasses ecoreClass="brakesystem.ecore#//BrakeHose">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeHose/threadSize1"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeHose/threadSize2"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeHose/lengthInMM"/>
+    </genClasses>
+    <genClasses ecoreClass="brakesystem.ecore#//BrakeDisk">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeDisk/diameterInMM"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeDisk/centeringDiameterInMM"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeDisk/rimHoleNumber"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeDisk/holeArrangementNumber"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeDisk/boltHoleCircleInMM"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeDisk/brakeDiskThicknessInMM"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeDisk/minimumThicknessInMM"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakeDisk/ventilated"/>
+    </genClasses>
+    <genClasses ecoreClass="brakesystem.ecore#//BrakePad">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakePad/wearWarning"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakePad/heightInMM"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakePad/widthInMM"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute brakesystem.ecore#//BrakePad/thicknessInMM"/>
+    </genClasses>
+  </genPackages>
+</genmodel:GenModel>

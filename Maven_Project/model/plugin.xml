@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+
+
+<plugin>
+
+   <extension point="org.eclipse.emf.ecore.generated_package">
+      <!-- @generated uncertainty -->
+      <package
+            uri="http://www.example.org/uncertainty"
+            class="uncertainty.UncertaintyPackage"
+            genModel="src/main/ecore/uncertainty.genmodel"/>
+   </extension>
+   <extension point="org.eclipse.emf.ecore.generated_package">
+      <!-- @generated brakesystem -->
+      <package
+            uri="http://www.example.org/brakesystem"
+            class="brakesystem.BrakesystemPackage"
+            genModel="src/main/ecore/brakesystem.genmodel"/>
+   </extension>
+
+   <extension point="org.eclipse.emf.ecore.generated_package">
+      <!-- @generated cad -->
+      <package
+            uri="http://www.example.org/cad"
+            class="edu.kit.ipd.sdq.metamodels.cad.CadPackage"
+            genModel="src/main/ecore/cad.genmodel"/>
+   </extension>
+
+</plugin>

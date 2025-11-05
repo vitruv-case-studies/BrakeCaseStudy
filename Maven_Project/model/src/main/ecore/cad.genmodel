@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<genmodel:GenModel xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore"
+  xmlns:genmodel="http://www.eclipse.org/emf/2002/GenModel"
+  modelDirectory="/tools.vitruv.methodologisttemplate.model/target/generated-sources/ecore"
+  creationIcons="false"
+  modelPluginID="tools.vitruv.methodologisttemplate.cad" modelName="Cad"
+  rootExtendsClass="org.eclipse.emf.ecore.impl.MinimalEObjectImpl$Container"
+  codeFormatting="true" importerID="org.eclipse.emf.importer.ecore" complianceLevel="23.0"
+  copyrightFields="false" operationReflection="true" importOrganizing="true">
+  <foreignModel>cad.ecore</foreignModel>
+  <testsDirectory xsi:nil="true" />
+  <genPackages prefix="Cad" basePackage="edu.kit.ipd.sdq.metamodels"
+    disposableProviderFactory="true"
+    ecorePackage="cad.ecore#/">
+    <genEnums typeSafeEnumCompatible="false" ecoreEnum="cad.ecore#//Unit">
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/MM" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/CM" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/NM" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/UM" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/M" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/INCH" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/FT" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/COUNT" />
+    </genEnums>
+    <genClasses ecoreClass="cad.ecore#//CAD_Model">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//CAD_Model/id" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//CAD_Model/name" />
+      <genFeatures property="None" children="true" createChild="true"
+        ecoreFeature="ecore:EReference cad.ecore#//CAD_Model/namespaces" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Namespace">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Namespace/id" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Namespace/name" />
+      <genFeatures createChild="false"
+        ecoreFeature="ecore:EAttribute cad.ecore#//Namespace/description" />
+      <genFeatures property="None" children="true" createChild="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Namespace/parameters" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Parameter">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Parameter/id" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Parameter/name" />
+      <genFeatures createChild="false"
+        ecoreFeature="ecore:EAttribute cad.ecore#//Parameter/description" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//NumericParameter">
+      <genFeatures createChild="false"
+        ecoreFeature="ecore:EAttribute cad.ecore#//NumericParameter/value" />
+      <genFeatures createChild="false"
+        ecoreFeature="ecore:EAttribute cad.ecore#//NumericParameter/unit" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//StringParameter">
+      <genFeatures createChild="false"
+        ecoreFeature="ecore:EAttribute cad.ecore#//StringParameter/value" />
+      <genFeatures createChild="false"
+        ecoreFeature="ecore:EAttribute cad.ecore#//StringParameter/unit" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//BooleanParameter">
+      <genFeatures createChild="false"
+        ecoreFeature="ecore:EAttribute cad.ecore#//BooleanParameter/value" />
+    </genClasses>
+  </genPackages>
+</genmodel:GenModel>

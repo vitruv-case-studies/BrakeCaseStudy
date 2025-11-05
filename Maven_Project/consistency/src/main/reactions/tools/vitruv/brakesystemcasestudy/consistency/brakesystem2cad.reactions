@@ -1,0 +1,963 @@
+
+import java.io.File;
+
+import edu.kit.ipd.sdq.metamodels.cad.Unit;
+import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
+import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
+import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+
+
+import "http://www.example.org/brakesystem" as brakesystem
+import "http://www.example.org/cad" as cad
+
+reactions: brakesystem2cad
+in reaction to changes in brakesystem
+execute actions in cad
+
+reaction BrakesystemInsertedAsRoot {
+    after element brakesystem::Brakesystem inserted as root
+    call createAndRegisterRoot(newValue)
+}
+
+routine createAndRegisterRoot(brakesystem::Brakesystem repo) {
+    match {
+        require absence of cad::CAD_Model corresponding to repo
+    }
+    create {
+        val mCad = new cad::CAD_Model
+    }
+    update {
+        persistProjectRelative(repo, mCad, new File("").toString() + "example.cad")
+        addCorrespondenceBetween(repo, mCad)
+    }
+}
+
+//
+//// Brake Component
+//
+
+// Parameter changes
+
+reaction SpecificationTypeChanged {
+    after attribute replaced at brakesystem::BrakeComponent[specificationType]
+    call updateSpecificationType(affectedEObject)
+}
+
+reaction OEMNumberChanged {
+    after attribute replaced at brakesystem::BrakeComponent[OEM_number]
+    call updateOEMNumber(affectedEObject)
+}
+
+reaction FittingPositionChanged {
+    after attribute replaced at brakesystem::BrakeComponent[fittingPosition]
+    call updateFittingPosition(affectedEObject)
+}
+
+reaction IdChanged {
+    after attribute replaced at brakesystem::BrakeComponent[id]
+    call updateId(affectedEObject)
+}
+
+routine updateSpecificationType(brakesystem::BrakeComponent comp) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to comp
+    }
+    create {
+        val stringParameter = new cad::StringParameter
+    }
+    update {
+        var pSpecificationType = namespace.parameters.findFirst[p | p.name == "Specification Type"] as StringParameter
+        if (pSpecificationType === null) {
+            pSpecificationType = stringParameter
+            pSpecificationType.name = "Specification Type"
+            namespace.parameters.add(pSpecificationType)
+        }
+        pSpecificationType.setValue(comp.specificationType)
+    }
+}
+
+routine updateOEMNumber(brakesystem::BrakeComponent comp) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to comp
+    }
+    create {
+        val stringParameter = new cad::StringParameter
+    }
+    update {
+        var pOEM_Number = namespace.parameters.findFirst[p | p.name == "OEM Number"] as StringParameter
+        if (pOEM_Number === null) {
+            pOEM_Number = stringParameter
+            pOEM_Number.name = "OEM Number"
+            namespace.parameters.add(pOEM_Number)
+        }
+        pOEM_Number.setValue(comp.OEM_number)
+    }
+}
+
+routine updateFittingPosition(brakesystem::BrakeComponent comp) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to comp
+    }
+    create {
+        val stringParameter = new cad::StringParameter
+    }
+    update {
+        var pFittingPosition = namespace.parameters.findFirst[p | p.name == "Fitting Position"] as StringParameter
+        if (pFittingPosition === null) {
+            pFittingPosition = stringParameter
+            pFittingPosition.name = "Fitting Position"
+            namespace.parameters.add(pFittingPosition)
+        }
+        pFittingPosition.setValue(comp.fittingPosition)
+    }
+}
+
+routine updateId(brakesystem::BrakeComponent comp) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to comp
+    }
+    update {
+        namespace.id = comp.id
+    }
+}
+
+//
+//// Break Disk
+//
+
+reaction BrakeDiskInserted {
+    after element brakesystem::BrakeDisk inserted in brakesystem::Brakesystem[BrakeComponents]
+    call createAndRegisterBrakeDisk(newValue)
+}
+
+routine createAndRegisterBrakeDisk(brakesystem::BrakeDisk disk) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to disk.eContainer()
+        require absence of cad::Namespace corresponding to disk
+    }
+    create {
+        val namespace = new cad::Namespace
+        val pOEM_Number = new cad::StringParameter
+        val pSpecificationType = new cad::StringParameter
+        val pFittingPosition = new cad::StringParameter
+
+        val pDiameter = new cad::NumericParameter
+        val pCenteringDiameter  = new cad::NumericParameter
+        val pRimHoleNumber = new cad::NumericParameter
+        val pHoleArrangementNumber = new cad::NumericParameter
+        val pBoltHoleCircle = new cad::NumericParameter
+        val pBrakeDiskThickness = new cad::NumericParameter
+        val pMinimumThickness = new cad::NumericParameter
+        val pVentilated = new cad::BooleanParameter
+        
+    }
+    update {
+        
+        namespace.parameters.add(pDiameter)
+        pDiameter.name = "Diameter"
+        pDiameter.value = disk.diameterInMM
+        pDiameter.unit = Unit.MM
+
+        namespace.parameters.add(pCenteringDiameter)
+        pCenteringDiameter.name = "Centering Diameter"
+        pCenteringDiameter.value = disk.centeringDiameterInMM
+        pCenteringDiameter.unit = Unit.MM
+
+        namespace.parameters.add(pRimHoleNumber)
+        pRimHoleNumber.name = "Rim Hole Number"
+        pRimHoleNumber.value = disk.rimHoleNumber
+        pRimHoleNumber.unit = Unit.COUNT
+
+        namespace.parameters.add(pHoleArrangementNumber)
+        pHoleArrangementNumber.name = "Hole Arrangement Number"
+        pHoleArrangementNumber.value = disk.holeArrangementNumber
+
+        namespace.parameters.add(pBoltHoleCircle)
+        pBoltHoleCircle.name = "Bolt Hole Circle"
+        pBoltHoleCircle.value = disk.boltHoleCircleInMM
+        pBoltHoleCircle.unit = Unit.MM
+
+        namespace.parameters.add(pBrakeDiskThickness)
+        pBrakeDiskThickness.name = "Brake Disk Thickness"
+        pBrakeDiskThickness.value = disk.brakeDiskThicknessInMM
+        pBrakeDiskThickness.unit = Unit.MM
+        
+        namespace.parameters.add(pMinimumThickness)
+        pMinimumThickness.name = "Minimum Thickness"
+        pMinimumThickness.value = disk.minimumThicknessInMM
+        pMinimumThickness.unit = Unit.MM
+
+        namespace.parameters.add(pVentilated)
+        pVentilated.name = "Ventilated"
+        pVentilated.value = disk.ventilated
+
+        namespace.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.value = disk.OEM_number
+
+        namespace.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.value = disk.specificationType
+
+        namespace.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.value = disk.fittingPosition
+
+        namespace.id = disk.id
+        persistProjectRelative(disk, namespace, new File("").toString() + "example.cad")
+        mCad.namespaces.add(namespace)
+        addCorrespondenceBetween(disk, namespace)
+    }
+}
+
+// Parameter changes
+
+reaction DiameterChanged {
+    after attribute replaced at brakesystem::BrakeDisk[diameterInMM]
+    call updateDiameter(affectedEObject)
+}
+
+reaction CenteringDiameterChanged {
+    after attribute replaced at brakesystem::BrakeDisk[centeringDiameterInMM]
+    call updateCenteringDiameter(affectedEObject)
+}
+
+reaction RimHoleNumberChanged {
+    after attribute replaced at brakesystem::BrakeDisk[rimHoleNumber]
+    call updateRimHoleNumber(affectedEObject)
+}
+
+reaction HoleArrangementNumberChanged {
+    after attribute replaced at brakesystem::BrakeDisk[holeArrangementNumber]
+    call updateHoleArrangementNumber(affectedEObject)
+}
+
+reaction BoltHoleCircleChanged {
+    after attribute replaced at brakesystem::BrakeDisk[boltHoleCircleInMM]
+    call updateBoltHoleCircle(affectedEObject)
+}
+
+reaction BrakeDiskThicknessChanged {
+    after attribute replaced at brakesystem::BrakeDisk[brakeDiskThicknessInMM]
+    call updateBrakeDiskThickness(affectedEObject)
+}
+
+reaction MinimumThicknessChanged {
+    after attribute replaced at brakesystem::BrakeDisk[minimumThicknessInMM]
+    call updateMinimumThickness(affectedEObject)
+}
+
+reaction VentilatedChanged {
+    after attribute replaced at brakesystem::BrakeDisk[ventilated]
+    call updateVentilated(affectedEObject)
+}
+
+
+routine updateDiameter(brakesystem::BrakeDisk disk) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to disk
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }   
+    update {
+        var pDiameter = namespace.parameters.findFirst[p | p.name == "Diameter"] as NumericParameter
+        if (pDiameter === null) {
+            pDiameter = numericParameter
+            pDiameter.name = "Diameter"
+            pDiameter.unit = Unit.MM
+            namespace.parameters.add(pDiameter)
+        }
+        pDiameter.setValue(disk.diameterInMM)
+    }
+}
+
+routine updateCenteringDiameter(brakesystem::BrakeDisk disk) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to disk
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pCenteringDiameter = namespace.parameters.findFirst[p | p.name == "Centering Diameter"] as NumericParameter
+        if (pCenteringDiameter === null) {
+            pCenteringDiameter = numericParameter
+            pCenteringDiameter.name = "Centering Diameter"
+            pCenteringDiameter.unit = Unit.MM
+            namespace.parameters.add(pCenteringDiameter)
+        }
+        pCenteringDiameter.setValue(disk.centeringDiameterInMM)
+    }
+}
+
+routine updateRimHoleNumber(brakesystem::BrakeDisk disk) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to disk
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pRimHoleNumber = namespace.parameters.findFirst[p | p.name == "Rim Hole Number"] as NumericParameter
+        if (pRimHoleNumber === null) {
+            pRimHoleNumber = numericParameter
+            pRimHoleNumber.name = "Rim Hole Number"
+            pRimHoleNumber.unit = Unit.COUNT
+            namespace.parameters.add(pRimHoleNumber)
+        }
+        pRimHoleNumber.setValue(disk.rimHoleNumber)
+    }
+}
+
+routine updateHoleArrangementNumber(brakesystem::BrakeDisk disk) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to disk
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pHoleArrangementNumber = namespace.parameters.findFirst[p | p.name == "Hole Arrangement Number"] as NumericParameter
+        if (pHoleArrangementNumber === null) {
+            pHoleArrangementNumber = numericParameter
+            pHoleArrangementNumber.name = "Hole Arrangement Number"
+            namespace.parameters.add(pHoleArrangementNumber)
+        }
+        pHoleArrangementNumber.setValue(disk.holeArrangementNumber)
+    }
+}
+
+routine updateBoltHoleCircle(brakesystem::BrakeDisk disk) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to disk
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pBoltHoleCircle = namespace.parameters.findFirst[p | p.name == "Bolt Hole Circle"] as NumericParameter
+        if (pBoltHoleCircle === null) {
+            pBoltHoleCircle = numericParameter
+            pBoltHoleCircle.name = "Bolt Hole Circle"
+            pBoltHoleCircle.unit = Unit.MM
+            namespace.parameters.add(pBoltHoleCircle)
+        }
+        pBoltHoleCircle.setValue(disk.boltHoleCircleInMM)
+    }
+}
+
+routine updateBrakeDiskThickness(brakesystem::BrakeDisk disk) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to disk
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pBrakeDiskThickness = namespace.parameters.findFirst[p | p.name == "Brake Disk Thickness"] as NumericParameter
+        if (pBrakeDiskThickness === null) {
+            pBrakeDiskThickness = numericParameter
+            pBrakeDiskThickness.name = "Brake Disk Thickness"
+            pBrakeDiskThickness.unit = Unit.MM
+            namespace.parameters.add(pBrakeDiskThickness)
+        }
+        pBrakeDiskThickness.setValue(disk.brakeDiskThicknessInMM)
+    }
+}
+
+routine updateMinimumThickness(brakesystem::BrakeDisk disk) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to disk
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pMinimumThickness = namespace.parameters.findFirst[p | p.name == "Minimum Thickness"] as NumericParameter
+        if (pMinimumThickness === null) {
+            pMinimumThickness = numericParameter
+            pMinimumThickness.name = "Minimum Thickness"
+            pMinimumThickness.unit = Unit.MM
+            namespace.parameters.add(pMinimumThickness)
+        }
+        pMinimumThickness.setValue(disk.minimumThicknessInMM)
+    }
+}
+
+routine updateVentilated(brakesystem::BrakeDisk disk) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to disk
+    }
+    create {
+        val booleanParameter = new cad::BooleanParameter
+    }
+    update {
+        var pVentilated = namespace.parameters.findFirst[p | p.name == "Ventilated"] as BooleanParameter
+        if (pVentilated === null) {
+            pVentilated = booleanParameter
+            pVentilated.name = "Ventilated"
+            namespace.parameters.add(pVentilated)
+        }
+        pVentilated.setValue(disk.ventilated)
+    }
+}
+
+
+//
+//// Brake Caliper
+//
+
+reaction BrakeCaliperInserted {
+    after element brakesystem::BrakeCaliper inserted in brakesystem::Brakesystem[BrakeComponents]
+    call createAndRegisterBrakeCaliper(newValue)
+}
+
+
+routine createAndRegisterBrakeCaliper(brakesystem::BrakeCaliper caliper) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to caliper.eContainer()
+        require absence of cad::Namespace corresponding to caliper
+    }
+    create {
+        val namespace = new cad::Namespace
+        val pOEM_Number = new cad::StringParameter
+        val pSpecificationType = new cad::StringParameter
+        val pFittingPosition = new cad::StringParameter
+        val pPistonDiameter = new cad::NumericParameter
+        val pBrakeDiskThickness = new cad::NumericParameter
+        //TODO: brake pads
+    }
+    update {
+        namespace.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.value = caliper.specificationType
+
+        namespace.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.value = caliper.OEM_number
+
+        namespace.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.value = caliper.fittingPosition
+
+        namespace.parameters.add(pPistonDiameter)
+        pPistonDiameter.name = "Piston Diameter"
+        pPistonDiameter.value = caliper.pistonDiameterInMM
+        pPistonDiameter.unit = Unit.MM
+
+        namespace.parameters.add(pBrakeDiskThickness)
+        pBrakeDiskThickness.name = "Brake Disk Thickness"
+        pBrakeDiskThickness.value = caliper.brakeDiskThickness
+        pBrakeDiskThickness.unit = Unit.MM
+        namespace.parameters.add(pBrakeDiskThickness)
+
+        namespace.id = caliper.id
+        persistProjectRelative(caliper, namespace, new File("").toString() + "example.cad")
+        mCad.namespaces.add(namespace)
+        addCorrespondenceBetween(caliper, namespace)
+    }
+}
+
+// Parameter changes
+
+reaction PistonDiameterChanged {
+    after attribute replaced at brakesystem::BrakeCaliper[pistonDiameterInMM]
+    call updatePistonDiameter(affectedEObject)
+}
+
+reaction BrakeDiskThicknessChangedCaliper {
+    after attribute replaced at brakesystem::BrakeCaliper[brakeDiskThickness]
+    call updateBrakeDiskThicknessCaliper(affectedEObject)
+}
+
+routine updatePistonDiameter(brakesystem::BrakeCaliper caliper) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to caliper
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pPistonDiameter = namespace.parameters.findFirst[p | p.name == "Piston Diameter"] as NumericParameter
+        if (pPistonDiameter === null) {
+            pPistonDiameter = numericParameter
+            pPistonDiameter.name = "Piston Diameter"
+            pPistonDiameter.unit = Unit.MM
+            namespace.parameters.add(pPistonDiameter)
+        }
+        pPistonDiameter.setValue(caliper.pistonDiameterInMM)
+    }
+}
+
+routine updateBrakeDiskThicknessCaliper(brakesystem::BrakeCaliper caliper) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to caliper
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pBrakeDiskThickness = namespace.parameters.findFirst[p | p.name == "Brake Disk Thickness"] as NumericParameter
+        if (pBrakeDiskThickness === null) {
+            pBrakeDiskThickness = numericParameter
+            pBrakeDiskThickness.name = "Brake Disk Thickness"
+            pBrakeDiskThickness.unit = Unit.MM
+            namespace.parameters.add(pBrakeDiskThickness)
+        }
+        pBrakeDiskThickness.setValue(caliper.brakeDiskThickness)
+    }
+}
+
+//
+//// Brake Pad
+//
+
+reaction BrakePadInserted {
+    after element brakesystem::BrakePad inserted in brakesystem::Brakesystem[BrakeComponents]
+    call createAndRegisterBrakePad(newValue)
+}
+
+routine createAndRegisterBrakePad(brakesystem::BrakePad pad) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to pad.eContainer()
+        require absence of cad::Namespace corresponding to pad
+    }
+    create {
+        val namespace = new cad::Namespace
+        val pSpecificationType = new cad::StringParameter
+        val pOEM_Number = new cad::StringParameter
+        val pFittingPosition = new cad::StringParameter
+        val pWearWarning = new cad::BooleanParameter
+        val pHeight = new cad::NumericParameter
+        val pWidth = new cad::NumericParameter
+        val pThickness = new cad::NumericParameter
+    }
+    update {
+        namespace.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.value = pad.specificationType
+
+        namespace.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.value = pad.OEM_number
+
+        namespace.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.value = pad.fittingPosition
+
+        namespace.parameters.add(pWearWarning)
+        pWearWarning.name = "Wear Warning"
+        pWearWarning.value = pad.wearWarning
+        
+        namespace.parameters.add(pHeight)
+        pHeight.name = "Height"
+        pHeight.value = pad.heightInMM
+        pHeight.unit = Unit.MM
+
+        namespace.parameters.add(pWidth)
+        pWidth.name = "Width"
+        pWidth.value = pad.widthInMM
+        pWidth.unit = Unit.MM
+
+        namespace.parameters.add(pThickness)
+        pThickness.name = "Thickness"
+        pThickness.value = pad.thicknessInMM
+        pThickness.unit = Unit.MM
+
+        namespace.id = pad.id
+        persistProjectRelative(pad, namespace, new File("").toString() + "example.cad")
+        mCad.namespaces.add(namespace)
+        addCorrespondenceBetween(pad, namespace)
+    }
+}
+
+// Parameter changes
+
+reaction WearWarningChanged {
+    after attribute replaced at brakesystem::BrakePad[wearWarning]
+    call updateWearWarning(affectedEObject)
+}
+
+reaction HeightChanged {
+    after attribute replaced at brakesystem::BrakePad[heightInMM]
+    call updateHeight(affectedEObject)
+}
+
+reaction WidthChanged {
+    after attribute replaced at brakesystem::BrakePad[widthInMM]
+    call updateWidth(affectedEObject)
+}
+
+reaction ThicknessChanged {
+    after attribute replaced at brakesystem::BrakePad[thicknessInMM]
+    call updateThickness(affectedEObject)
+}
+
+routine updateWearWarning(brakesystem::BrakePad pad) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to pad
+    }
+    create {
+        val booleanParameter = new cad::BooleanParameter
+    }
+    update {
+        var pWearWarning = namespace.parameters.findFirst[p | p.name == "Wear Warning"] as BooleanParameter
+        if (pWearWarning === null) {
+            pWearWarning = booleanParameter
+            pWearWarning.name = "Wear Warning"
+            namespace.parameters.add(pWearWarning)
+        }
+        pWearWarning.setValue(pad.wearWarning)
+    }
+}
+
+routine updateHeight(brakesystem::BrakePad pad) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to pad
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pHeight = namespace.parameters.findFirst[p | p.name == "Height"] as NumericParameter
+        if (pHeight === null) {
+            pHeight = numericParameter
+            pHeight.name = "Height"
+            pHeight.unit = Unit.MM
+            namespace.parameters.add(pHeight)
+        }
+        pHeight.setValue(pad.heightInMM)
+    }
+}
+
+routine updateWidth(brakesystem::BrakePad pad) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to pad
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pWidth = namespace.parameters.findFirst[p | p.name == "Width"] as NumericParameter
+        if (pWidth === null) {
+            pWidth = numericParameter
+            pWidth.name = "Width"
+            pWidth.unit = Unit.MM
+            namespace.parameters.add(pWidth)
+        }
+        pWidth.setValue(pad.widthInMM)
+    }
+}
+
+routine updateThickness(brakesystem::BrakePad pad) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to pad
+    }
+    create {
+        val numericParameter = new cad::NumericParameter
+    }
+    update {
+        var pThickness = namespace.parameters.findFirst[p | p.name == "Thickness"] as NumericParameter
+        if (pThickness === null) {
+            pThickness = numericParameter
+            pThickness.name = "Thickness"
+            pThickness.unit = Unit.MM
+            namespace.parameters.add(pThickness)
+        }
+        pThickness.setValue(pad.thicknessInMM)
+    }
+}
+
+//
+//// Brake Hose
+//
+
+reaction BrakeHoseInserted {
+    after element brakesystem::BrakeHose inserted in brakesystem::Brakesystem[BrakeComponents]
+    call createAndRegisterBrakeHose(newValue)
+}
+
+routine createAndRegisterBrakeHose(brakesystem::BrakeHose hose) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to hose.eContainer()
+        require absence of cad::Namespace corresponding to hose
+    }
+    create {
+        val namespace = new cad::Namespace
+        val pSpecificationType = new cad::StringParameter
+        val pOEM_Number = new cad::StringParameter
+        val pFittingPosition = new cad::StringParameter
+        val pThreadSize1 = new cad::StringParameter
+        val pThreadSize2 = new cad::StringParameter
+        val pLength = new cad::NumericParameter
+    }
+    update {
+
+        namespace.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.value = hose.specificationType
+        
+        namespace.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.value = hose.OEM_number
+
+        namespace.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.value = hose.fittingPosition
+
+        namespace.parameters.add(pThreadSize1)
+        pThreadSize1.name = "Thread 1"
+        pThreadSize1.value = hose.threadSize1
+        
+        namespace.parameters.add(pThreadSize2)
+        pThreadSize2.name = "Thread 2"
+        pThreadSize2.value = hose.threadSize2
+
+        namespace.parameters.add(pLength)
+        pLength.name = "Length"
+        pLength.value = hose.lengthInMM
+        pLength.unit = Unit.MM
+
+        namespace.id = hose.id
+        persistProjectRelative(hose, namespace, new File("").toString() + "example.cad")
+        mCad.namespaces.add(namespace)
+        addCorrespondenceBetween(hose, namespace)
+    }
+}
+
+// Parameter changes
+
+reaction ThreadSize1Changed {
+    after attribute replaced at brakesystem::BrakeHose[threadSize1]
+    call updateThreadSize1(affectedEObject)
+}
+
+reaction ThreadSize2Changed {
+    after attribute replaced at brakesystem::BrakeHose[threadSize2]
+    call updateThreadSize2(affectedEObject)
+}
+
+reaction LengthChangedHose {
+    after attribute replaced at brakesystem::BrakeHose[lengthInMM]
+    call updateLengthHose(affectedEObject)
+}
+
+routine updateThreadSize1(brakesystem::BrakeHose hose) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to hose
+    }
+    create {
+        val stringParameter = new cad::StringParameter
+    }
+    update {
+        var pThreadSize1 = namespace.parameters.findFirst[p | p.name == "Thread 1"] as StringParameter
+        if (pThreadSize1 === null) {
+            pThreadSize1 = stringParameter
+            pThreadSize1.name = "Thread 1"
+            namespace.parameters.add(pThreadSize1)
+        }
+        pThreadSize1.setValue(hose.threadSize1)
+    }
+}
+
+routine updateThreadSize2(brakesystem::BrakeHose hose) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to hose
+    }
+    create {
+        val stringParameter = new cad::StringParameter
+    }
+    update {
+        var pThreadSize2 = namespace.parameters.findFirst[p | p.name == "Thread 2"] as StringParameter
+        if (pThreadSize2 === null) {
+            pThreadSize2 = stringParameter
+            pThreadSize2.name = "Thread 2"
+            namespace.parameters.add(pThreadSize2)
+        }
+        pThreadSize2.setValue(hose.threadSize2)
+    }
+}
+
+routine updateLengthHose(brakesystem::BrakeHose hose) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to hose
+    }
+    create {
+        val numericParameter = new cad::NumericParameter 
+    }
+    update {
+        var pLength = namespace.parameters.findFirst[p | p.name == "Length"] as NumericParameter
+        if (pLength === null) {
+            pLength = numericParameter
+            pLength.name = "Length"
+            pLength.unit = Unit.MM
+            namespace.parameters.add(pLength)
+        }
+        pLength.setValue(hose.lengthInMM)
+    }
+}
+
+
+//
+//// ABS Sensor
+//
+
+reaction ABSSensorInserted {
+    after element brakesystem::ABSSensor inserted in brakesystem::Brakesystem[BrakeComponents]
+    call createAndRegisterABSSensor(newValue)
+}
+
+
+routine createAndRegisterABSSensor(brakesystem::ABSSensor sensor) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to sensor.eContainer()
+        require absence of cad::Namespace corresponding to sensor
+    }
+    create {
+        val namespace = new cad::Namespace
+        val pOEM_Number = new cad::StringParameter
+        val pSpecificationType = new cad::StringParameter
+        val pFittingPosition = new cad::StringParameter
+        val pSensorType = new cad::StringParameter
+        val pFittingDepth = new cad::NumericParameter
+        val pNumberOfPins = new cad::NumericParameter
+        val pLength = new cad::NumericParameter
+    }
+    update {
+        
+        namespace.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.value = sensor.OEM_number
+        
+        namespace.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.value = sensor.specificationType
+
+        namespace.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.value = sensor.fittingPosition
+        
+        namespace.parameters.add(pSensorType)
+        pSensorType.name = "Sensor Type"
+        pSensorType.value = sensor.sensorType
+
+        namespace.parameters.add(pFittingDepth)
+        pFittingDepth.name = "Fitting Depth"
+        pFittingDepth.value = sensor.fittingDepth
+        pFittingDepth.unit = Unit.MM
+
+        namespace.parameters.add(pNumberOfPins)
+        pNumberOfPins.name = "Number of Pins"
+        pNumberOfPins.value = sensor.numberOfPins
+        pNumberOfPins.unit = Unit.COUNT
+
+        namespace.parameters.add(pLength)
+        pLength.name = "Length"
+        pLength.value = sensor.lengthInMM
+        pLength.unit = Unit.MM
+
+        namespace.id = sensor.id
+        persistProjectRelative(sensor, namespace, new File("").toString() + "example.cad")
+        mCad.namespaces.add(namespace)
+        addCorrespondenceBetween(sensor, namespace)
+    }
+}
+
+// Parameter changes
+
+reaction SensorTypeChanged {
+    after attribute replaced at brakesystem::ABSSensor[sensorType]
+    call updateSensorType(affectedEObject)
+}
+
+reaction FittingDepthChanged {
+    after attribute replaced at brakesystem::ABSSensor[fittingDepth]
+    call updateFittingDepth(affectedEObject)
+}
+
+reaction NumberOfPinsChanged {
+    after attribute replaced at brakesystem::ABSSensor[numberOfPins]
+    call updateNumberOfPins(affectedEObject)
+}
+
+reaction LengthChanged {
+    after attribute replaced at brakesystem::ABSSensor[lengthInMM]
+    call updateLength(affectedEObject)
+}
+
+routine updateSensorType(brakesystem::ABSSensor sensor) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to sensor
+    }
+    create {
+        val stringParameter = new cad::StringParameter
+    }
+    update {
+        var pSensorType = namespace.parameters.findFirst[p | p.name == "Sensor Type"] as StringParameter
+        if (pSensorType === null) {
+            pSensorType = stringParameter
+            pSensorType.name = "Sensor Type"
+            namespace.parameters.add(pSensorType)
+        }
+        pSensorType.setValue(sensor.sensorType)
+    }
+}
+
+routine updateFittingDepth(brakesystem::ABSSensor sensor) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to sensor
+    }
+    create {
+        val numericParameter = new cad::NumericParameter 
+    }
+    update {
+        var pFittingDepth = namespace.parameters.findFirst[p | p.name == "Fitting Depth"] as NumericParameter
+        if (pFittingDepth === null) {
+            pFittingDepth = numericParameter
+            pFittingDepth.name = "Fitting Depth"
+            pFittingDepth.unit = Unit.MM
+            namespace.parameters.add(pFittingDepth)
+        } 
+        pFittingDepth.setValue(sensor.fittingDepth)
+        
+    }
+}
+
+routine updateNumberOfPins(brakesystem::ABSSensor sensor) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to sensor
+    }
+    create {
+        val numericParameter = new cad::NumericParameter 
+    }
+    update {
+        var pNumberOfPins = namespace.parameters.findFirst[p | p.name == "Number of Pins"] as NumericParameter
+        if (pNumberOfPins === null) {
+            pNumberOfPins = numericParameter
+            pNumberOfPins.name = "Number of Pins"
+            pNumberOfPins.unit = Unit.COUNT
+            namespace.parameters.add(pNumberOfPins)
+        }
+        pNumberOfPins.setValue(sensor.numberOfPins)
+    }
+}
+
+routine updateLength(brakesystem::ABSSensor sensor) {
+    match {
+        val namespace = retrieve cad::Namespace corresponding to sensor
+    }
+    create {
+        val numericParameter = new cad::NumericParameter 
+    }
+    update {
+        var pLength = namespace.parameters.findFirst[p | p.name == "Length"] as NumericParameter
+        if (pLength === null) {
+            pLength = numericParameter
+            pLength.name = "Length"
+            pLength.unit = Unit.MM
+            namespace.parameters.add(pLength)
+        }
+        pLength.setValue(sensor.lengthInMM)
+    }
+}
