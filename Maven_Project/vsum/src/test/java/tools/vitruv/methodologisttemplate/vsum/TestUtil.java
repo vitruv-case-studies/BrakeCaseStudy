@@ -9,6 +9,10 @@ import org.eclipse.emf.common.util.URI;
 
 import brakesystem.Brakesystem;
 import brakesystem.BrakesystemFactory;
+import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+import edu.kit.ipd.sdq.metamodels.cad.Namespace;
+import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
+import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
 import tools.vitruv.change.propagation.ChangePropagationMode;
@@ -63,4 +67,45 @@ public class TestUtil {
         return selector.createView();
     }
 
+    /**
+     * Tests whether there exists a StringParameter for namespace with the given name and value.
+     * @param namespace - Namespace
+     * @param name - String
+     * @param value - String
+     * @return boolean
+     */
+    public static boolean expectStringParameter(Namespace namespace, String name, String value) {
+        return namespace.getParameters().stream()
+            .filter(param -> param instanceof StringParameter)
+            .map(param -> (StringParameter) param)
+            .anyMatch(param -> param.getName().equals(name) && param.getValue().equals(value));
+    }
+
+    /**
+     * Tests whether there exists a NumericParameter for namespace with the given name and value.
+     * @param namespace - Namespace
+     * @param name - String
+     * @param value - float
+     * @return boolean
+     */
+    public static boolean expectNumericParameter(Namespace namespace, String name, float value) {
+        return namespace.getParameters().stream()
+            .filter(param -> param instanceof NumericParameter)
+            .map(param -> (NumericParameter) param)
+            .anyMatch(param -> param.getName().equals(name) && param.getValue() == value);
+    }
+
+    /**
+     * Tests whether there exists a BooleanParameter for namespace with the given name and value.
+     * @param namespace - Namespace
+     * @param name - String
+     * @param value - boolean
+     * @return boolean
+     */
+    public static boolean expectBooleanParameter(Namespace namespace, String name, boolean value) {
+        return namespace.getParameters().stream()
+            .filter(param -> param instanceof BooleanParameter)
+            .map(param -> (BooleanParameter) param)
+            .anyMatch(param -> param.getName().equals(name) && param.isValue() == value);
+    }
 }

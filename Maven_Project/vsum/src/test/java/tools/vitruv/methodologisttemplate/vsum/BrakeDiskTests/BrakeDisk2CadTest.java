@@ -63,43 +63,15 @@ public class BrakeDisk2CadTest {
 							Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces()
 									.stream().filter(ns -> ns.getId().equals("brakeDisk1")).findFirst()
 									.orElseThrow();
-							boolean isOEMNumber = namespace.getParameters().stream()
-									.filter(param -> param instanceof StringParameter)
-									.anyMatch(param -> param.getName().equals("OEM Number")
-											&& ((StringParameter) param).getValue().equals("VW123456"));
-							boolean isDiameterInMM = namespace.getParameters().stream()
-									.filter(param -> param instanceof NumericParameter)
-									.anyMatch(param -> param.getName().equals("Diameter")
-											&& ((NumericParameter) param)
-													.getValue() == 120.0);
-							boolean isCenteringDiameterInMM = namespace.getParameters().stream()
-									.filter(param -> param instanceof NumericParameter)
-									.anyMatch(param -> param.getName().equals("Centering Diameter")
-											&& ((NumericParameter) param).getValue() == 20.0);
-							boolean isRimHoleNumber = namespace.getParameters().stream()
-									.filter(param -> param instanceof NumericParameter)
-									.anyMatch(param -> param.getName().equals("Rim Hole Number")
-											&& ((NumericParameter) param).getValue() == 1.0);
-							boolean isHoleArrangementNumber = namespace.getParameters().stream()
-									.filter(param -> param instanceof NumericParameter)
-									.anyMatch(param -> param.getName().equals("Hole Arrangement Number")
-											&& ((NumericParameter) param).getValue() == 20.0);
-							boolean isBoltHoleCircleInMM = namespace.getParameters().stream()
-									.filter(param -> param instanceof NumericParameter)
-									.anyMatch(param -> param.getName().equals("Bolt Hole Circle")
-											&& ((NumericParameter) param).getValue() == 60.0);
-							boolean isBrakeDiskThicknessInMM = namespace.getParameters().stream()
-									.filter(param -> param instanceof NumericParameter)
-									.anyMatch(param -> param.getName().equals("Brake Disk Thickness")
-											&& ((NumericParameter) param).getValue() == 30.0);
-							boolean isMinimumThicknessInMM = namespace.getParameters().stream()
-									.filter(param -> param instanceof NumericParameter)
-									.anyMatch(param -> param.getName().equals("Minimum Thickness")
-											&& ((NumericParameter) param).getValue() == 25.0);
-							boolean isVentilated = namespace.getParameters().stream()
-									.filter(param -> param instanceof BooleanParameter)
-									.anyMatch(param -> param.getName().equals("Ventilated")
-											&& ((BooleanParameter) param).isValue());
+							boolean isOEMNumber = TestUtil.expectStringParameter(namespace, "OEM Number", "VW123456");
+							boolean isDiameterInMM = TestUtil.expectNumericParameter(namespace, "Diameter", 120.0f);
+							boolean isCenteringDiameterInMM = TestUtil.expectNumericParameter(namespace, "Centering Diameter", 20.0f);
+							boolean isRimHoleNumber = TestUtil.expectNumericParameter(namespace, "Rim Hole Number", 1.0f); 
+							boolean isHoleArrangementNumber = TestUtil.expectNumericParameter(namespace, "Hole Arrangement Number", 20.0f);
+							boolean isBoltHoleCircleInMM = TestUtil.expectNumericParameter(namespace, "Bolt Hole Circle", 60.0f);
+							boolean isBrakeDiskThicknessInMM = TestUtil.expectNumericParameter(namespace, "Brake Disk Thickness", 30);
+							boolean isMinimumThicknessInMM = TestUtil.expectNumericParameter(namespace, "Minimum Thickness", 25);
+							boolean isVentilated = TestUtil.expectBooleanParameter(namespace, "Ventilated", true);
 
 							return isOEMNumber && isDiameterInMM & isCenteringDiameterInMM && isRimHoleNumber
 									&& isHoleArrangementNumber && isBoltHoleCircleInMM
@@ -132,10 +104,7 @@ public class BrakeDisk2CadTest {
 							Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces()
 									.stream().filter(ns -> ns.getId().equals("brakeDisk1")).findFirst()
 									.orElseThrow();
-							return namespace.getParameters().stream()
-									.filter(param -> param instanceof NumericParameter)
-									.anyMatch(param -> param.getName().equals("Diameter")
-											&& ((NumericParameter) param).getValue() == 120.0);
+							return TestUtil.expectNumericParameter(namespace, "Diameter", 120);
 						}));
 
 		// change diameter
@@ -153,10 +122,7 @@ public class BrakeDisk2CadTest {
 							Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces()
 									.stream().filter(ns -> ns.getId().equals("brakeDisk1")).findFirst()
 									.orElseThrow();
-							return namespace.getParameters().stream()
-									.filter(param -> param instanceof NumericParameter)
-									.anyMatch(param -> param.getName().equals("Diameter")
-											&& ((NumericParameter) param).getValue() == 130.0);
+							return TestUtil.expectNumericParameter(namespace, "Diameter", 130);
 						}));
 	}
 
@@ -182,10 +148,7 @@ public class BrakeDisk2CadTest {
 									.stream().filter(ns -> ns.getId().equals("brakeDisk1")).findFirst()
 									.orElseThrow();
 							return namespace.getId().equals("brakeDisk1")
-									&& namespace.getParameters().stream()
-											.anyMatch(param -> param instanceof StringParameter
-													&& param.getName().equals("OEM Number")
-													&& ((StringParameter) param).getValue().equals("VW123456"));
+									&& TestUtil.expectStringParameter(namespace, "OEM Number", "VW123456");
 						}));
 
 		// change id
@@ -203,11 +166,7 @@ public class BrakeDisk2CadTest {
 							Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces()
 									.stream().filter(ns -> ns.getId().equals("newId")).findFirst()
 									.orElseThrow();
-							return namespace.getId().equals("newId")
-									&& namespace.getParameters().stream()
-											.anyMatch(param -> param instanceof StringParameter
-													&& param.getName().equals("OEM Number")
-													&& ((StringParameter) param).getValue().equals("VW123456"));
+							return TestUtil.expectStringParameter(namespace, "OEM Number", "VW123456");
 						}));
 	}
 
@@ -232,10 +191,7 @@ public class BrakeDisk2CadTest {
 							Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces()
 									.stream().filter(ns -> ns.getId().equals("brakeDisk1")).findFirst()
 									.orElseThrow();
-							return namespace.getParameters().stream()
-									.filter(param -> param instanceof BooleanParameter)
-									.anyMatch(param -> param.getName().equals("Ventilated")
-											&& ((BooleanParameter) param).isValue());
+							return TestUtil.expectBooleanParameter(namespace, "Ventilated", true);
 						}));
 
 		// change ventilated
@@ -252,10 +208,7 @@ public class BrakeDisk2CadTest {
 							Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces()
 									.stream().filter(ns -> ns.getId().equals("brakeDisk1")).findFirst()
 									.orElseThrow();
-							return namespace.getParameters().stream()
-									.filter(param -> param instanceof BooleanParameter)
-									.anyMatch(param -> param.getName().equals("Ventilated")
-											&& !((BooleanParameter) param).isValue());
+							return TestUtil.expectBooleanParameter(namespace, "Ventilated", false);
 						}));
 	}
 
@@ -280,10 +233,7 @@ public class BrakeDisk2CadTest {
 							Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces()
 									.stream().filter(ns -> ns.getId().equals("brakeDisk1")).findFirst()
 									.orElseThrow();
-							return namespace.getParameters().stream()
-									.filter(param -> param instanceof StringParameter)
-									.anyMatch(param -> param.getName().equals("OEM Number")
-											&& ((StringParameter) param).getValue().equals("VW123456"));
+							return TestUtil.expectStringParameter(namespace, "OEM Number", "VW123456");
 						}));
 
 		// change OEM number
@@ -301,10 +251,7 @@ public class BrakeDisk2CadTest {
 							Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces()
 									.stream().filter(ns -> ns.getId().equals("brakeDisk1")).findFirst()
 									.orElseThrow();
-							return namespace.getParameters().stream()
-									.filter(param -> param instanceof StringParameter)
-									.anyMatch(param -> param.getName().equals("OEM Number")
-											&& ((StringParameter) param).getValue().equals("VW654321"));
+							return TestUtil.expectStringParameter(namespace, "OEM Number", "VW654321");
 						}));
 
 	}

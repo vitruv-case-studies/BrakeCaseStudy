@@ -236,12 +236,7 @@ public class Cad2BrakeDiskTest {
                             if (namespace == null) {
                                 return false;
                             } else {
-                                StringParameter param = namespace.getParameters().stream()
-                                        .filter(p -> p instanceof StringParameter)
-                                        .map(p -> (StringParameter) p)
-                                        .filter(p -> p.getName().equals("Specification Type"))
-                                        .findFirst().orElse(null);
-                                return param != null && param.getValue().equals("new specification");
+                                return TestUtil.expectStringParameter(namespace, "Specification Type", "new specification");
                             }
                         }));
 
@@ -295,22 +290,11 @@ public class Cad2BrakeDiskTest {
                                 return false;
                             } else {
                                 System.out.println("Params: " + namespace.getParameters());
-                                NumericParameter fittingDepthParam = namespace.getParameters()
-                                        .stream()
-                                        .filter(p -> p instanceof NumericParameter)
-                                        .map(p -> (NumericParameter) p)
-                                        .filter(p -> p.getName().equals("Fitting Depth"))
-                                        .findFirst().orElse(null);
-                                NumericParameter numberOfPinsParam = namespace.getParameters()
-                                        .stream()
-                                        .filter(p -> p instanceof NumericParameter)
-                                        .map(p -> (NumericParameter) p)
-                                        .filter(p -> p.getName().equals("Number of Pins"))
-                                        .findFirst().orElse(null);
-                                return fittingDepthParam != null &&
-                                        fittingDepthParam.getValue() == 50 &&
-                                        numberOfPinsParam != null &&
-                                        numberOfPinsParam.getValue() == 4;
+                                var fittingDepthParamCorrect = TestUtil
+                                        .expectNumericParameter(namespace, "Fitting Depth", 50);
+                                var numberOfPinsParamCorrect = TestUtil
+                                        .expectNumericParameter(namespace, "Number of Pins", 4);                                        
+                                return fittingDepthParamCorrect && numberOfPinsParamCorrect;
                             }
                         }));
     }
