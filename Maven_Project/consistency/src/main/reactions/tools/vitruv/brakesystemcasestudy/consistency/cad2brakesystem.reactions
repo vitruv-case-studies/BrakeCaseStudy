@@ -257,7 +257,7 @@ routine updateBrakeDisk(cad::Parameter parameter) {
                     brakeDisk.setCenteringDiameterInMM(Math.round(numericParam.value))
                 case "Rim Hole Number":
                     brakeDisk.setRimHoleNumber(Math.round(numericParam.value))
-                case "Hole Arragement Number":
+                case "Hole Arrangement Number":
                     brakeDisk.setHoleArrangementNumber(Math.round(numericParam.value))
                 case "Bolt Hole Circle":
                     brakeDisk.setBoltHoleCircleInMM(Math.round(numericParam.value))
