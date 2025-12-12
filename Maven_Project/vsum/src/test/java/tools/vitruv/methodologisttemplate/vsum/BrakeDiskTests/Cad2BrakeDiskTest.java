@@ -45,20 +45,19 @@ public class Cad2BrakeDiskTest {
         // Setting the user interaction to 0, thus an ABSSensor should be created
         util.userInteraction.addNextSingleSelection(0);
         // add brake disk with parameters
-        CommittableView view = util.getDefaultView(vsum,
-                List.of(CAD_Model.class))
+        CommittableView view = util.getCADView(vsum)
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
             Namespace namespace = createDefaultNamespace();
             namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
+            util.getRootOfCADView(v).getNamespaces().add(namespace);
         });
 
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                        (View v) -> !v.getRootObjects(Brakesystem.class).iterator().next()
+                assertView(util.getBrakesystemView(vsum),
+                        (View v) -> !util.getRootOfBrakesystemView(v)
                                 .getBrakeComponents().isEmpty() &&
-                                v.getRootObjects(Brakesystem.class).iterator().next()
+                                util.getRootOfBrakesystemView(v)
                                         .getBrakeComponents().get(0) instanceof ABSSensor));
     }
 
@@ -67,14 +66,13 @@ public class Cad2BrakeDiskTest {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir);
         util.registerRootObjects(vsum, tempDir);
         // add brake disk with parameters
-        CommittableView view = util.getDefaultView(vsum,
-                List.of(CAD_Model.class))
+        CommittableView view = util.getCADView(vsum)
                 .withChangeRecordingTrait();
         assertThrows(AssertionError.class, () -> {
             util.modifyView(view, (CommittableView v) -> {
                 Namespace namespace = createDefaultNamespace();
                 namespace.setId("brakeDisk1");
-                v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
+                util.getRootOfCADView(v).getNamespaces().add(namespace);
             });
         });
     }
@@ -86,13 +84,12 @@ public class Cad2BrakeDiskTest {
         // Setting the user interaction to 0, thus an ABSSensor should be created
         util.userInteraction.addNextSingleSelection(0);
         // add brake disk with parameters
-        CommittableView view = util.getDefaultView(vsum,
-                List.of(CAD_Model.class))
+        CommittableView view = util.getCADView(vsum)
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
             Namespace namespace = createDefaultNamespace();
             namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
+            util.getRootOfCADView(v).getNamespaces().add(namespace);
             namespace.getParameters().add(CadFactory.eINSTANCE.createStringParameter());
 
             StringParameter parameter = CadFactory.eINSTANCE.createStringParameter();
@@ -108,18 +105,17 @@ public class Cad2BrakeDiskTest {
 
         // Assert that the ABSSensor was created
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                        (View v) -> !v.getRootObjects(Brakesystem.class).iterator().next()
+                assertView(util.getBrakesystemView(vsum),
+                        (View v) -> !util.getRootOfBrakesystemView(v)
                                 .getBrakeComponents().isEmpty() &&
-                                v.getRootObjects(Brakesystem.class).iterator().next()
+                                util.getRootOfBrakesystemView(v)
                                         .getBrakeComponents().get(0) instanceof ABSSensor));
 
         // Assert that the parameters were propagated correctly
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
+                assertView(util.getBrakesystemView(vsum),
                         (View v) -> {
-                            ABSSensor sensor = (ABSSensor) v.getRootObjects(Brakesystem.class)
-                                    .iterator().next().getBrakeComponents().get(0);
+                            ABSSensor sensor = (ABSSensor) util.getRootOfBrakesystemView(v).getBrakeComponents().get(0);
                             return sensor.getSpecificationType().equals("some example specification")
                                     && sensor.getLengthInMM() == 100;
                         }));
@@ -133,13 +129,12 @@ public class Cad2BrakeDiskTest {
         // Setting the user interaction to 0, thus an ABSSensor should be created
         util.userInteraction.addNextSingleSelection(3);
         // add brake disk with parameters
-        CommittableView view = util.getDefaultView(vsum,
-                List.of(CAD_Model.class))
+        CommittableView view = util.getCADView(vsum)
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
             Namespace namespace = createDefaultNamespace();
             namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
+            util.getRootOfCADView(v).getNamespaces().add(namespace);
             namespace.getParameters().add(CadFactory.eINSTANCE.createStringParameter());
 
             BooleanParameter parameter = CadFactory.eINSTANCE.createBooleanParameter();
@@ -156,18 +151,18 @@ public class Cad2BrakeDiskTest {
 
         // Assert that the ABSSensor was created
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                        (View v) -> !v.getRootObjects(Brakesystem.class).iterator().next()
+                assertView(util.getBrakesystemView(vsum),
+                        (View v) -> !util.getRootOfBrakesystemView(v)
                                 .getBrakeComponents().isEmpty() &&
-                                v.getRootObjects(Brakesystem.class).iterator().next()
+                                util.getRootOfBrakesystemView(v)
                                         .getBrakeComponents().get(0) instanceof BrakeDisk));
 
         // Assert that the parameters were propagated correctly
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
+                assertView(util.getBrakesystemView(vsum),
                         (View v) -> {
-                            BrakeDisk disk = (BrakeDisk) v.getRootObjects(Brakesystem.class)
-                                    .iterator().next().getBrakeComponents().get(0);
+                            BrakeDisk disk = (BrakeDisk) util.getRootOfBrakesystemView(v)
+                                .getBrakeComponents().get(0);
                             return disk.isVentilated() && disk.getBrakeDiskThicknessInMM() == 30;
                         }));
 
@@ -184,13 +179,12 @@ public class Cad2BrakeDiskTest {
         // Setting the user interaction to 0, thus an ABSSensor should be created
         util.userInteraction.addNextSingleSelection(0);
         // add brake disk with parameters
-        CommittableView view = util.getDefaultView(vsum,
-                List.of(CAD_Model.class))
+        CommittableView view = util.getCADView(vsum)
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
             Namespace namespace = createDefaultNamespace();
             namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
+            util.getRootOfCADView(v).getNamespaces().add(namespace);
 
             StringParameter parameter = CadFactory.eINSTANCE.createStringParameter();
             parameter.setName("Specification Type");
@@ -200,36 +194,35 @@ public class Cad2BrakeDiskTest {
 
         // Assert that the ABSSensor was created
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                        (View v) -> !v.getRootObjects(Brakesystem.class).iterator().next()
+                assertView(util.getBrakesystemView(vsum),
+                        (View v) -> !util.getRootOfBrakesystemView(v)
                                 .getBrakeComponents().isEmpty() &&
-                                v.getRootObjects(Brakesystem.class).iterator().next()
+                                util.getRootOfBrakesystemView(v)
                                         .getBrakeComponents().get(0) instanceof ABSSensor));
 
         // Assert that the parameters were propagated correctly
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
+                assertView(util.getBrakesystemView(vsum),
                         (View v) -> {
-                            ABSSensor sensor = (ABSSensor) v.getRootObjects(Brakesystem.class)
-                                    .iterator().next().getBrakeComponents().get(0);
+                            ABSSensor sensor = (ABSSensor) util.getRootOfBrakesystemView(v)
+                                .getBrakeComponents().get(0);
                             return sensor.getSpecificationType().equals("some example specification");
                         }));
 
-        CommittableView brakeView = util.getDefaultView(vsum,
-                List.of(Brakesystem.class))
+        CommittableView brakeView = util.getBrakesystemView(vsum)
                 .withChangeRecordingTrait();
 
         util.modifyView(brakeView, (CommittableView v) -> {
-            ABSSensor sensor = (ABSSensor) v.getRootObjects(Brakesystem.class)
-                    .iterator().next().getBrakeComponents().get(0);
+            ABSSensor sensor = (ABSSensor) util.getRootOfBrakesystemView(v)
+                .getBrakeComponents().get(0);
             sensor.setSpecificationType("new specification");
         });
 
         // Assert that the change was propagated back to the CAD model
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
+                assertView(util.getCADView(vsum),
                         (View v) -> {
-                            Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next()
+                            Namespace namespace = util.getRootOfCADView(v)
                                     .getNamespaces().stream()
                                     .filter(ns -> ns.getId().equals("brakeDisk1"))
                                     .findFirst().orElse(null);
@@ -251,38 +244,35 @@ public class Cad2BrakeDiskTest {
         // Setting the user interaction to 0, thus an ABSSensor should be created
         util.userInteraction.addNextSingleSelection(0);
         // add brake disk with parameters
-        CommittableView view = util.getDefaultView(vsum,
-                List.of(CAD_Model.class))
+        CommittableView view = util.getCADView(vsum)
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
             Namespace namespace = createDefaultNamespace();
             namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
+            util.getRootOfCADView(v).getNamespaces().add(namespace);
         });
 
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                        (View v) -> !v.getRootObjects(Brakesystem.class).iterator().next()
+                assertView(util.getBrakesystemView(vsum),
+                        (View v) -> !util.getRootOfBrakesystemView(v)
                                 .getBrakeComponents().isEmpty() &&
-                                v.getRootObjects(Brakesystem.class).iterator().next()
+                                util.getRootOfBrakesystemView(v)
                                         .getBrakeComponents().get(0) instanceof ABSSensor));
 
-        CommittableView brakeView = util.getDefaultView(vsum,
-                List.of(Brakesystem.class))
+        CommittableView brakeView = util.getBrakesystemView(vsum)
                 .withChangeRecordingTrait();
 
         util.modifyView(brakeView, (CommittableView v) -> {
-            ABSSensor sensor = (ABSSensor) v.getRootObjects(Brakesystem.class)
-                    .iterator().next().getBrakeComponents().get(0);
+            ABSSensor sensor = (ABSSensor) util.getRootOfBrakesystemView(brakeView).getBrakeComponents().get(0);
             sensor.setFittingDepth(50);
             sensor.setNumberOfPins(4);
         });
 
         // Assert that the changes were propagated back to the CAD model
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
+                assertView(util.getCADView(vsum),
                         (View v) -> {
-                            Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next()
+                            Namespace namespace = util.getRootOfCADView(v)
                                     .getNamespaces().stream()
                                     .filter(ns -> ns.getId().equals("brakeDisk1"))
                                     .findFirst().orElse(null);

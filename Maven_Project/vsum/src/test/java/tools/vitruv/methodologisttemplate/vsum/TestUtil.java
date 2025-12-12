@@ -10,6 +10,7 @@ import org.eclipse.emf.common.util.URI;
 import brakesystem.Brakesystem;
 import brakesystem.BrakesystemFactory;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
@@ -65,6 +66,31 @@ public class TestUtil {
                 .filter(element -> rootTypes.stream().anyMatch(it -> it.isInstance(element)))
                 .forEach(it -> selector.setSelected(it, true));
         return selector.createView();
+    }
+
+    public View getCADView(VirtualModel vsum) {
+        return getDefaultView(vsum, List.of(CAD_Model.class));
+    }
+
+    public View getBrakesystemView(VirtualModel vsum) {
+        return getDefaultView(vsum, List.of(Brakesystem.class));
+    }
+
+    public CAD_Model getRootOfCADView(View view) {
+        return view.getRootObjects(CAD_Model.class).iterator().next();
+    }
+
+    public Brakesystem getRootOfBrakesystemView(View view) {
+        return view.getRootObjects(Brakesystem.class).iterator().next();
+    }
+
+    public Namespace findNamespaceWithId(CAD_Model root, String id) {
+        return root
+            .getNamespaces()
+            .stream()
+            .filter(namespace -> namespace.getId().equals(id))
+            .findFirst()
+            .orElseThrow();
     }
 
     /**
