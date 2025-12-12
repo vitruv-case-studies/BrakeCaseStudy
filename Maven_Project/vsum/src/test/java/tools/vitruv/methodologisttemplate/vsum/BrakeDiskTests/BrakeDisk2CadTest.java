@@ -1,25 +1,29 @@
 package tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests;
 
 import java.nio.file.Path;
-import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import brakesystem.BrakeCaliper;
+import brakesystem.BrakeComponent;
 import brakesystem.BrakeDisk;
-import brakesystem.Brakesystem;
+import brakesystem.BrakeHose;
+import brakesystem.BrakePad;
 import brakesystem.BrakesystemFactory;
-import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
-import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
-import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
@@ -40,17 +44,43 @@ public class BrakeDisk2CadTest {
 
 	}
 
-	@Test
-	void brakeDiskDeletionTest(@TempDir Path tempDir) {
+	/**
+	 * Provides a Stream of BrakeComponents for {@link #brakeComponentDeleteTest(BrakeComponent, Path)}.
+	 * Note that tempDir is resolved through the {@link TempDir} annotation
+	 * 
+	 * @return {@link Stream}
+	 */
+	static Stream<Arguments> provideBrakeComponents() {
+		return Stream.of(
+			createDefaultBrakeDisk(),
+			createDefaultBrakeCaliper(),
+			createDefaultBrakeHose(),
+			createDefaultBrakePad()
+		).map(Arguments::of);
+	}
+
+	/**
+	 * Tests that:
+	 * <ol>
+	 * 	<li>when a brake component is inserted, a corresponding namespace is created.</li>
+	 * 	<li>when a brake component is removed, the corresponding namespace is deleted.</li>
+	 * </ol>
+	 * 
+	 * @param brakeComponent - {@link BrakeComponent}
+	 * @param tempDir - {@link Path}
+	 * @see {@link #provideBrakeComponents()}
+	 */
+	@ParameterizedTest(name = "Testing if deleting a {0} also deletes its corresponding Namespace")
+	@MethodSource("provideBrakeComponents")
+	void brakeComponentDeleteTest(BrakeComponent brakeComponent, @TempDir Path tempDir) {
 		var vsum = util.createDefaultVirtualModel(tempDir);
 		util.registerRootObjects(vsum, tempDir);
 
-		// Add brake disk with parameters
+		// Add brake component 
 		var brakeView = util.getBrakesystemView(vsum)
 			.withChangeRecordingTrait();
-		util.modifyView(brakeView, view -> {
-			var defaultBrakeDisk = createDefaultBrakeDisk();
-			util.getRootOfBrakesystemView(brakeView).getBrakeComponents().add(defaultBrakeDisk);
+		util.modifyView(brakeView, view -> {;
+			util.getRootOfBrakesystemView(brakeView).getBrakeComponents().add(brakeComponent);
 		});
 
 		// Assert a namespace has been created
@@ -58,21 +88,21 @@ public class BrakeDisk2CadTest {
 			view -> {
 				util.findNamespaceWithId(
 					util.getRootOfCADView(view),
-					"brakeDisk1");
+					brakeComponent.getId());
 				return true;
 			}
 		));
 
-		// Remove the brake disk
+		// Remove the component
 		util.modifyView(brakeView, view -> {
 			util.getRootOfBrakesystemView(brakeView).getBrakeComponents().clear();
 		});
 
-		// Assert no namespace exists.
+		// Assert no namespace exists for the component, i.e. with the same ID
 		Assertions.assertThrows(NoSuchElementException.class, () -> {
 			var cadView = util.getCADView(vsum);
 			var model = util.getRootOfCADView(cadView);
-			util.findNamespaceWithId(model, "brakeDisk1");
+			util.findNamespaceWithId(model, brakeComponent.getId());
 		});
 	}
 
@@ -288,7 +318,7 @@ public class BrakeDisk2CadTest {
 
 	}
 
-	private BrakeDisk createDefaultBrakeDisk() {
+	private static BrakeDisk createDefaultBrakeDisk() {
 		BrakeDisk brakeDisk = BrakesystemFactory.eINSTANCE.createBrakeDisk();
 		brakeDisk.setId("brakeDisk1");
 		brakeDisk.setOEM_number("VW123456");
@@ -301,6 +331,40 @@ public class BrakeDisk2CadTest {
 		brakeDisk.setMinimumThicknessInMM(25);
 		brakeDisk.setVentilated(true);
 		return brakeDisk;
+	}
+
+	private static BrakeCaliper createDefaultBrakeCaliper() {
+		var brakeCaliper = BrakesystemFactory.eINSTANCE.createBrakeCaliper();
+		brakeCaliper.setId("brakeCaliper1");
+		brakeCaliper.setOEM_number("BRMT420");
+		brakeCaliper.setBrakeDiskThickness(20);
+		brakeCaliper.setPistonDiameterInMM(10);
+		brakeCaliper.setFittingPosition("left");
+		brakeCaliper.setSpecificationType("Single Brake Caliper");
+		return brakeCaliper; 
+	}
+
+	private static BrakeHose createDefaultBrakeHose() {
+		var brakeHose = BrakesystemFactory.eINSTANCE.createBrakeHose();
+		brakeHose.setId("brakeHose1");
+		brakeHose.setOEM_number("BH90SS");
+		brakeHose.setLengthInMM(1200);
+		brakeHose.setThreadSize1("5mm");
+		brakeHose.setThreadSize2("4mm");
+		brakeHose.setFittingPosition("left");
+		return brakeHose;
+	}
+
+	private static BrakePad createDefaultBrakePad() {
+		var brakePad = BrakesystemFactory.eINSTANCE.createBrakePad();
+		brakePad.setId("brakePadL");
+		brakePad.setOEM_number("D02SRX");
+		brakePad.setSpecificationType("Brake Pad for the Left Side");
+		brakePad.setThicknessInMM(12);
+		brakePad.setWidthInMM(50);
+		brakePad.setHeightInMM(20);
+		brakePad.setWearWarning(false);
+		return brakePad;
 	}
 
 	private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {
