@@ -1,0 +1,79 @@
+package tools.vitruv.methodologisttemplate.vsum.CAD2SimulinkTests;
+
+import java.nio.file.Path;
+import java.util.List;
+import java.util.function.Function;
+
+import org.eclipse.emf.ecore.resource.Resource;
+import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.eclipse.emf.common.util.URI;
+
+import brakesystem.BrakeDisk;
+import brakesystem.Brakesystem;
+import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
+import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
+import edu.kit.ipd.sdq.metamodels.cad.CadPackage;
+import edu.kit.ipd.sdq.metamodels.cad.Namespace;
+import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
+import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
+import edu.kit.ipd.sdq.metamodels.cad.impl.CadPackageImpl;
+import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
+import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
+import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
+import tools.vitruv.change.propagation.ChangePropagationSpecification;
+import tools.vitruv.framework.views.CommittableView;
+import tools.vitruv.framework.views.View;
+import tools.vitruv.framework.vsum.VirtualModel;
+import tools.vitruv.methodologisttemplate.vsum.TestUtil;
+
+import simulink.SimulinkModel;
+import simulink.Block;
+
+
+
+public class CAD2SimuLinkTest {
+
+    TestUtil testUtil = new TestUtil();
+    Iterable<ChangePropagationSpecification> necessaryCPS = List.of(new Cad2simulinkChangePropagationSpecification());
+
+    @BeforeAll
+    public static void setupResourceFactory() {
+        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("xmi", new XMIResourceFactoryImpl());
+    }
+
+    @Test
+    public void testCreateAndRegisterRoot(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+       
+
+        // Create a CAD_Model in the CAD view
+        CommittableView cadView = testUtil.getDefaultView(vsum,
+				List.of(CAD_Model.class)).withChangeDerivingTrait();
+
+        testUtil.modifyView(cadView,(CommittableView v) -> {
+            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
+            cad_Model.setName("TestCADModel");
+                  v.registerRoot(cad_Model,
+                          URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        });
+
+
+        Assertions.assertTrue(
+				assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
+						(View v) -> {
+							SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+							return simulinkModel.getName().equals("TestCADModel");
+						}));
+        
+    }
+
+    private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {
+		return viewAssertionFunction.apply(view);
+	}
+}

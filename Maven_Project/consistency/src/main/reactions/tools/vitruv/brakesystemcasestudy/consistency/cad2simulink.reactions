@@ -1,0 +1,85 @@
+import java.io.File;
+import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
+import java.util.Arrays
+
+import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
+import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
+import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+
+import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+import "http://www.example.org/cad" as cad
+
+reactions: cad2simulink
+in reaction to changes in cad
+execute actions in simulink
+
+
+reaction CAD_ModelInsertedAsRoot {
+    after element cad::CAD_Model inserted as root
+    call createAndRegisterRoot(newValue)
+}
+
+
+routine createAndRegisterRoot(cad::CAD_Model model) {
+    match {
+        require absence of simulink::SimulinkModel corresponding to model
+    }
+    create {
+        val mSimulink = new simulink::SimulinkModel
+    }
+    update {
+        mSimulink.name = model.name
+        persistProjectRelative(model, mSimulink, new File("").toString() + "example.simulink")
+        addCorrespondenceBetween(model, mSimulink)
+    }
+}
+
+
+reaction NameSpaceInserted {
+    after element cad::Namespace inserted in cad::CAD_Model[namespaces]
+    call createAndRegisterNamespace(newValue)
+}
+routine createAndRegisterNamespace(cad::Namespace namespace) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to namespace.eContainer()
+        require absence of simulink::Block corresponding to namespace
+    }
+    update {
+        val componentType = userInteractor.singleSelectionDialogBuilder.message(
+    			"What Simulink component do you want to add to be correspondent to this namespace?").choices(
+    			Arrays.asList("SimulinkBlock","SimulinkSubsystem")).windowModality(WindowModality.MODAL).
+    			startInteraction
+    		switch (componentType) {
+    			case 0:
+    				createSimulinkBlock(namespace, mSimulink)
+    			case 1:
+    				createSimulinkSubsystem(namespace, mSimulink)
+                default:
+                    return // Do nothing
+    		}
+    }
+}
+
+
+routine createSimulinkBlock(cad::Namespace namespace, simulink::SimulinkModel mSimulink) {
+    create {
+        val mBlock = new simulink::Block
+    }
+    update {
+        mBlock.name = namespace.name
+        mSimulink.contains += mBlock
+        addCorrespondenceBetween(namespace, mBlock)
+    }
+}
+
+
+routine createSimulinkSubsystem(cad::Namespace namespace, simulink::SimulinkModel mSimulink) {
+    create {
+        val mSubsystem = new simulink::SubSystem
+    }
+    update {
+        mSubsystem.name = namespace.name
+        mSimulink.contains += mSubsystem
+        addCorrespondenceBetween(namespace, mSubsystem)
+    }
+}
