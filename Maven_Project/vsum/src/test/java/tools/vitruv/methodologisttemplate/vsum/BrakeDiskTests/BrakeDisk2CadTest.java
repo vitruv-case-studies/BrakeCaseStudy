@@ -19,6 +19,9 @@ import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
+import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
+import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
+import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
@@ -31,17 +34,20 @@ public class BrakeDisk2CadTest {
 	// .getLogger(BrakeDisk2CadTest.class);
 
 	TestUtil util = new TestUtil();
+	Iterable<ChangePropagationSpecification> necessaryCPS = List.of(new Cad2brakesystemChangePropagationSpecification(),new Brakesystem2cadChangePropagationSpecification());
 
 	@BeforeAll
 	static void setup() {
 		Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("*",
 				new XMIResourceFactoryImpl());
 
+
 	}
 
 	@Test
 	void brakeDiskInsertionAndPropagationTest(@TempDir Path tempDir) {
-		VirtualModel vsum = util.createDefaultVirtualModel(tempDir);
+
+		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
 		// add brake disk with parameters
@@ -83,7 +89,7 @@ public class BrakeDisk2CadTest {
 
 	@Test
 	void changeDiameterTest(@TempDir Path tempDir) {
-		VirtualModel vsum = util.createDefaultVirtualModel(tempDir);
+		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
 		// add brake disk with parameters
@@ -128,7 +134,7 @@ public class BrakeDisk2CadTest {
 
 	@Test
 	void changeIdTest(@TempDir Path tempDir) {
-		VirtualModel vsum = util.createDefaultVirtualModel(tempDir);
+		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
 		// add brake disk with parameters
@@ -172,7 +178,7 @@ public class BrakeDisk2CadTest {
 
 	@Test
 	void changeVentilatedTest(@TempDir Path tempDir) {
-		VirtualModel vsum = util.createDefaultVirtualModel(tempDir);
+		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
 		// add brake disk with parameters
@@ -214,7 +220,7 @@ public class BrakeDisk2CadTest {
 
 	@Test
 	void changeOEMNumberTest(@TempDir Path tempDir) {
-		VirtualModel vsum = util.createDefaultVirtualModel(tempDir);
+		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
 		// add brake disk with parameters
