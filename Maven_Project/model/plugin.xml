@@ -5,13 +5,6 @@
 <plugin>
 
    <extension point="org.eclipse.emf.ecore.generated_package">
-      <!-- @generated uncertainty -->
-      <package
-            uri="http://www.example.org/uncertainty"
-            class="uncertainty.UncertaintyPackage"
-            genModel="src/main/ecore/uncertainty.genmodel"/>
-   </extension>
-   <extension point="org.eclipse.emf.ecore.generated_package">
       <!-- @generated brakesystem -->
       <package
             uri="http://www.example.org/brakesystem"
@@ -25,6 +18,13 @@
             uri="http://www.example.org/cad"
             class="edu.kit.ipd.sdq.metamodels.cad.CadPackage"
             genModel="src/main/ecore/cad.genmodel"/>
+   </extension>
+   <extension point="org.eclipse.emf.ecore.generated_package">
+      <!-- @generated simuLink -->
+      <package
+            uri="http://vitruv.tools/methodologisttemplate/simulink"
+            class="simulink.SimuLinkPackage"
+            genModel="src/main/ecore/simuLink.genmodel"/>
    </extension>
 
 </plugin>
