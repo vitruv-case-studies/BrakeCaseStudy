@@ -18,6 +18,7 @@ import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
 import tools.vitruv.change.propagation.ChangePropagationMode;
+import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.change.testutils.TestUserInteraction;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
@@ -30,13 +31,12 @@ public class TestUtil {
 
     public TestUserInteraction userInteraction = new TestUserInteraction();
 
-    public InternalVirtualModel createDefaultVirtualModel(Path projectPath) {
+    public InternalVirtualModel createDefaultVirtualModel(Path projectPath,Iterable<ChangePropagationSpecification> additionalCPS) {
         InternalVirtualModel model = new VirtualModelBuilder()
                 .withStorageFolder(projectPath)
                 .withUserInteractorForResultProvider(
                         new TestUserInteraction.ResultProvider(userInteraction))
-                .withChangePropagationSpecification(new Brakesystem2cadChangePropagationSpecification())
-                .withChangePropagationSpecification(new Cad2brakesystemChangePropagationSpecification())
+                .withChangePropagationSpecifications(additionalCPS)
                 .buildAndInitialize();
         model.setChangePropagationMode(ChangePropagationMode.TRANSITIVE_CYCLIC);
         return model;

@@ -34,6 +34,9 @@ import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
+import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
+import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
+import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
@@ -255,7 +258,7 @@ public class Cad2BrakeDiskTest {
     @ParameterizedTest
     @MethodSource("tools.vitruv.casestudies.brakesystem.vsum.BrakeDiskTests.BrakeDisk2CadTest#provideBrakeComponents")
     void propagateChangesToIdOfNamespaces(BrakeComponent component, @TempDir Path tempDir) {
-        var vsum = util.createDefaultVirtualModel(tempDir);
+        var vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
 
         // Add brake component
@@ -305,7 +308,7 @@ public class Cad2BrakeDiskTest {
     @ParameterizedTest
     @MethodSource("tools.vitruv.casestudies.brakesystem.vsum.BrakeDiskTests.BrakeDisk2CadTest#provideBrakeComponents")
     void deletionOfNamespaceDeletesCorrespondingBrakeComponent(BrakeComponent component, @TempDir Path tempDir) {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir);
+        VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
 
         // Add brake component
