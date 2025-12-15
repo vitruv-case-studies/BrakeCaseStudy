@@ -5,25 +5,20 @@ import java.util.List;
 import java.util.function.Function;
 
 import org.eclipse.emf.ecore.resource.Resource;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.eclipse.emf.common.util.URI;
-
-import brakesystem.BrakeDisk;
-import brakesystem.Brakesystem;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
 import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
-import edu.kit.ipd.sdq.metamodels.cad.CadPackage;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
-import edu.kit.ipd.sdq.metamodels.cad.impl.CadPackageImpl;
-import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
-import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
+import edu.kit.ipd.sdq.metamodels.cad.Parameter;
 import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
@@ -267,6 +262,78 @@ public class CAD2SimuLinkTest {
               
     }
 
+
+
+    @Test
+    public void testParameterDeletion(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+
+        testUtil.userInteraction.addNextSingleSelection(0);
+        testUtil.userInteraction.addNextSingleSelection(0);
+
+        // Create a CAD_Model in the CAD view
+        CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
+        testUtil.modifyView(cadView,(CommittableView v) -> {
+            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
+            cad_Model.setName("TestCADModel");
+
+            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
+            namespace.setName("TestNamespace");
+
+            StringParameter stringParameter = CadFactory.eINSTANCE.createStringParameter();
+            stringParameter.setName("TestStringParameter");
+            stringParameter.setValue("TestValue");
+            namespace.getParameters().add(stringParameter);
+
+            cad_Model.getNamespaces().add(namespace);
+
+            v.registerRoot(cad_Model,
+                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        });
+
+        // Now delete the parameter
+        testUtil.modifyView(cadView, (CommittableView v) -> {
+            CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+            Namespace namespace = cadModel.getNamespaces().stream()
+                    .filter(n -> n.getName().equals("TestNamespace"))
+                    .findFirst()
+                    .orElseThrow();
+            Parameter parameterToDelete = namespace.getParameters().stream()
+                    .filter(p -> p.getName().equals("TestStringParameter"))
+                    .findFirst()
+                    .orElseThrow();
+            EcoreUtil.delete(parameterToDelete);
+            //namespace.getParameters().remove(parameterToDelete);
+            
+        });
+
+
+          Assertions.assertTrue(
+            assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
+                    (View v) -> {
+                        CAD_Model cad_Model = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+                        Namespace namespace = cad_Model.getNamespaces().stream()
+                                .filter(b -> b.getName().equals("TestNamespace"))
+                                .findFirst()
+                                .orElseThrow();
+                        return namespace.getParameters().stream()
+                                .noneMatch(p -> { System.out.println(p.getName()); return p.getName().equals("TestStringParameter"); });
+                    }));
+
+          // Assert that the corresponding Simulink Parameter is also deleted
+        Assertions.assertTrue(
+            assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
+                    (View v) -> {
+                        SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+                        Block block = simulinkModel.getContains().stream()
+                                .filter(b -> b.getName().equals("TestNamespace"))
+                                .findFirst()
+                                .orElseThrow();
+                        return block.getParameters().stream()
+                                .noneMatch(p -> { System.out.println(p.getName()); return p.getName().equals("TestStringParameter"); });
+                    }));
+    }
 
     private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {
 		return viewAssertionFunction.apply(view);

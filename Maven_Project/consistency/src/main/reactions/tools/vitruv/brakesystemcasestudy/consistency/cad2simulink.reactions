@@ -194,7 +194,7 @@ routine createAndRegisterBooleanParameter(cad::BooleanParameter parameter) {
 
 reaction CAD_ParameterDeleted {
     after element cad::Parameter deleted
-    call deleteCorrespondingSimulinkParameter(oldValue)
+    call deleteCorrespondingSimulinkParameter(affectedEObject)
 }
 
 routine deleteCorrespondingSimulinkParameter(cad::Parameter parameter) {
@@ -202,28 +202,72 @@ routine deleteCorrespondingSimulinkParameter(cad::Parameter parameter) {
         val mParameter = retrieve simulink::Parameter corresponding to parameter
     }
     update{
-        val mBlock = retrieve simulink::Block corresponding to parameter.eContainer()
-        mBlock.parameters -= mParameter
+        removeObject(mParameter)
         removeCorrespondenceBetween(parameter, mParameter)
     }
 }
 
 reaction NamespaceDeleted {
     after element cad::Namespace deleted
-    call deleteCorrespondingSimulinkComponent(oldValue)
+    call deleteCorrespondingSimulinkComponent(affectedEObject)
 }
 
 routine deleteCorrespondingSimulinkComponent(cad::Namespace namespace) {
     match {
         val mComponent = retrieve simulink::Block corresponding to namespace
-            or retrieve simulink::SubSystem corresponding to namespace
     }
     update{
-        val mSimulink = retrieve simulink::SimulinkModel corresponding to namespace.eContainer()
-        mSimulink.contains -= mComponent
+        removeObject(mComponent)
         removeCorrespondenceBetween(namespace, mComponent)
     }
 }
+
+
+// Update Reactions
+
+
+reaction CAD_ModelNameChanged {
+    after attribute replaced at cad::CAD_Model[name]
+    call updateSimulinkModelName(affectedEObject, newValue)
+}
+
+routine updateSimulinkModelName(cad::CAD_Model model, String newName) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to model
+    }
+    update {
+        mSimulink.name = newName
+    }
+}
+
+reaction NamespaceNameChanged {
+    after attribute replaced at cad::Namespace[name]
+    call updateSimulinkComponentName(affectedEObject, newValue)
+}
+
+routine updateSimulinkComponentName(cad::Namespace namespace, String newName) {
+    match {
+        val mComponent = retrieve simulink::Block corresponding to namespace
+    }
+    update {
+        mComponent.name = newName
+    }
+}
+
+reaction StringParameterNameChanged {
+    after attribute replaced at cad::StringParameter[name]
+    call updateSimulinkStringParameterName(affectedEObject, newValue)
+}
+
+routine updateSimulinkStringParameterName(cad::StringParameter parameter, String newName) {
+    match {
+        val mParameter = retrieve simulink::Parameter corresponding to parameter
+    }
+    update {
+        mParameter.name = newName
+    }
+}
+
 
 
 
