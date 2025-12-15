@@ -32,6 +32,7 @@ import tools.vitruv.framework.vsum.VirtualModel;
 import tools.vitruv.methodologisttemplate.vsum.TestUtil;
 
 import simulink.SimulinkModel;
+import simulink.SubSystem;
 import simulink.Block;
 
 
@@ -72,6 +73,76 @@ public class CAD2SimuLinkTest {
 						}));
         
     }
+
+
+    @Test
+    public void testCADNamespaceToSimuLinkBlock(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+        testUtil.userInteraction.addNextSingleSelection(0);
+
+        // Create a CAD_Model in the CAD view
+        CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
+        testUtil.modifyView(cadView,(CommittableView v) -> {
+            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
+            cad_Model.setName("TestCADModel");
+
+            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
+            namespace.setName("TestNamespace");
+            cad_Model.getNamespaces().add(namespace);
+
+            v.registerRoot(cad_Model,
+                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
+                (View v) -> {
+                    SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+                    Block block = simulinkModel.getContains().stream()
+                            .filter(b -> b.getName().equals("TestNamespace"))
+                            .findFirst()
+                            .orElseThrow();
+                    return block.getName().equals("TestNamespace");
+                }));
+              
+    }
+
+
+
+    @Test
+    public void testCADNamespaceToSimuLinkSubsystem(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+        testUtil.userInteraction.addNextSingleSelection(1);
+
+        // Create a CAD_Model in the CAD view
+        CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
+        testUtil.modifyView(cadView,(CommittableView v) -> {
+            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
+            cad_Model.setName("TestCADModel");
+
+            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
+            namespace.setName("TestNamespace");
+            cad_Model.getNamespaces().add(namespace);
+
+            v.registerRoot(cad_Model,
+                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
+                (View v) -> {
+                    SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+                    SubSystem subSystem = (SubSystem)simulinkModel.getContains().stream()
+                            .filter(b -> b.getName().equals("TestNamespace"))
+                            .findFirst()
+                            .orElseThrow();
+                    return subSystem.getName().equals("TestNamespace");
+                }));
+              
+    }
+
 
     private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {
 		return viewAssertionFunction.apply(view);
