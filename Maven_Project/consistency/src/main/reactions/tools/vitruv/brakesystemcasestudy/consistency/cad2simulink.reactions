@@ -14,6 +14,9 @@ in reaction to changes in cad
 execute actions in simulink
 
 
+
+// Insertion Reactions
+
 reaction CAD_ModelInsertedAsRoot {
     after element cad::CAD_Model inserted as root
     call createAndRegisterRoot(newValue)
@@ -185,3 +188,42 @@ routine createAndRegisterBooleanParameter(cad::BooleanParameter parameter) {
         addCorrespondenceBetween(parameter, mParameter)
     }
 }
+
+
+/// Deletion Reactions
+
+reaction CAD_ParameterDeleted {
+    after element cad::Parameter deleted
+    call deleteCorrespondingSimulinkParameter(oldValue)
+}
+
+routine deleteCorrespondingSimulinkParameter(cad::Parameter parameter) {
+    match {
+        val mParameter = retrieve simulink::Parameter corresponding to parameter
+    }
+    update{
+        val mBlock = retrieve simulink::Block corresponding to parameter.eContainer()
+        mBlock.parameters -= mParameter
+        removeCorrespondenceBetween(parameter, mParameter)
+    }
+}
+
+reaction NamespaceDeleted {
+    after element cad::Namespace deleted
+    call deleteCorrespondingSimulinkComponent(oldValue)
+}
+
+routine deleteCorrespondingSimulinkComponent(cad::Namespace namespace) {
+    match {
+        val mComponent = retrieve simulink::Block corresponding to namespace
+            or retrieve simulink::SubSystem corresponding to namespace
+    }
+    update{
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to namespace.eContainer()
+        mSimulink.contains -= mComponent
+        removeCorrespondenceBetween(namespace, mComponent)
+    }
+}
+
+
+
