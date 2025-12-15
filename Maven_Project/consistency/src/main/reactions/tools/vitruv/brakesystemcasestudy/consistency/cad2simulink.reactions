@@ -83,3 +83,105 @@ routine createSimulinkSubsystem(cad::Namespace namespace, simulink::SimulinkMode
         addCorrespondenceBetween(namespace, mSubsystem)
     }
 }
+
+
+reaction StringParameterInserted {
+    after element cad::StringParameter inserted in cad::Namespace[parameters]
+    call createAndRegisterStringParameter(newValue)
+}
+
+
+routine createAndRegisterStringParameter(cad::StringParameter parameter) {
+    match {
+        val mBlock = retrieve simulink::Block corresponding to parameter.eContainer()
+        require absence of simulink::Parameter corresponding to parameter
+    }
+    create {
+        val mParameter = new simulink::Parameter
+    }
+    update {
+        mParameter.name = parameter.name
+        mParameter.value = parameter.value
+        mParameter.type = "string"
+        mBlock.parameters += mParameter
+        addCorrespondenceBetween(parameter, mParameter)
+    }
+}
+
+
+
+reaction NumericParameterInserted {
+    after element cad::NumericParameter inserted in cad::Namespace[parameters]
+    call createAndRegisterNumericParameter(newValue)
+}
+
+
+routine createAndRegisterNumericParameter(cad::NumericParameter parameter) {
+    match {
+        val mBlock = retrieve simulink::Block corresponding to parameter.eContainer()
+        require absence of simulink::Parameter corresponding to parameter
+    }
+    create {
+        val mParameter = new simulink::Parameter
+    }
+    update {
+        mParameter.name = parameter.name
+        mParameter.value = parameter.value.toString()
+        val parametertype = userInteractor.singleSelectionDialogBuilder.message(
+            "What Simulink Parametertype do you want to add to be correspondent to this Numeric CAD Parameter?").choices(
+            Arrays.asList("double","single","half","uint8","int8","uint16","int16","uint32","int32","uint64","int64")).windowModality(WindowModality.MODAL).
+            startInteraction
+        switch (parametertype) {
+            case 0:
+                mParameter.type = "double"
+            case 1:
+                mParameter.type = "single"
+            case 2:
+                mParameter.type = "half"
+            case 3:
+                mParameter.type = "uint8"
+            case 4:
+                mParameter.type = "int8"
+            case 5:
+                mParameter.type = "uint16"
+            case 6:
+                mParameter.type = "int16"
+            case 7:
+                mParameter.type = "uint32"
+            case 8:
+                mParameter.type = "int32"
+            case 9:
+                mParameter.type = "uint64"
+            case 10:
+                mParameter.type = "int64"
+            default:
+                return // Do nothing
+        }
+        
+        mBlock.parameters += mParameter
+        addCorrespondenceBetween(parameter, mParameter)
+    }
+}
+
+
+reaction BooleanParameterInserted {
+    after element cad::BooleanParameter inserted in cad::Namespace[parameters]
+    call createAndRegisterBooleanParameter(newValue)
+}
+
+routine createAndRegisterBooleanParameter(cad::BooleanParameter parameter) {
+    match {
+        val mBlock = retrieve simulink::Block corresponding to parameter.eContainer()
+        require absence of simulink::Parameter corresponding to parameter
+    }
+    create {
+        val mParameter = new simulink::Parameter
+    }
+    update {
+        mParameter.name = parameter.name
+        mParameter.value = parameter.value.toString()
+        mParameter.type = "boolean"
+        mBlock.parameters += mParameter
+        addCorrespondenceBetween(parameter, mParameter)
+    }
+}

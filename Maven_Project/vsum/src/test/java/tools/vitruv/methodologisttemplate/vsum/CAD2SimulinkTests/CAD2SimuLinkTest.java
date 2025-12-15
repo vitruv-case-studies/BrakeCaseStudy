@@ -144,6 +144,130 @@ public class CAD2SimuLinkTest {
     }
 
 
+    @Test
+    public void testCADStringParameterToSimuLinkParameter(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+        testUtil.userInteraction.addNextSingleSelection(0);
+
+        // Create a CAD_Model in the CAD view
+        CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
+        testUtil.modifyView(cadView,(CommittableView v) -> {
+            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
+            cad_Model.setName("TestCADModel");
+
+            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
+            namespace.setName("TestNamespace");
+
+            StringParameter stringParameter = CadFactory.eINSTANCE.createStringParameter();
+            stringParameter.setName("TestStringParameter");
+            stringParameter.setValue("TestValue");
+            namespace.getParameters().add(stringParameter);
+
+            cad_Model.getNamespaces().add(namespace);
+
+            v.registerRoot(cad_Model,
+                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
+                (View v) -> {
+                    SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+                    Block block = simulinkModel.getContains().stream()
+                            .filter(b -> b.getName().equals("TestNamespace"))
+                            .findFirst()
+                            .orElseThrow();
+                    return block.getParameters().stream()
+                            .anyMatch(p -> p.getName().equals("TestStringParameter") && p.getValue().equals("TestValue") && p.getType().equals("string"));
+                }));
+              
+    }
+
+     @Test
+    public void testCADNumericParameterToSimuLinkParameter(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+        //selects BLock
+        testUtil.userInteraction.addNextSingleSelection(0);
+        // selects Parameter type double
+        testUtil.userInteraction.addNextSingleSelection(0);
+        // Create a CAD_Model in the CAD view
+        CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
+        testUtil.modifyView(cadView,(CommittableView v) -> {
+            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
+            cad_Model.setName("TestCADModel");
+
+            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
+            namespace.setName("TestNamespace");
+
+            NumericParameter numericParameter = CadFactory.eINSTANCE.createNumericParameter();
+            numericParameter.setName("TestNumericParameter");
+            numericParameter.setValue(42);
+            namespace.getParameters().add(numericParameter);
+
+            cad_Model.getNamespaces().add(namespace);
+
+            v.registerRoot(cad_Model,
+                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
+                (View v) -> {
+                    SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+                    Block block = simulinkModel.getContains().stream()
+                            .filter(b -> b.getName().equals("TestNamespace"))
+                            .findFirst()
+                            .orElseThrow();
+                    return block.getParameters().stream()
+                            .anyMatch(p -> p.getName().equals("TestNumericParameter") && p.getValue().equals("42.0") && p.getType().equals("double"));
+                }));
+              
+    }
+
+
+    @Test
+    public void testCADBooleanParameterToSimuLinkParameter(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+        testUtil.userInteraction.addNextSingleSelection(0);
+
+        // Create a CAD_Model in the CAD view
+        CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
+        testUtil.modifyView(cadView,(CommittableView v) -> {
+            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
+            cad_Model.setName("TestCADModel");
+
+            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
+            namespace.setName("TestNamespace");
+
+            BooleanParameter booleanParameter = CadFactory.eINSTANCE.createBooleanParameter();
+            booleanParameter.setName("TestBooleanParameter");
+            booleanParameter.setValue(true);
+            namespace.getParameters().add(booleanParameter);
+
+            cad_Model.getNamespaces().add(namespace);
+
+            v.registerRoot(cad_Model,
+                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
+                (View v) -> {
+                    SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+                    Block block = simulinkModel.getContains().stream()
+                            .filter(b -> b.getName().equals("TestNamespace"))
+                            .findFirst()
+                            .orElseThrow();
+                    return block.getParameters().stream()
+                            .anyMatch(p -> p.getName().equals("TestBooleanParameter") && p.getValue().equals("true") && p.getType().equals("boolean"));
+                }));
+              
+    }
+
+
     private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {
 		return viewAssertionFunction.apply(view);
 	}
