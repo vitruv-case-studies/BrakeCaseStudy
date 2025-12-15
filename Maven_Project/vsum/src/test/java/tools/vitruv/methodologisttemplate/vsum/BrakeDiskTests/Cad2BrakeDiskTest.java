@@ -1,7 +1,7 @@
 package tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests;
 
 import java.nio.file.Path;
-import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.function.Function;
 
 import org.eclipse.emf.ecore.resource.Resource;
@@ -11,12 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import brakesystem.ABSSensor;
+import brakesystem.BrakeComponent;
 import brakesystem.BrakeDisk;
-import brakesystem.Brakesystem;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
-import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
@@ -233,6 +234,47 @@ public class Cad2BrakeDiskTest {
                             }
                         }));
 
+    }
+
+    /**
+     * When creating a brake component, and deleting its corresponding namespace,
+     * the created brake component must also be deleted.
+     * 
+     * @param component - {@link BrakeComponent}
+     * @param tempDir - {@link Path}
+     */
+    @ParameterizedTest
+    @MethodSource("tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests.BrakeDisk2CadTest#provideBrakeComponents")
+    void deletionOfNamespaceDeletesCorrespondingBrakeComponent(BrakeComponent component, @TempDir Path tempDir) {
+        VirtualModel vsum = util.createDefaultVirtualModel(tempDir);
+        util.registerRootObjects(vsum, tempDir);
+
+        // Add brake component
+        CommittableView brakeView = util.getBrakesystemView(vsum)
+            .withChangeRecordingTrait();
+        util.modifyView(brakeView, view -> {
+            var brakesystem = util.getRootOfBrakesystemView(brakeView);
+            brakesystem.getBrakeComponents().add(component);
+        });
+
+        // Assert namespace exists, retrieve it.
+        CommittableView cadView = util.getCADView(vsum)
+            .withChangeRecordingTrait();
+        var cadModel = util.getRootOfCADView(cadView);
+        var namespaceForComponent = util.findNamespaceWithId(cadModel, component.getId());
+
+        // Remove namespace from the CAD model.
+        util.modifyView(cadView, view -> {
+            cadModel.getNamespaces().remove(namespaceForComponent);
+        });
+
+        // Assert no brake component exists.
+        brakeView.update();
+        assertThrows(NoSuchElementException.class, () ->  {
+            var brakesystem = util.getRootOfBrakesystemView(brakeView);
+            var existingComponent = util.findBrakeComponentWithId(brakesystem, component.getId());
+            System.out.println("Warning: Component " + existingComponent.toString() + "still exits!");
+        });
     }
 
     // CAD Model creates a ABSSensor

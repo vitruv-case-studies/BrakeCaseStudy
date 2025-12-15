@@ -50,7 +50,7 @@ public class BrakeDisk2CadTest {
 	 * 
 	 * @return {@link Stream}
 	 */
-	static Stream<Arguments> provideBrakeComponents() {
+	public static Stream<Arguments> provideBrakeComponents() {
 		return Stream.of(
 			createDefaultBrakeDisk(),
 			createDefaultBrakeCaliper(),

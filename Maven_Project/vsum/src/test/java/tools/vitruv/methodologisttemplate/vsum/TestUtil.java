@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 
 import org.eclipse.emf.common.util.URI;
 
+import brakesystem.BrakeComponent;
 import brakesystem.Brakesystem;
 import brakesystem.BrakesystemFactory;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
@@ -83,6 +84,16 @@ public class TestUtil {
     public Brakesystem getRootOfBrakesystemView(View view) {
         return view.getRootObjects(Brakesystem.class).iterator().next();
     }
+
+    public BrakeComponent findBrakeComponentWithId(Brakesystem root, String id) {
+        return root
+            .getBrakeComponents()
+            .stream()
+            .filter(component -> component.getId().equals(id))
+            .findFirst()
+            .orElseThrow();
+    }
+
 
     public Namespace findNamespaceWithId(CAD_Model root, String id) {
         return root
