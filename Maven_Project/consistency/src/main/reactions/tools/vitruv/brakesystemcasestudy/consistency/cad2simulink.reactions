@@ -254,12 +254,12 @@ routine updateSimulinkComponentName(cad::Namespace namespace, String newName) {
     }
 }
 
-reaction StringParameterNameChanged {
-    after attribute replaced at cad::StringParameter[name]
-    call updateSimulinkStringParameterName(affectedEObject, newValue)
+reaction ParameterNameChanged {
+    after attribute replaced at cad::Parameter[name]
+    call updateSimulinkParameterName(affectedEObject, newValue)
 }
 
-routine updateSimulinkStringParameterName(cad::StringParameter parameter, String newName) {
+routine updateSimulinkParameterName(cad::Parameter parameter, String newName) {
     match {
         val mParameter = retrieve simulink::Parameter corresponding to parameter
     }
