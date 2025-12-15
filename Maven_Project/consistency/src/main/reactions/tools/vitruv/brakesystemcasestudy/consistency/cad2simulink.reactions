@@ -268,6 +268,45 @@ routine updateSimulinkParameterName(cad::Parameter parameter, String newName) {
     }
 }
 
+reaction StringParameterValueChanged {
+    after attribute replaced at cad::StringParameter[value]
+    call updateSimulinkStringParameterValue(affectedEObject, newValue)
+}
+
+routine updateSimulinkStringParameterValue(cad::StringParameter parameter, String newValue) {
+    match {
+        val mParameter = retrieve simulink::Parameter corresponding to parameter
+    }
+    update {
+        mParameter.value = newValue
+    }
+}
+
+reaction NumericParameterValueChanged {
+    after attribute replaced at cad::NumericParameter[value]
+    call updateSimulinkNumericParameterValue(affectedEObject, newValue)
+}
+routine updateSimulinkNumericParameterValue(cad::NumericParameter parameter, double newValue) {
+    match {
+        val mParameter = retrieve simulink::Parameter corresponding to parameter
+    }
+    update {
+        mParameter.value = newValue.toString()
+    }
+}
+
+reaction BooleanParameterValueChanged {
+    after attribute replaced at cad::BooleanParameter[value]
+    call updateSimulinkBooleanParameterValue(affectedEObject, newValue)
+}
+routine updateSimulinkBooleanParameterValue(cad::BooleanParameter parameter, boolean newValue) {
+    match {
+        val mParameter = retrieve simulink::Parameter corresponding to parameter
+    }
+    update {
+        mParameter.value = newValue.toString()
+    }
+}       
 
 
 
