@@ -2,12 +2,15 @@ package tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests;
 
 import java.nio.file.Path;
 import java.util.NoSuchElementException;
+import java.util.Random;
 import java.util.function.Function;
 
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,6 +21,7 @@ import brakesystem.ABSSensor;
 import brakesystem.BrakeComponent;
 import brakesystem.BrakeDisk;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
@@ -234,6 +238,50 @@ public class Cad2BrakeDiskTest {
                             }
                         }));
 
+    }
+
+    /**
+     * 
+     * @param component
+     * @param tempDir
+     */
+    @ParameterizedTest
+    @MethodSource("tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests.BrakeDisk2CadTest#provideBrakeComponents")
+    void propagateChangesToIdOfNamespaces(BrakeComponent component, @TempDir Path tempDir) {
+        var vsum = util.createDefaultVirtualModel(tempDir);
+        util.registerRootObjects(vsum, tempDir);
+
+        // Add brake component
+        CommittableView brakeView = util.getBrakesystemView(vsum)
+            .withChangeRecordingTrait();
+        util.modifyView(brakeView, view -> {
+            var brakesystem = util.getRootOfBrakesystemView(brakeView);
+            brakesystem.getBrakeComponents().add(component);
+        });
+
+        // Assert namespace exists
+        CommittableView cadView = util.getCADView(vsum)
+            .withChangeRecordingTrait();
+
+
+        // Update namespace id
+        var newId = "423rdc423RDT734ctr092x3rm0";
+        util.modifyView(cadView, view -> {
+            CAD_Model cad_Model = util.getRootOfCADView(cadView);
+            Namespace namespace = util.findNamespaceWithId(cad_Model, component.getId());
+            namespace.setId(newId);
+        });
+
+        // Assert brake component has changed its id.
+        brakeView.update();
+        assertTrue(assertView(brakeView, view -> {
+            var system = util.getRootOfBrakesystemView(brakeView);
+            var component2 = util.findBrakeComponentWithId(system, newId);
+
+            // When changing its id back, assume component2 and component are equivalent.
+            component2.setId(component.getId());
+            return component2.equals(component);
+        }));
     }
 
     /**
