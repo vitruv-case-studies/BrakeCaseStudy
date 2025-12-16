@@ -145,3 +145,35 @@ routine createCADBooleanParameter(simulink::Parameter parameter, cad::Namespace 
         addCorrespondenceBetween(parameter, cadParameter)
     }
 }
+
+
+reaction SimuLinkBlockDeleted {
+    after element simulink::Block deleted 
+    call deleteCADNamespace(affectedEObject)
+}
+
+routine deleteCADNamespace(simulink::Block block) {
+    match {
+        val mNamespace = retrieve cad::Namespace corresponding to block
+    }
+    update {
+        removeObject(mNamespace)
+        removeCorrespondenceBetween(block, mNamespace)
+    }
+}
+
+reaction ParameterDeleted {
+    after element simulink::Parameter deleted 
+    call deleteCADParameter(affectedEObject)
+}
+
+routine deleteCADParameter(simulink::Parameter parameter) {
+    match {
+        val cadParameter = retrieve cad::Parameter corresponding to parameter
+    }
+    update {
+        removeObject(cadParameter)
+        removeCorrespondenceBetween(parameter, cadParameter)
+    }
+}
+
