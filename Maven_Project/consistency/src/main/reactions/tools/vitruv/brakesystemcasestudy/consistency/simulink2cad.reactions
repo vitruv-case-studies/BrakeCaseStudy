@@ -1,0 +1,54 @@
+import java.io.File;
+import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
+import java.util.Arrays
+
+import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
+import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
+import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+
+import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+import "http://www.example.org/cad" as cad
+
+reactions: simulink2cad
+in reaction to changes in simulink
+execute actions in cad
+
+// Insertion Reactions
+reaction SimulinkModelInsertedAsRoot {
+    after element simulink::SimulinkModel inserted as root
+    call createAndRegisterRoot(newValue)
+}
+
+routine createAndRegisterRoot(simulink::SimulinkModel model) {
+    match {
+        require absence of cad::CAD_Model corresponding to model
+    }
+    create {
+        val mCad = new cad::CAD_Model
+    }
+    update {
+        mCad.name = model.name
+        persistProjectRelative(model, mCad, new File("").toString() + "example.cad")
+        addCorrespondenceBetween(model, mCad)
+    }
+}
+
+reaction SimulinkBlockInserted {
+    after element simulink::Block inserted in simulink::SimulinkModel[contains]
+    call createCADNamespace(newValue)
+}
+
+routine createCADNamespace(simulink::Block block) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to block.eContainer()
+        require absence of cad::Namespace corresponding to block
+    }
+    create {
+        val namespace = new cad::Namespace
+    }
+    update {
+        namespace.name = block.name
+        mCad.namespaces.add(namespace)
+        addCorrespondenceBetween(block, namespace)
+    }
+}
