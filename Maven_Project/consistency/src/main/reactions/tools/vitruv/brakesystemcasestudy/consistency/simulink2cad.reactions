@@ -52,3 +52,96 @@ routine createCADNamespace(simulink::Block block) {
         addCorrespondenceBetween(block, namespace)
     }
 }
+
+
+reaction ParameterInserted {
+    after element simulink::Parameter inserted in simulink::Block[parameters]
+    call createCADParameter(newValue)
+}
+
+routine createCADParameter(simulink::Parameter parameter) {
+    match {
+        val mNamespace = retrieve cad::Namespace corresponding to parameter.eContainer()
+    }
+    update {
+
+        if (parameter.type === null) {
+            val parameterType = userInteractor.singleSelectionDialogBuilder.message(
+    			"What CAD Parameter do you want to add to be correspondent to this parameter?").choices(
+    			Arrays.asList("string","numeric","boolean")).windowModality(WindowModality.MODAL).
+    			startInteraction
+            switch (parameterType) {
+                case 0:
+                    createCADStringParameter(parameter, mNamespace)
+                case 1:
+                    createCADNumericParameter(parameter, mNamespace)
+                case 2:
+                    createCADBooleanParameter(parameter, mNamespace)
+                default:
+                    return // Do nothing
+            }
+        }else{
+            switch (parameter.type) {
+                case "string":
+                    createCADStringParameter(parameter, mNamespace)
+                case "double",
+                case "single",
+                case "half",
+                case "uint8",
+                case "int8",
+                case "uint16",
+                case "int16",
+                case "uint32",
+                case "int32",
+                case "uint64",
+                case "int64":
+                    createCADNumericParameter(parameter, mNamespace)
+                case "boolean":
+                    createCADBooleanParameter(parameter, mNamespace)
+                default:
+                    return // Do nothing
+            }
+        }
+
+    }
+}
+
+routine createCADNumericParameter(simulink::Parameter parameter, cad::Namespace mNamespace) {
+    create {
+        val cadParameter = new cad::NumericParameter
+    }
+    update {
+        val valueAsFloat = Float.parseFloat(parameter.value)
+
+        cadParameter.name = parameter.name
+        cadParameter.value = valueAsFloat
+        mNamespace.parameters.add(cadParameter)
+        addCorrespondenceBetween(parameter, cadParameter)
+    }
+}
+
+routine createCADStringParameter(simulink::Parameter parameter, cad::Namespace mNamespace) {
+    create {
+        val cadParameter = new cad::StringParameter
+    }
+    update {
+        cadParameter.name = parameter.name
+        cadParameter.value = parameter.value
+        mNamespace.parameters.add(cadParameter)
+        addCorrespondenceBetween(parameter, cadParameter)
+    }
+}
+
+routine createCADBooleanParameter(simulink::Parameter parameter, cad::Namespace mNamespace) {
+    create {
+        val cadParameter = new cad::BooleanParameter
+    }
+    update {
+        val valueAsBoolean = Boolean.parseBoolean(parameter.value)
+
+        cadParameter.name = parameter.name
+        cadParameter.value = valueAsBoolean
+        mNamespace.parameters.add(cadParameter)
+        addCorrespondenceBetween(parameter, cadParameter)
+    }
+}
