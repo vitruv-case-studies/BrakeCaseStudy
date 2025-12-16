@@ -8,6 +8,7 @@ import java.util.function.Function;
 import org.checkerframework.checker.units.qual.C;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -215,6 +216,97 @@ public class SimuLink2CADTest {
                 }));
               
     }
+
+    @Test
+    public void testSimulinkParameterDeletion(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+
+        // Create a Simulink_Model in the Simulink view
+        CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        testUtil.modifyView(simulinkView,(CommittableView v) -> {
+            SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
+            simulinkModel.setName("TestSimulinkModel");
+
+            SubSystem block = SimuLinkFactory.eINSTANCE.createSubSystem();
+            block.setName("TestBlock");
+
+            simulink.Parameter parameter = SimuLinkFactory.eINSTANCE.createParameter();
+            parameter.setName("TestParameter");
+            parameter.setValue("TestValue");
+            parameter.setType("string");
+
+            block.getParameters().add(parameter);
+
+            simulinkModel.getContains().add(block);
+
+            v.registerRoot(simulinkModel,
+                    URI.createFileURI(tempDir.resolve("simulink.xmi").toString()));
+        });
+
+        CommittableView simulinkDeleteView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        testUtil.modifyView(simulinkDeleteView,(CommittableView v) -> {
+            SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+            SubSystem block = (SubSystem) simulinkModel.getContains().stream().filter(b -> b.getName().equals("TestBlock")).findFirst().orElseThrow();
+            simulink.Parameter parameter = block.getParameters().stream().filter(p -> p.getName().equals("TestParameter")).findFirst().orElseThrow();
+            block.getParameters().remove(parameter);
+            EcoreUtil.delete(parameter);
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
+                (View v) -> {
+                    CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+                    Namespace namespace = cadModel.getNamespaces().stream()
+                            .filter(b -> b.getName().equals("TestBlock"))
+                            .findFirst()
+                            .orElseThrow();
+                    return namespace.getParameters().stream()
+                            .noneMatch(p -> p.getName().equals("TestParameter"));
+                }));
+              
+    }
+
+
+    @Test @Disabled
+    public void SimulinkBlockDeletion(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+
+        // Create a Simulink_Model in the Simulink view
+        CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        testUtil.modifyView(simulinkView,(CommittableView v) -> {
+            SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
+            simulinkModel.setName("TestSimulinkModel");
+
+            SubSystem block = SimuLinkFactory.eINSTANCE.createSubSystem();
+            block.setName("TestBlock");
+            
+            simulinkModel.getContains().add(block);
+
+        
+            v.registerRoot(simulinkModel,
+                    URI.createFileURI(tempDir.resolve("simulink.xmi").toString()));
+        });
+
+        CommittableView simulinkDeleteView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        testUtil.modifyView(simulinkDeleteView,(CommittableView v) -> {
+            SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+            SubSystem block = (SubSystem) simulinkModel.getContains().stream().filter(b -> b.getName().equals("TestBlock")).findFirst().orElseThrow();
+            simulinkModel.getContains().remove(block);
+            EcoreUtil.delete(block);
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
+            (View v) -> {
+              CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+              return cadModel.getNamespaces().stream()
+                  .noneMatch(ns -> ns.getName().equals("TestBlock"));
+            }));
+    }
+
+
 
 
 
