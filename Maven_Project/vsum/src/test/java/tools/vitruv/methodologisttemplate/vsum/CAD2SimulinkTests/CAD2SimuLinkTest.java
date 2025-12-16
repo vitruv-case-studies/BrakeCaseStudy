@@ -291,9 +291,12 @@ public class CAD2SimuLinkTest {
             v.registerRoot(cad_Model,
                     URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
         });
+        
+
+        CommittableView deletecadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
 
         // Now delete the parameter
-        testUtil.modifyView(cadView, (CommittableView v) -> {
+        testUtil.modifyView(deletecadView, (CommittableView v) -> {
             CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
             Namespace namespace = cadModel.getNamespaces().stream()
                     .filter(n -> n.getName().equals("TestNamespace"))
@@ -303,25 +306,25 @@ public class CAD2SimuLinkTest {
                     .filter(p -> p.getName().equals("TestStringParameter"))
                     .findFirst()
                     .orElseThrow();
-            EcoreUtil.delete(parameterToDelete);
-            //namespace.getParameters().remove(parameterToDelete);
+            //EcoreUtil.delete(parameterToDelete);
+            namespace.getParameters().remove(parameterToDelete);
             
         });
 
 
-          Assertions.assertTrue(
-            assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
-                    (View v) -> {
-                        CAD_Model cad_Model = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
-                        Namespace namespace = cad_Model.getNamespaces().stream()
-                                .filter(b -> b.getName().equals("TestNamespace"))
-                                .findFirst()
-                                .orElseThrow();
-                        return namespace.getParameters().stream()
-                                .noneMatch(p -> { System.out.println(p.getName()); return p.getName().equals("TestStringParameter"); });
-                    }));
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
+                (View v) -> {
+                CAD_Model cad_Model = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+                Namespace namespace = cad_Model.getNamespaces().stream()
+                        .filter(b -> b.getName().equals("TestNamespace"))
+                        .findFirst()
+                        .orElseThrow();
+                return namespace.getParameters().stream()
+                        .noneMatch(p -> { System.out.println(p.getName()); return p.getName().equals("TestStringParameter"); });
+                }));
 
-          // Assert that the corresponding Simulink Parameter is also deleted
+        // Assert that the corresponding Simulink Parameter is also deleted
         Assertions.assertTrue(
             assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
                     (View v) -> {
@@ -332,6 +335,79 @@ public class CAD2SimuLinkTest {
                                 .orElseThrow();
                         return block.getParameters().stream()
                                 .noneMatch(p -> { System.out.println(p.getName()); return p.getName().equals("TestStringParameter"); });
+                    }));
+    }
+
+
+    @Test
+    public void testParameterModification(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+
+        testUtil.userInteraction.addNextSingleSelection(0);
+        testUtil.userInteraction.addNextSingleSelection(0);
+
+        // Create a CAD_Model in the CAD view
+        CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
+        testUtil.modifyView(cadView,(CommittableView v) -> {
+            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
+            cad_Model.setName("TestCADModel");
+
+            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
+            namespace.setName("TestNamespace");
+
+            StringParameter stringParameter = CadFactory.eINSTANCE.createStringParameter();
+            stringParameter.setName("TestStringParameter");
+            stringParameter.setValue("TestValue");
+            namespace.getParameters().add(stringParameter);
+
+            cad_Model.getNamespaces().add(namespace);
+
+            v.registerRoot(cad_Model,
+                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        });
+        
+
+        CommittableView updateCADView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
+
+        // Now modify the parameter value
+        testUtil.modifyView(updateCADView, (CommittableView v) -> {
+            CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+            Namespace namespace = cadModel.getNamespaces().stream()
+                    .filter(n -> n.getName().equals("TestNamespace"))
+                    .findFirst()
+                    .orElseThrow();
+            StringParameter parameterToModify = (StringParameter) namespace.getParameters().stream()
+                    .filter(p -> p.getName().equals("TestStringParameter"))
+                    .findFirst()
+                    .orElseThrow();
+            //parameterToModify.setName("ModifiedName");
+            parameterToModify.setValue("ModifiedValue");
+        });
+
+         Assertions.assertTrue(
+                assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
+                        (View v) -> {
+                        CAD_Model cad_Model = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+                        Namespace namespace = cad_Model.getNamespaces().stream()
+                                .filter(b -> b.getName().equals("TestNamespace"))
+                                .findFirst()
+                                .orElseThrow();
+                        return namespace.getParameters().stream()
+                                .anyMatch(p -> { System.out.println(p.getName()); return p.getName().equals("TestStringParameter") && ((StringParameter)p).getValue().equals("ModifiedValue"); });
+                        }));
+
+        // Assert that the corresponding Simulink Parameter is also modified
+        Assertions.assertTrue(
+            assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
+                    (View v) -> {
+                        SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+                        Block block = simulinkModel.getContains().stream()
+                                .filter(b -> b.getName().equals("TestNamespace"))
+                                .findFirst()
+                                .orElseThrow();
+                        return block.getParameters().stream()
+                                .anyMatch(p -> { System.out.println(p.getValue()); return p.getName().equals("TestStringParameter") && p.getValue().equals("ModifiedValue"); });
                     }));
     }
 
