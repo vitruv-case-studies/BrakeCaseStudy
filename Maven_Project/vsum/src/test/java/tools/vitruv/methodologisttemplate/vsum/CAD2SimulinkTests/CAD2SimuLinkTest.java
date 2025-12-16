@@ -306,8 +306,8 @@ public class CAD2SimuLinkTest {
                     .filter(p -> p.getName().equals("TestStringParameter"))
                     .findFirst()
                     .orElseThrow();
-            //EcoreUtil.delete(parameterToDelete);
-            namespace.getParameters().remove(parameterToDelete);
+            EcoreUtil.delete(parameterToDelete);
+            //namespace.getParameters().remove(parameterToDelete);
             
         });
 
