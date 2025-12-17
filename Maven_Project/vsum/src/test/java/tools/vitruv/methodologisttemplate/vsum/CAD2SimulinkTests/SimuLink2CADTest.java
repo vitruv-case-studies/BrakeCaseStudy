@@ -1,11 +1,9 @@
 package tools.vitruv.methodologisttemplate.vsum.CAD2SimulinkTests;
 
-import java.lang.reflect.Parameter;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
 
-import org.checkerframework.checker.units.qual.C;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.util.EcoreUtil;
@@ -17,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
-import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
@@ -72,7 +69,7 @@ public class SimuLink2CADTest {
 
 
 
-    @Test @Disabled
+    @Test
     public void testSimulinkBlockToCADNamespace(@TempDir Path tempDir) throws Exception {
 
          // Create a new virtual model
@@ -268,7 +265,7 @@ public class SimuLink2CADTest {
     }
 
 
-    @Test @Disabled
+    @Test 
     public void SimulinkBlockDeletion(@TempDir Path tempDir) throws Exception {
         // Create a new virtual model
         VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);

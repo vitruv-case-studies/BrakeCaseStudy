@@ -18,8 +18,7 @@
         eType="#//Parameter" containment="true"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="ports" upperBound="-1"
         eType="#//Port" containment="true" eOpposite="#//Port/container"/>
-    <eStructuralFeatures xsi:type="ecore:EReference" name="trigger" eType="#//Trigger"
-        changeable="false" volatile="true" transient="true" derived="true">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="trigger" eType="#//Trigger">
       <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
         <details key="documentation" value="The values are computed by filtering Trigger ports from the values of the ports feature."/>
       </eAnnotations>
@@ -28,7 +27,7 @@
       </eAnnotations>
     </eStructuralFeatures>
     <eStructuralFeatures xsi:type="ecore:EReference" name="enabler" eType="#//Enable"
-        changeable="false" volatile="true" transient="true" derived="true">
+        derived="true">
       <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
         <details key="documentation" value="The values are computed by filtering Enable ports from the values of the ports feature."/>
       </eAnnotations>
@@ -37,7 +36,7 @@
       </eAnnotations>
     </eStructuralFeatures>
     <eStructuralFeatures xsi:type="ecore:EReference" name="contains" upperBound="-1"
-        eType="#//InPort" changeable="false" volatile="true" transient="true">
+        eType="#//InPort" changeable="false">
       <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
         <details key="documentation" value="The values are computed by filtering Inports from the values of the ports feature."/>
       </eAnnotations>
@@ -46,7 +45,7 @@
       </eAnnotations>
     </eStructuralFeatures>
     <eStructuralFeatures xsi:type="ecore:EReference" name="outports" upperBound="-1"
-        eType="#//OutPort" changeable="false" volatile="true" transient="true" derived="true">
+        eType="#//OutPort" changeable="false" derived="true">
       <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
         <details key="documentation" value="The values are computed by filtering Outports from the values of the ports feature."/>
       </eAnnotations>
@@ -57,7 +56,7 @@
     <eStructuralFeatures xsi:type="ecore:EReference" name="parent" eType="#//SubSystem"
         eOpposite="#//SubSystem/subBlocks"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="sourceBlock" eType="#//Block"
-        changeable="false" volatile="true" transient="true" derived="true">
+        changeable="false" volatile="false" transient="false" derived="false">
       <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
         <details key="documentation" value="The value of the reference is computed by finding the element with the same name and qualifier as stored in the sourceBlockRef.&#xD;&#xA;&#xD;&#xA;b{Validation}&#xD;&#xA; * WARN: Cannot find block specified by source block reference."/>
       </eAnnotations>
