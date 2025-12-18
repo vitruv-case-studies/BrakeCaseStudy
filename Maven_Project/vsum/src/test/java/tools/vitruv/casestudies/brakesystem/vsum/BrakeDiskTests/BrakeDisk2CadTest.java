@@ -1,8 +1,7 @@
-package tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests;
+package tools.vitruv.casestudies.brakesystem.vsum.BrakeDiskTests;
 
 import java.nio.file.Path;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -10,7 +9,6 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -24,10 +22,10 @@ import brakesystem.BrakeHose;
 import brakesystem.BrakePad;
 import brakesystem.BrakesystemFactory;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
+import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
-import tools.vitruv.methodologisttemplate.vsum.TestUtil;
 
 public class BrakeDisk2CadTest {
 

@@ -1,4 +1,4 @@
-package tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests;
+package tools.vitruv.casestudies.brakesystem.vsum.BrakeDiskTests;
 
 import java.nio.file.Path;
 import java.util.NoSuchElementException;
@@ -27,10 +27,10 @@ import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import edu.kit.ipd.sdq.metamodels.cad.Unit;
+import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
-import tools.vitruv.methodologisttemplate.vsum.TestUtil;
 
 public class Cad2BrakeDiskTest {
 
@@ -246,7 +246,7 @@ public class Cad2BrakeDiskTest {
      * @param tempDir
      */
     @ParameterizedTest
-    @MethodSource("tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests.BrakeDisk2CadTest#provideBrakeComponents")
+    @MethodSource("tools.vitruv.casestudies.brakesystem.vsum.BrakeDiskTests.BrakeDisk2CadTest#provideBrakeComponents")
     void propagateChangesToIdOfNamespaces(BrakeComponent component, @TempDir Path tempDir) {
         var vsum = util.createDefaultVirtualModel(tempDir);
         util.registerRootObjects(vsum, tempDir);
@@ -292,7 +292,7 @@ public class Cad2BrakeDiskTest {
      * @param tempDir - {@link Path}
      */
     @ParameterizedTest
-    @MethodSource("tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests.BrakeDisk2CadTest#provideBrakeComponents")
+    @MethodSource("tools.vitruv.casestudies.brakesystem.vsum.BrakeDiskTests.BrakeDisk2CadTest#provideBrakeComponents")
     void deletionOfNamespaceDeletesCorrespondingBrakeComponent(BrakeComponent component, @TempDir Path tempDir) {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir);
         util.registerRootObjects(vsum, tempDir);
