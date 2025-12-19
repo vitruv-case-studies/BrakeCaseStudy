@@ -78,17 +78,7 @@ public class CAD2SimuLinkTest {
 
         // Create a CAD_Model in the CAD view
         CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
-        testUtil.modifyView(cadView,(CommittableView v) -> {
-            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
-            cad_Model.setName("TestCADModel");
-
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setName("TestNamespace");
-            cad_Model.getNamespaces().add(namespace);
-
-            v.registerRoot(cad_Model,
-                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
-        });
+        createDefaultCADModel(cadView, tempDir);
 
         Assertions.assertTrue(
         assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
@@ -113,17 +103,7 @@ public class CAD2SimuLinkTest {
 
         // Create a CAD_Model in the CAD view
         CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
-        testUtil.modifyView(cadView,(CommittableView v) -> {
-            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
-            cad_Model.setName("TestCADModel");
-
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setName("TestNamespace");
-            cad_Model.getNamespaces().add(namespace);
-
-            v.registerRoot(cad_Model,
-                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
-        });
+        createDefaultCADModel(cadView, tempDir);
 
         Assertions.assertTrue(
         assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
@@ -147,23 +127,7 @@ public class CAD2SimuLinkTest {
 
         // Create a CAD_Model in the CAD view
         CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
-        testUtil.modifyView(cadView,(CommittableView v) -> {
-            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
-            cad_Model.setName("TestCADModel");
-
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setName("TestNamespace");
-
-            StringParameter stringParameter = CadFactory.eINSTANCE.createStringParameter();
-            stringParameter.setName("TestStringParameter");
-            stringParameter.setValue("TestValue");
-            namespace.getParameters().add(stringParameter);
-
-            cad_Model.getNamespaces().add(namespace);
-
-            v.registerRoot(cad_Model,
-                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
-        });
+        createDefaultCADModel(cadView, tempDir);
 
         Assertions.assertTrue(
         assertView(testUtil.getDefaultView(vsum, List.of(SimulinkModel.class)),
@@ -274,23 +238,7 @@ public class CAD2SimuLinkTest {
 
         // Create a CAD_Model in the CAD view
         CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
-        testUtil.modifyView(cadView,(CommittableView v) -> {
-            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
-            cad_Model.setName("TestCADModel");
-
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setName("TestNamespace");
-
-            StringParameter stringParameter = CadFactory.eINSTANCE.createStringParameter();
-            stringParameter.setName("TestStringParameter");
-            stringParameter.setValue("TestValue");
-            namespace.getParameters().add(stringParameter);
-
-            cad_Model.getNamespaces().add(namespace);
-
-            v.registerRoot(cad_Model,
-                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
-        });
+        createDefaultCADModel(cadView, tempDir);
         
 
         CommittableView deletecadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
@@ -349,23 +297,7 @@ public class CAD2SimuLinkTest {
 
         // Create a CAD_Model in the CAD view
         CommittableView cadView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
-        testUtil.modifyView(cadView,(CommittableView v) -> {
-            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
-            cad_Model.setName("TestCADModel");
-
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setName("TestNamespace");
-
-            StringParameter stringParameter = CadFactory.eINSTANCE.createStringParameter();
-            stringParameter.setName("TestStringParameter");
-            stringParameter.setValue("TestValue");
-            namespace.getParameters().add(stringParameter);
-
-            cad_Model.getNamespaces().add(namespace);
-
-            v.registerRoot(cad_Model,
-                    URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
-        });
+        createDefaultCADModel(cadView, tempDir);
         
 
         CommittableView updateCADView = testUtil.getDefaultView(vsum,List.of(CAD_Model.class)).withChangeDerivingTrait();
@@ -409,6 +341,33 @@ public class CAD2SimuLinkTest {
                         return block.getParameters().stream()
                                 .anyMatch(p -> { System.out.println(p.getValue()); return p.getName().equals("TestStringParameter") && p.getValue().equals("ModifiedValue"); });
                     }));
+    }
+
+
+    /*
+        Creates a default CAD model with a Namespace and a StringParameter and registers it as root object in the given view.
+    */
+    private void createDefaultCADModel(CommittableView view, Path filePath) {
+       
+         testUtil.modifyView(view,(CommittableView v) -> {
+            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
+            cad_Model.setName("TestCADModel");
+
+            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
+            namespace.setName("TestNamespace");
+
+            StringParameter stringParameter = CadFactory.eINSTANCE.createStringParameter();
+            stringParameter.setName("TestStringParameter");
+            stringParameter.setValue("TestValue");
+            namespace.getParameters().add(stringParameter);
+
+            cad_Model.getNamespaces().add(namespace);
+
+            v.registerRoot(cad_Model,
+                    URI.createFileURI(filePath.resolve("cad.xmi").toString()));
+        });
+
+
     }
 
     private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {
