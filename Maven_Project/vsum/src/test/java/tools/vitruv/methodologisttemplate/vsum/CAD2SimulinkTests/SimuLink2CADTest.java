@@ -110,25 +110,14 @@ public class SimuLink2CADTest {
 
         // Create a Simulink_Model in the Simulink view
         CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
-        testUtil.modifyView(simulinkView,(CommittableView v) -> {
-            SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
-            simulinkModel.setName("TestSimulinkModel");
-
-            SubSystem subSystem = SimuLinkFactory.eINSTANCE.createSubSystem();
-            subSystem.setName("TestSubsystem");
-            simulinkModel.getContains().add(subSystem);
-
-        
-            v.registerRoot(simulinkModel,
-                    URI.createFileURI(tempDir.resolve("simulink.xmi").toString()));
-        });
+        createDefaultSimuLinkModel(simulinkView, tempDir);
 
         Assertions.assertTrue(
         assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
             (View v) -> {
               CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
               return cadModel.getNamespaces().stream()
-                  .anyMatch(ns -> ns.getName().equals("TestSubsystem"));
+                  .anyMatch(ns -> ns.getName().equals("TestBlock"));
             }));
     }
 
@@ -139,25 +128,7 @@ public class SimuLink2CADTest {
 
         // Create a Simulink_Model in the Simulink view
         CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
-        testUtil.modifyView(simulinkView,(CommittableView v) -> {
-            SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
-            simulinkModel.setName("TestSimulinkModel");
-
-            SubSystem block = SimuLinkFactory.eINSTANCE.createSubSystem();
-            block.setName("TestBlock");
-
-            simulink.Parameter parameter = SimuLinkFactory.eINSTANCE.createParameter();
-            parameter.setName("TestParameter");
-            parameter.setValue("TestValue");
-            parameter.setType("string");
-
-            block.getParameters().add(parameter);
-
-            simulinkModel.getContains().add(block);
-
-            v.registerRoot(simulinkModel,
-                    URI.createFileURI(tempDir.resolve("simulink.xmi").toString()));
-        });
+        createDefaultSimuLinkModel(simulinkView, tempDir);
 
         Assertions.assertTrue(
         assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
@@ -181,24 +152,7 @@ public class SimuLink2CADTest {
         testUtil.userInteraction.addNextSingleSelection(0);
         // Create a Simulink_Model in the Simulink view
         CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
-        testUtil.modifyView(simulinkView,(CommittableView v) -> {
-            SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
-            simulinkModel.setName("TestSimulinkModel");
-
-            SubSystem block = SimuLinkFactory.eINSTANCE.createSubSystem();
-            block.setName("TestBlock");
-
-            simulink.Parameter parameter = SimuLinkFactory.eINSTANCE.createParameter();
-            parameter.setName("TestParameter");
-            parameter.setValue("TestValue");
-            
-            block.getParameters().add(parameter);
-
-            simulinkModel.getContains().add(block);
-
-            v.registerRoot(simulinkModel,
-                    URI.createFileURI(tempDir.resolve("simulink.xmi").toString()));
-        });
+        createDefaultSimuLinkModel(simulinkView, tempDir);
 
         Assertions.assertTrue(
         assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
@@ -221,25 +175,7 @@ public class SimuLink2CADTest {
 
         // Create a Simulink_Model in the Simulink view
         CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
-        testUtil.modifyView(simulinkView,(CommittableView v) -> {
-            SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
-            simulinkModel.setName("TestSimulinkModel");
-
-            SubSystem block = SimuLinkFactory.eINSTANCE.createSubSystem();
-            block.setName("TestBlock");
-
-            simulink.Parameter parameter = SimuLinkFactory.eINSTANCE.createParameter();
-            parameter.setName("TestParameter");
-            parameter.setValue("TestValue");
-            parameter.setType("string");
-
-            block.getParameters().add(parameter);
-
-            simulinkModel.getContains().add(block);
-
-            v.registerRoot(simulinkModel,
-                    URI.createFileURI(tempDir.resolve("simulink.xmi").toString()));
-        });
+        createDefaultSimuLinkModel(simulinkView,tempDir);
 
         CommittableView simulinkDeleteView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
         testUtil.modifyView(simulinkDeleteView,(CommittableView v) -> {
@@ -272,19 +208,7 @@ public class SimuLink2CADTest {
 
         // Create a Simulink_Model in the Simulink view
         CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
-        testUtil.modifyView(simulinkView,(CommittableView v) -> {
-            SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
-            simulinkModel.setName("TestSimulinkModel");
-
-            SubSystem block = SimuLinkFactory.eINSTANCE.createSubSystem();
-            block.setName("TestBlock");
-            
-            simulinkModel.getContains().add(block);
-
-        
-            v.registerRoot(simulinkModel,
-                    URI.createFileURI(tempDir.resolve("simulink.xmi").toString()));
-        });
+        createDefaultSimuLinkModel(simulinkView, tempDir);
 
         CommittableView simulinkDeleteView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
         testUtil.modifyView(simulinkDeleteView,(CommittableView v) -> {
@@ -305,6 +229,126 @@ public class SimuLink2CADTest {
 
 
 
+    @Test
+    public void SimulinkSubsystemNameUpdateTest(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+
+        // Create a Simulink_Model in the Simulink view
+        CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        createDefaultSimuLinkModel(simulinkView, tempDir);
+
+        CommittableView simulinkUpdateView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        testUtil.modifyView(simulinkUpdateView,(CommittableView v) -> {
+            SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+            SubSystem block = (SubSystem) simulinkModel.getContains().stream().filter(b -> b.getName().equals("TestBlock")).findFirst().orElseThrow();
+            block.setName("UpdatedBlockName");
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
+            (View v) -> {
+              CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+              return cadModel.getNamespaces().stream()
+                  .anyMatch(ns -> ns.getName().equals("UpdatedBlockName"));
+            }));
+    }
+
+
+     @Test
+    public void SimulinkBlockNameUpdateTest(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+
+        // Create a Simulink_Model in the Simulink view
+        CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        testUtil.modifyView(simulinkView,(CommittableView v) -> {
+            SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
+            simulinkModel.setName("TestSimulinkModel");
+
+            Block block = SimuLinkFactory.eINSTANCE.createBlock();
+            block.setName("TestBlock");
+            
+            simulinkModel.getContains().add(block);
+
+        
+            v.registerRoot(simulinkModel,
+                    URI.createFileURI(tempDir.resolve("simulink.xmi").toString()));
+        });
+
+        CommittableView simulinkUpdateView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        testUtil.modifyView(simulinkUpdateView,(CommittableView v) -> {
+            SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+            Block block = (Block) simulinkModel.getContains().stream().filter(b -> b.getName().equals("TestBlock")).findFirst().orElseThrow();
+            block.setName("UpdatedBlockName");
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
+            (View v) -> {
+              CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+              return cadModel.getNamespaces().stream()
+                  .anyMatch(ns -> ns.getName().equals("UpdatedBlockName"));
+            }));
+    }
+
+
+    @Test
+    public void SimulinkParameterNameUpdateTest(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+
+        // Create a Simulink_Model in the Simulink view
+        CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        createDefaultSimuLinkModel(simulinkView, tempDir);
+
+        CommittableView simulinkUpdateView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        testUtil.modifyView(simulinkUpdateView,(CommittableView v) -> {
+            SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+            SubSystem block = (SubSystem) simulinkModel.getContains().stream().filter(b -> b.getName().equals("TestBlock")).findFirst().orElseThrow();
+            simulink.Parameter parameter = block.getParameters().stream().filter(p -> p.getName().equals("TestParameter")).findFirst().orElseThrow();
+            parameter.setName("UpdatedParameterName");
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
+            (View v) -> {
+              CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+              Namespace namespace = cadModel.getNamespaces().stream()
+                      .filter(b -> b.getName().equals("TestBlock"))
+                      .findFirst()
+                      .orElseThrow();
+              return namespace.getParameters().stream()
+                  .anyMatch(p -> p.getName().equals("UpdatedParameterName"));
+            }));
+    }   
+
+
+    /*
+        Creates a default Simulink model with a Subsystem and a Parameter and registers it as root object in the given view.
+    */
+    private void createDefaultSimuLinkModel(CommittableView view, Path filePath) {
+        
+        testUtil.modifyView(view,(CommittableView v) -> {
+            SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
+            simulinkModel.setName("TestSimulinkModel");
+
+            SubSystem block = SimuLinkFactory.eINSTANCE.createSubSystem();
+            block.setName("TestBlock");
+
+            simulink.Parameter parameter = SimuLinkFactory.eINSTANCE.createParameter();
+            parameter.setName("TestParameter");
+            parameter.setValue("TestValue");
+            parameter.setType("string");
+
+            block.getParameters().add(parameter);
+
+            simulinkModel.getContains().add(block);
+
+            v.registerRoot(simulinkModel,
+                    URI.createFileURI(filePath.resolve("simulink.xmi").toString()));
+        });
+    }
 
 
     private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {
