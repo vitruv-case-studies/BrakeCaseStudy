@@ -324,6 +324,37 @@ public class SimuLink2CADTest {
     }   
 
 
+    @Test
+    public void updateSimulinkStringParameterValueTest(@TempDir Path tempDir) throws Exception {
+        // Create a new virtual model
+        VirtualModel vsum = testUtil.createDefaultVirtualModel(tempDir,necessaryCPS);
+
+        // Create a Simulink_Model in the Simulink view
+        CommittableView simulinkView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        createDefaultSimuLinkModel(simulinkView, tempDir);
+
+        CommittableView simulinkUpdateView = testUtil.getDefaultView(vsum,List.of(SimulinkModel.class)).withChangeDerivingTrait();
+        testUtil.modifyView(simulinkUpdateView,(CommittableView v) -> {
+            SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
+            SubSystem block = (SubSystem) simulinkModel.getContains().stream().filter(b -> b.getName().equals("TestBlock")).findFirst().orElseThrow();
+            simulink.Parameter parameter = block.getParameters().stream().filter(p -> p.getName().equals("TestParameter")).findFirst().orElseThrow();
+            parameter.setValue("UpdatedParameterValue");
+        });
+
+        Assertions.assertTrue(
+        assertView(testUtil.getDefaultView(vsum, List.of(CAD_Model.class)),
+            (View v) -> {
+              CAD_Model cadModel = v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
+              Namespace namespace = cadModel.getNamespaces().stream()
+                      .filter(b -> b.getName().equals("TestBlock"))
+                      .findFirst()
+                      .orElseThrow();
+              return namespace.getParameters().stream()
+                  .anyMatch(p -> p.getName().equals("TestParameter") && p instanceof StringParameter sp && sp.getValue().equals("UpdatedParameterValue"));
+            }));
+    }
+
+
     /*
         Creates a default Simulink model with a Subsystem and a Parameter and registers it as root object in the given view.
     */

@@ -211,3 +211,63 @@ routine updateCADParameterName(simulink::Parameter parameter, String newName) {
     }
 }
 
+
+reaction SimulinkParameterValueUpdated {
+    after attribute replaced at simulink::Parameter[value]
+    call updateCADParameterValue(affectedEObject, newValue)
+}
+
+
+routine updateCADParameterValue(simulink::Parameter parameter, String newValue) {
+    update {
+        switch (parameter.type) {
+                case "string":
+                    updateCADStringParameterValue(parameter)
+                case "double",
+                case "single",
+                case "half",
+                case "uint8",
+                case "int8",
+                case "uint16",
+                case "int16",
+                case "uint32",
+                case "int32",
+                case "uint64",
+                case "int64":
+                    updateCADNumericParameterValue(parameter)
+                case "boolean":
+                    updateCADBooleanParameterValue(parameter)
+                default:
+                    return // Do nothing
+            }
+    }
+}
+
+routine updateCADNumericParameterValue(simulink::Parameter parameter) {
+    match {
+        val cadParameter = retrieve cad::NumericParameter corresponding to parameter
+    }
+    update {
+        val valueAsFloat = Float.parseFloat(parameter.value)
+        cadParameter.value = valueAsFloat
+    }
+}
+
+routine updateCADStringParameterValue(simulink::Parameter parameter) {
+    match {
+        val cadParameter = retrieve cad::StringParameter corresponding to parameter
+    }
+    update {
+        cadParameter.value = parameter.value
+    }
+}
+
+routine updateCADBooleanParameterValue(simulink::Parameter parameter) {
+    match {
+        val cadParameter = retrieve cad::BooleanParameter corresponding to parameter
+    }
+    update {
+        val valueAsBoolean = Boolean.parseBoolean(parameter.value)
+        cadParameter.value = valueAsBoolean
+    }
+}
