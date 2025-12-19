@@ -6,6 +6,7 @@ import java.util.Random;
 import java.util.function.Function;
 
 import org.eclipse.emf.ecore.resource.Resource;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -278,9 +279,13 @@ public class Cad2BrakeDiskTest {
             var system = util.getRootOfBrakesystemView(brakeView);
             var component2 = util.findBrakeComponentWithId(system, newId);
 
-            // When changing its id back, assume component2 and component are equivalent.
+            // When changing its id back, assume component2 and component are equivalent
+            // in their features.
             component2.setId(component.getId());
-            return component2.equals(component);
+            var features = component.eClass().getEStructuralFeatures();
+            return features.stream()
+                .allMatch(feature -> 
+                    component.eGet(feature).equals(component2.eGet(feature)));
         }));
     }
 
