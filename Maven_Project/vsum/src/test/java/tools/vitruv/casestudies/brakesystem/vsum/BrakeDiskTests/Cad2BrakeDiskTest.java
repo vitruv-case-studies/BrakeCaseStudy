@@ -21,6 +21,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import brakesystem.ABSSensor;
 import brakesystem.BrakeComponent;
 import brakesystem.BrakeDisk;
+import brakesystem.BrakesystemPackage;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
 import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
@@ -279,12 +280,12 @@ public class Cad2BrakeDiskTest {
             var system = util.getRootOfBrakesystemView(brakeView);
             var component2 = util.findBrakeComponentWithId(system, newId);
 
-            // When changing its id back, assume component2 and component are equivalent
-            // in their features.
-            component2.setId(component.getId());
+            // Assume component2 and component are equivalent
+            // in their features, except their id.
             var features = component.eClass().getEStructuralFeatures();
             return features.stream()
                 .allMatch(feature -> 
+                    feature.equals(BrakesystemPackage.eINSTANCE.getBrakeComponent_Id()) ||
                     component.eGet(feature).equals(component2.eGet(feature)));
         }));
     }

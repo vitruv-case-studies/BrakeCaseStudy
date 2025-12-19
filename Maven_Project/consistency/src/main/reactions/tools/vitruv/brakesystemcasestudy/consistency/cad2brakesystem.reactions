@@ -112,7 +112,7 @@ routine createBrakeDisk(cad::Namespace namespace, brakesystem::Brakesystem mBrak
     }
 }
 
-// TODO Reaction for changing the id of namespace
+// Reaction for changing the id of namespace
 reaction NamespaceIdChanged {
     after attribute replaced at cad::Namespace[id]
     call updateCorrespondingBrakeComponentId(affectedEObject)   
@@ -127,6 +127,32 @@ routine updateCorrespondingBrakeComponentId(cad::Namespace namespace) {
     update {
         // Propagate ID change
         component.id = namespace.id
+    }
+}
+
+// Deletion of Namespaces
+reaction NamespaceDeleted {
+    after element cad::Namespace removed 
+        from cad::CAD_Model[namespaces]
+    call deleteCorrespondingBrakeComponent(affectedEObject, oldValue)
+}
+
+routine deleteCorrespondingBrakeComponent(
+    cad::CAD_Model cadModel, cad::Namespace namespace
+) {
+    match {
+        // Retrieve the corresponding BrakeComponent
+        val component = retrieve brakesystem::BrakeComponent corresponding to namespace
+
+        // Retrieve the BrakeSystem corresponding to the CAD model
+        val system = retrieve brakesystem::Brakesystem corresponding to cadModel
+    }
+    update {
+        // Remove the BrakeComponent from the BrakeSystem
+        system.getBrakeComponents.remove(component)
+
+        // Remove correspondence
+        removeCorrespondenceBetween(component, namespace)
     }
 }
 
