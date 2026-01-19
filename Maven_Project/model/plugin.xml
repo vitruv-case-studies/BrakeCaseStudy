@@ -26,5 +26,20 @@
             class="simulink.SimuLinkPackage"
             genModel="src/main/ecore/simuLink.genmodel"/>
    </extension>
+      <extension point="org.eclipse.emf.ecore.generated_package">
+      <!-- @generated autosar -->
+      <package
+            uri="http://vitruv.tools/methodologisttemplate/autosar"
+            class="autosar.AutosarPackage"
+            genModel="src/main/ecore/autoSAR.genmodel"/>
+   </extension>
+
+   <extension point="org.eclipse.emf.ecore.generated_package">
+      <!-- @generated autoSAR -->
+      <package
+            uri="http://vitruv.tools/methodologisttemplate/autosar"
+            class="autosar.AutoSARPackage"
+            genModel="src/main/ecore/autoSAR.genmodel"/>
+   </extension>
 
 </plugin>

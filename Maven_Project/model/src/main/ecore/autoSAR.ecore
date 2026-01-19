@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="autosar" nsURI="http://vitruv.tools/methodologisttemplate/autosar" nsPrefix="autosar">
+  <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel"/>
+  <eClassifiers xsi:type="ecore:EDataType" name="Identifier" instanceClassName="java.lang.String">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="String used to identify AUTOSAR model elements by short name."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EDataType" name="UUID" instanceClassName="java.lang.String">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Universally unique identifier assigned to an AUTOSAR model element."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ARObject" abstract="true">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Root abstract base class of all AUTOSAR model elements. Provides common metadata support."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="adminData" eType="#//AdminData"
+        containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Identifiable" abstract="true" eSuperTypes="#//ARObject">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Abstract AUTOSAR element that can be identified by a short name and optional UUID."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="shortName" lowerBound="1"
+        eType="#//Identifier"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="uuid" eType="#//UUID"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ARElement" abstract="true" eSuperTypes="#//Identifiable">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Abstract base class for all named AUTOSAR model elements that can be placed in packages."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ARPackage" eSuperTypes="#//Identifiable">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Container element used to organize AUTOSAR model elements hierarchically."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="elements" upperBound="-1"
+        eType="#//ARElement" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="subPackages" upperBound="-1"
+        eType="#//ARPackage" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="AdminData">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Container for administrative and tool-specific metadata associated with AUTOSAR elements."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="sdgs" upperBound="-1" eType="#//SDG"
+        containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SDG">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Special Data Group used to group structured administrative key-value information."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="gid" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2003/XMLType#//AnySimpleType"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="sd" upperBound="-1" eType="#//SD"
+        containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SD">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Single administrative data entry represented as a key-value pair."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="key" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2003/XMLType#//AnySimpleType"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="value" eType="ecore:EDataType http://www.eclipse.org/emf/2003/XMLType#//AnySimpleType"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SwComponentType" abstract="true" eSuperTypes="#//ARElement">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Abstract base class for all AUTOSAR software component types."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="ports" upperBound="-1"
+        eType="#//PortProtoype" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="RunnableEntity" eSuperTypes="#//Identifiable">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Executable unit of behavior within a software component, typically mapped to a function."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="CompositionSwComponentType" eSuperTypes="#//SwComponentType">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Software component that composes other software component instances and connects them via connectors.&#xA;A CompositionSwComponentType aggregates SwComponentPrototypes (that in turn are typed by Sw&#xA;ComponentTypes) as well as SwConnectors for primarily connecting SwComponentPrototypes among&#xA;each others and towards the surface of the CompositionSwComponentType. By this means, hierarchical&#xA;structures of software-components can be created."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="components" upperBound="-1"
+        eType="#//SwComponentPrototype" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="connectors" upperBound="-1"
+        eType="#//Connector" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SwComponentPrototype" eSuperTypes="#//Identifiable">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Instantiation of a software component type within a composition."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="type" lowerBound="1" eType="#//SwComponentType"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Connector" abstract="true" eSuperTypes="#//Identifiable">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Abstract base class for connections between software component ports."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="AssemblySwConnector" eSuperTypes="#//Connector">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Connector that links a required port of one component instance to a provided port of another.&#xA;AssemblySwConnectors are exclusively used to connect SwComponentPrototypes in the context of a&#xA;CompositionSwComponentType."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="provider" eType="#//PPortPrototype"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="requester" eType="#//RPortPrototype"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="PortProtoype" abstract="true">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="This abstract class provides the ability to become a required PortPrototype&#xA;Base class for the ports of an AUTOSAR software component.&#xA;The aggregation of PortPrototypes is subject to variability with the purpose to support the conditional&#xA;existence of ports."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="PPortPrototype" eSuperTypes="#//PortProtoype"/>
+  <eClassifiers xsi:type="ecore:EClass" name="RPortPrototype" eSuperTypes="#//PortProtoype"/>
+  <eClassifiers xsi:type="ecore:EClass" name="AtomicSwComponentType" eSuperTypes="#//SwComponentType"/>
+  <eClassifiers xsi:type="ecore:EClass" name="AUTOSAR">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="arpackage" upperBound="-1"
+        eType="#//ARPackage" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="admindata" eType="#//AdminData"
+        containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ApplicationSwComponentType" eSuperTypes="#//AtomicSwComponentType">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Atomic application software component defining ports and runnable entities.&#xA;The ApplicationSwComponentType is used to represent the application software."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="runnables" upperBound="-1"
+        eType="#//RunnableEntity" containment="true"/>
+  </eClassifiers>
+</ecore:EPackage>
