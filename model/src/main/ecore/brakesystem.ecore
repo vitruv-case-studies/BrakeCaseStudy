@@ -3,7 +3,7 @@
     xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="brakesystem" nsURI="http://www.example.org/brakesystem" nsPrefix="brakesystem">
   <eClassifiers xsi:type="ecore:EClass" name="Brakesystem">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
-      <details key="documentation" value=" A validated brake system from the test bench and the 3D models.&#xA;It describes a set of Brake Components with their specific product features and attributes."/>
+      <details key="documentation" value=" A brake system which describes a set of Brake Components with their specific product features and attributes."/>
     </eAnnotations>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="specificationType" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="instanceName" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
@@ -21,7 +21,7 @@
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="ABSSensor" eSuperTypes="#//BrakeComponent">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
-      <details key="documentation" value="ABS wheel speed sensor component.&#xA;Describes sensor characteristics such as sensor type.&#xA;Used to capture product-specific variants of ABS sensors."/>
+      <details key="documentation" value="ABS wheel speed sensor component.&#xA;Describes sensor characteristics such as sensor type."/>
     </eAnnotations>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="sensorType" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="fittingDepth" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
@@ -31,7 +31,7 @@
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="BrakeCaliper" eSuperTypes="#//BrakeComponent">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
-      <details key="documentation" value="Brake caliper component that clamps brake pads onto a brake disk to generate braking force.&#xA;Contains one or more brake pads and specifies key geometric parameters such as supported disk thickness."/>
+      <details key="documentation" value="Brake caliper component that clamps brake pads onto a brake disk to generate braking force.&#xA;Specifies key geometric parameters such as supported disk thickness."/>
     </eAnnotations>
     <eStructuralFeatures xsi:type="ecore:EReference" name="brakePads" upperBound="-1"
         eType="#//BrakePad" containment="true"/>
@@ -40,7 +40,7 @@
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="BrakeHose" eSuperTypes="#//BrakeComponent">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
-      <details key="documentation" value="Flexible brake hose that connects brake lines to brake components (e.g., caliper).&#xA;Specifies thread sizes for both ends and the hose length, capturing installation- and vehicle-specific variants."/>
+      <details key="documentation" value="A brake hose that connects to brake components (e.g., caliper).&#xA;Specifies thread sizes for both ends and the hose length, capturing installation- and vehicle-specific variants."/>
     </eAnnotations>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="threadSize1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="threadSize2" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
