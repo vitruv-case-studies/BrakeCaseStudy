@@ -1,0 +1,38 @@
+import java.io.File
+import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
+import java.util.Arrays
+
+//import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
+//import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
+//import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+
+import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+import "http://www.example.org/brakesystem" as brakesystem
+
+reactions: brakesystem2simulink
+in reaction to changes in brakesystem
+execute actions in simulink
+
+//Insertion Reactions
+
+
+reaction BrakesystemInsertedAsRoot {
+ after element brakesystem::Brakesystem inserted as root
+    call createAndRegisterRoot(newValue)
+}
+
+
+routine createAndRegisterRoot(brakesystem::Brakesystem repo) {
+    match {
+        require absence of simulink::SimulinkModel corresponding to repo
+    }
+    create {
+        val mSimulink = new simulink::SimulinkModel
+    }
+    update {
+        mSimulink.name = repo.instanceName
+        persistProjectRelative(repo, mSimulink, new File("").toString() + "example.simulink")
+        addCorrespondenceBetween(repo, mSimulink)
+    }
+}
+
