@@ -122,7 +122,7 @@ routine updateId(brakesystem::BrakeComponent comp) {
 }
 
 //
-//// Break Disk
+//// Brake Disk
 //
 
 reaction BrakeDiskInserted {
@@ -403,7 +403,6 @@ routine updateVentilated(brakesystem::BrakeDisk disk) {
     }
 }
 
-
 /// Deletion
 /// Generalized to _any_ BrakeComponent
 
@@ -430,7 +429,7 @@ routine deleteCorrespondingBrakeDisk(brakesystem::Brakesystem system, brakesyste
         removeCorrespondenceBetween(component, namespace)
     }
 }
-
+	
 
 //
 //// Brake Caliper
