@@ -131,6 +131,40 @@ public class TestUtil {
         return (SubSystem) findSimulinkBlockWithName(root, name);
     }
 
+    public boolean expectStringParameterForSimulink(Block block, String name, String content) {
+        return block
+            .getParameters()
+            .stream()
+            .anyMatch(param -> 
+                param.getType().equals("string")
+                    && param.getName().equals(name)
+                    && param.getValue().equals(content)
+            );
+    }
+
+    public boolean expectInt32ParameterForSimulink(Block block, String name, int content) {
+        return block
+            .getParameters()
+            .stream()
+            .anyMatch(param -> 
+                param.getType().equals("string")
+                    && param.getName().equals(name)
+                    && Integer.parseInt(param.getValue()) == content
+            );
+    }
+
+    public boolean expectBooleanParameterForSimulink(Block block, String name, boolean expected) {
+        return block
+            .getParameters()
+            .stream()
+            .anyMatch(param -> 
+                param.getType().equals("boolean")
+                    && param.getName().equals(name)
+                    && Boolean.parseBoolean(param.getValue()) == expected
+            );
+    }
+
+
     /**
      * Tests whether there exists a StringParameter for namespace with the given name and value.
      * @param namespace - Namespace

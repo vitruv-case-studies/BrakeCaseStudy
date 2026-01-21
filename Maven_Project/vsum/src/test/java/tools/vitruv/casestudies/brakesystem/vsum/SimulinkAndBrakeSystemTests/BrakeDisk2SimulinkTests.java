@@ -27,10 +27,18 @@ class BrakeDisk2SimulinkTests extends BrakeDiskAndSimulinkTests {
         var simulinkView = util.getSimulinkView(vsum);
         assertTrue(
             assertView(simulinkView, view -> {
-                var simulinkModel = simulinkView.getRootObjects(SimulinkModel.class)
-                    .iterator().next();
-                util.findSimulinkBlockWithName(simulinkModel, brakeDisk.getId());
-                return true;
+                var simulinkModel = util.getRootOfSimulinkModel(simulinkView);
+                var blockForBrakeDisk = util.findSimulinkBlockWithName(simulinkModel, brakeDisk.getId());
+
+                return 
+                    util.expectStringParameterForSimulink(blockForBrakeDisk, "OEM Number", "VW123456") &&
+                    util.expectInt32ParameterForSimulink(blockForBrakeDisk, "Diameter", 120)
+                    && util.expectInt32ParameterForSimulink(blockForBrakeDisk, "Centering Diameter", 20)
+                    && util.expectInt32ParameterForSimulink(blockForBrakeDisk, "Rim Hole Number", 1)
+                    && util.expectInt32ParameterForSimulink(blockForBrakeDisk, "Bolt Hole Circle", 60)
+                    && util.expectInt32ParameterForSimulink(blockForBrakeDisk, "Brake Disk Thickness", 30)
+                    && util.expectInt32ParameterForSimulink(blockForBrakeDisk, "Minimum Thickness", 25)
+                    && util.expectBooleanParameterForSimulink(blockForBrakeDisk, "Ventilated", true);
             })
         );
     }
@@ -50,8 +58,11 @@ class BrakeDisk2SimulinkTests extends BrakeDiskAndSimulinkTests {
         assertTrue(
             assertView(simulinkView, view -> {
                 var simulinkModel = util.getRootOfSimulinkModel(simulinkView);
-                util.findSimulinkSubystemWithName(simulinkModel, brakeCaliper.getId());
-                return true;
+                var caliperSubsystem = util.findSimulinkSubystemWithName(simulinkModel, brakeCaliper.getId());
+                return util.expectInt32ParameterForSimulink(caliperSubsystem, "Brake Disk Thickness", 20)
+                && util.expectInt32ParameterForSimulink(caliperSubsystem, "Piston Diameter", 10)
+                && util.expectStringParameterForSimulink(caliperSubsystem, "Fitting Position", "left")
+                && util.expectStringParameterForSimulink(caliperSubsystem, "Specification Type", "Single Brake Caliper");
             })
         );
     }
