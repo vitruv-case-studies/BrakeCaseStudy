@@ -18,7 +18,9 @@ import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
 import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
+import simulink.Block;
 import simulink.SimulinkModel;
+import simulink.SubSystem;
 import tools.vitruv.change.propagation.ChangePropagationMode;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.change.testutils.TestUserInteraction;
@@ -94,6 +96,10 @@ public class TestUtil {
         return view.getRootObjects(Brakesystem.class).iterator().next();
     }
 
+    public SimulinkModel getRootOfSimulinkModel(View view) {
+        return view.getRootObjects(SimulinkModel.class).iterator().next();
+    }
+
     public BrakeComponent findBrakeComponentWithId(Brakesystem root, String id) {
         return root
             .getBrakeComponents()
@@ -103,7 +109,6 @@ public class TestUtil {
             .orElseThrow();
     }
 
-
     public Namespace findNamespaceWithId(CAD_Model root, String id) {
         return root
             .getNamespaces()
@@ -111,6 +116,19 @@ public class TestUtil {
             .filter(namespace -> namespace.getId().equals(id))
             .findFirst()
             .orElseThrow();
+    }
+
+    public Block findSimulinkBlockWithName(SimulinkModel root, String name) {
+        return root
+            .getContains()
+            .stream()
+            .filter(block -> block.getName().equals(name))
+            .findFirst()
+            .orElseThrow();
+    }
+
+    public SubSystem findSimulinkSubystemWithName(SimulinkModel root, String name) {
+        return (SubSystem) findSimulinkBlockWithName(root, name);
     }
 
     /**

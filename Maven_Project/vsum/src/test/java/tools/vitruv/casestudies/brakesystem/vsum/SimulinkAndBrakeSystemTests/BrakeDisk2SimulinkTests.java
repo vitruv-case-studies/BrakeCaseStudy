@@ -29,11 +29,29 @@ class BrakeDisk2SimulinkTests extends BrakeDiskAndSimulinkTests {
             assertView(simulinkView, view -> {
                 var simulinkModel = simulinkView.getRootObjects(SimulinkModel.class)
                     .iterator().next();
-                var blockForBrakeDisk = simulinkModel.getContains()
-                    .stream()
-                    .filter(block -> block.getName().equals(brakeDisk.getId()))
-                    .findAny();
-                return blockForBrakeDisk.isPresent();
+                util.findSimulinkBlockWithName(simulinkModel, brakeDisk.getId());
+                return true;
+            })
+        );
+    }
+
+    @Test
+    void testCreateAndInsertBrakeCaliper(@TempDir Path tempDir) {
+        var vsum = createVirtualModel(tempDir);
+        var brakesystemView = util.getBrakesystemView(vsum);
+        var brakeCaliper = createDefaultBrakeCaliper();
+
+        util.modifyView(brakesystemView, view -> {
+            var brakesystemModel = util.getRootOfBrakesystemView(view);
+            brakesystemModel.getBrakeComponents().add(brakeCaliper);
+        });
+
+        var simulinkView = util.getSimulinkView(vsum);
+        assertTrue(
+            assertView(simulinkView, view -> {
+                var simulinkModel = util.getRootOfSimulinkModel(simulinkView);
+                util.findSimulinkSubystemWithName(simulinkModel, brakeCaliper.getId());
+                return true;
             })
         );
     }
