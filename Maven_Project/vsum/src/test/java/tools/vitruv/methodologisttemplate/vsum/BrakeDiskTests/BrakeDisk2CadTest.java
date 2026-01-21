@@ -25,6 +25,7 @@ import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
+import tools.vitruv.methodologisttemplate.vsum.DefaultModelElements;
 import tools.vitruv.methodologisttemplate.vsum.TestUtil;
 
 public class BrakeDisk2CadTest {
@@ -53,7 +54,7 @@ public class BrakeDisk2CadTest {
 				List.of(Brakesystem.class))
 				.withChangeRecordingTrait();
 		util.modifyView(view, (CommittableView v) -> {
-			BrakeDisk brakeDisk = createDefaultBrakeDisk();
+			BrakeDisk brakeDisk = DefaultModelElements.createDefaultBrakeDisk();
 			brakeDisk.setId("brakeDisk1");
 
 			v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().add(brakeDisk);
@@ -140,7 +141,7 @@ public class BrakeDisk2CadTest {
 				List.of(Brakesystem.class))
 				.withChangeRecordingTrait();
 		util.modifyView(view, (CommittableView v) -> {
-			BrakeDisk brakeDisk = createDefaultBrakeDisk();
+			BrakeDisk brakeDisk = DefaultModelElements.createDefaultBrakeDisk();
 			v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().add(brakeDisk);
 		});
 
@@ -184,7 +185,7 @@ public class BrakeDisk2CadTest {
 				List.of(Brakesystem.class))
 				.withChangeRecordingTrait();
 		util.modifyView(view, (CommittableView v) -> {
-			BrakeDisk brakeDisk = createDefaultBrakeDisk();
+			BrakeDisk brakeDisk = DefaultModelElements.createDefaultBrakeDisk();
 			v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().add(brakeDisk);
 		});
 
@@ -226,7 +227,7 @@ public class BrakeDisk2CadTest {
 				List.of(Brakesystem.class))
 				.withChangeRecordingTrait();
 		util.modifyView(view, (CommittableView v) -> {
-			BrakeDisk brakeDisk = createDefaultBrakeDisk();
+			BrakeDisk brakeDisk = DefaultModelElements.createDefaultBrakeDisk();
 			v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().add(brakeDisk);
 		});
 
@@ -258,21 +259,6 @@ public class BrakeDisk2CadTest {
 							return TestUtil.expectStringParameter(namespace, "OEM Number", "VW654321");
 						}));
 
-	}
-
-	private BrakeDisk createDefaultBrakeDisk() {
-		BrakeDisk brakeDisk = BrakesystemFactory.eINSTANCE.createBrakeDisk();
-		brakeDisk.setId("brakeDisk1");
-		brakeDisk.setOEM_number("VW123456");
-		brakeDisk.setDiameterInMM(120);
-		brakeDisk.setCenteringDiameterInMM(20);
-		brakeDisk.setRimHoleNumber(1);
-		brakeDisk.setHoleArrangementNumber(20);
-		brakeDisk.setBoltHoleCircleInMM(60);
-		brakeDisk.setBrakeDiskThicknessInMM(30);
-		brakeDisk.setMinimumThicknessInMM(25);
-		brakeDisk.setVentilated(true);
-		return brakeDisk;
 	}
 
 	private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {

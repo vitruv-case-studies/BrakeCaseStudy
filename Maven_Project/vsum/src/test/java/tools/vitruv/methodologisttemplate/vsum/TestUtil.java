@@ -16,6 +16,7 @@ import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
 import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
+import simulink.SimulinkModel;
 import tools.vitruv.change.propagation.ChangePropagationMode;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.change.testutils.TestUserInteraction;
@@ -66,6 +67,16 @@ public class TestUtil {
                 .filter(element -> rootTypes.stream().anyMatch(it -> it.isInstance(element)))
                 .forEach(it -> selector.setSelected(it, true));
         return selector.createView();
+    }
+
+    public CommittableView getBrakesystemView(VirtualModel vsum) {
+        return getDefaultView(vsum, List.of(Brakesystem.class))
+            .withChangeRecordingTrait();
+    }
+
+    public CommittableView getSimulinkView(VirtualModel vsum) {
+        return getDefaultView(vsum, List.of(SimulinkModel.class))
+            .withChangeRecordingTrait();
     }
 
     /**

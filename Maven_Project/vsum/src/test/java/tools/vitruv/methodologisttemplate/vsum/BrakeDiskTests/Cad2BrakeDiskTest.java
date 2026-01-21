@@ -28,6 +28,7 @@ import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
+import tools.vitruv.methodologisttemplate.vsum.DefaultModelElements;
 import tools.vitruv.methodologisttemplate.vsum.TestUtil;
 
 public class Cad2BrakeDiskTest {
@@ -53,7 +54,7 @@ public class Cad2BrakeDiskTest {
                 List.of(CAD_Model.class))
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
+            Namespace namespace = DefaultModelElements.createDefaultNamespace();
             namespace.setId("brakeDisk1");
             v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
         });
@@ -76,7 +77,7 @@ public class Cad2BrakeDiskTest {
                 .withChangeRecordingTrait();
         assertThrows(AssertionError.class, () -> {
             util.modifyView(view, (CommittableView v) -> {
-                Namespace namespace = createDefaultNamespace();
+                Namespace namespace = DefaultModelElements.createDefaultNamespace();
                 namespace.setId("brakeDisk1");
                 v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
             });
@@ -94,7 +95,7 @@ public class Cad2BrakeDiskTest {
                 List.of(CAD_Model.class))
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
+            Namespace namespace = DefaultModelElements.createDefaultNamespace();
             namespace.setId("brakeDisk1");
             v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
             namespace.getParameters().add(CadFactory.eINSTANCE.createStringParameter());
@@ -141,7 +142,7 @@ public class Cad2BrakeDiskTest {
                 List.of(CAD_Model.class))
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
+            Namespace namespace = DefaultModelElements.createDefaultNamespace();
             namespace.setId("brakeDisk1");
             v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
             namespace.getParameters().add(CadFactory.eINSTANCE.createStringParameter());
@@ -192,7 +193,7 @@ public class Cad2BrakeDiskTest {
                 List.of(CAD_Model.class))
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
+            Namespace namespace = DefaultModelElements.createDefaultNamespace();
             namespace.setId("brakeDisk1");
             v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
 
@@ -231,7 +232,7 @@ public class Cad2BrakeDiskTest {
 
         // Assert that the change was propagated back to the CAD model
         Assertions.assertTrue(
-                assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
+                assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeRecordingTrait(),
                         (View v) -> {
                             Namespace namespace = v.getRootObjects(CAD_Model.class).iterator().next()
                                     .getNamespaces().stream()
@@ -259,7 +260,7 @@ public class Cad2BrakeDiskTest {
                 List.of(CAD_Model.class))
                 .withChangeRecordingTrait();
         util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
+            Namespace namespace = DefaultModelElements.createDefaultNamespace();
             namespace.setId("brakeDisk1");
             v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
         });
@@ -301,13 +302,6 @@ public class Cad2BrakeDiskTest {
                                 return fittingDepthParamCorrect && numberOfPinsParamCorrect;
                             }
                         }));
-    }
-
-    private Namespace createDefaultNamespace() {
-        Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-        namespace.setName("myNamespace");
-        namespace.setId("myID");
-        return namespace;
     }
 
     private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {

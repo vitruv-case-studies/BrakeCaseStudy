@@ -1,26 +1,41 @@
 package tools.vitruv.methodologisttemplate.vsum.SimulinkAndBrakeSystemTests;
 
-import java.util.List;
+import java.nio.file.Path;
 
-import org.eclipse.emf.ecore.resource.Resource;
-import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
-import org.junit.jupiter.api.BeforeAll;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static tools.vitruv.methodologisttemplate.vsum.DefaultModelElements.*;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import tools.vitruv.change.propagation.ChangePropagationSpecification;
-import tools.vitruv.methodologisttemplate.vsum.TestUtil;
+import brakesystem.Brakesystem;
+import simulink.SimulinkModel;
 
-public class BrakeDisk2SimulinkTests {
-    
-	TestUtil util = new TestUtil();
-	Iterable<ChangePropagationSpecification> necessaryCPS =
-        List.of(
+class BrakeDisk2SimulinkTests extends BrakeDiskAndSimulinkTests {
+    @Test
+    void testCreateAndInsertBrakeDisk(@TempDir Path tempDir) {
+        var vsum = createVirtualModel(tempDir);
+        var brakesystemView = util.getBrakesystemView(vsum);
+        var brakeDisk = createDefaultBrakeDisk();
+        
+        util.modifyView(brakesystemView, (view) -> {
+
+            view.getRootObjects(Brakesystem.class).iterator().next()
+                .getBrakeComponents()
+                .add(brakeDisk);
+        });
+
+        var simulinkView = util.getSimulinkView(vsum);
+        assertTrue(
+            assertView(simulinkView, view -> {
+                var simulinkModel = simulinkView.getRootObjects(SimulinkModel.class)
+                    .iterator().next();
+                var blockForBrakeDisk = simulinkModel.getContains()
+                    .stream()
+                    .filter(block -> block.getName().equals(brakeDisk.getId()))
+                    .findAny();
+                return blockForBrakeDisk.isPresent();
+            })
         );
-
-	@BeforeAll
-	static void setup() {
-		Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("*",
-				new XMIResourceFactoryImpl());
-	}
-
+    }
 }
