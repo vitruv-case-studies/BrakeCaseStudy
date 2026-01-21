@@ -404,6 +404,34 @@ routine updateVentilated(brakesystem::BrakeDisk disk) {
 }
 
 
+/// Deletion
+/// Generalized to _any_ BrakeComponent
+
+reaction BrakeDiskDeleted {
+    after element brakesystem::BrakeComponent removed 
+        // Removed also needs to specify from where (what model element, and reference)
+        // we delete another model element
+        from brakesystem::Brakesystem[BrakeComponents]
+    // affectedEObject has the BrakeSystem from which the BrakeDisk has been removed
+    call deleteCorrespondingBrakeDisk(affectedEObject, oldValue)
+}
+
+routine deleteCorrespondingBrakeDisk(brakesystem::Brakesystem system, brakesystem::BrakeComponent component) {
+    match {
+        // Within a match block, only retrieve statements can be written
+        val namespace = retrieve cad::Namespace corresponding to component
+        // We can also retrieve the CAD Model corresponding to the brake system
+        // This is where the namespace we want to delete is contained
+        val cadModel = retrieve cad::CAD_Model corresponding to system
+    }
+    update {
+        // We only remove the reference, the namespace should not exist later on
+        cadModel.namespaces.remove(namespace)
+        removeCorrespondenceBetween(component, namespace)
+    }
+}
+
+
 //
 //// Brake Caliper
 //
