@@ -1,4 +1,4 @@
-package tools.vitruv.methodologisttemplate.vsum.CAD2SimulinkTests;
+package tools.vitruv.casestudies.brakesystem.vsum.CAD2SimulinkTests;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -27,7 +27,7 @@ import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
-import tools.vitruv.methodologisttemplate.vsum.TestUtil;
+import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 
 public class SimuLink2CADTest {
 

@@ -1,4 +1,4 @@
-package tools.vitruv.methodologisttemplate.vsum.SimulinkAndBrakeSystemTests;
+package tools.vitruv.casestudies.brakesystem.vsum.SimulinkAndBrakeSystemTests;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -12,7 +12,7 @@ import org.junit.jupiter.api.BeforeAll;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
-import tools.vitruv.methodologisttemplate.vsum.TestUtil;
+import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 
 abstract class BrakeDiskAndSimulinkTests {
     

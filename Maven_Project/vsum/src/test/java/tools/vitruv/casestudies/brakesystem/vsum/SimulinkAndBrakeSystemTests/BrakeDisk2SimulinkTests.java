@@ -1,9 +1,9 @@
-package tools.vitruv.methodologisttemplate.vsum.SimulinkAndBrakeSystemTests;
+package tools.vitruv.casestudies.brakesystem.vsum.SimulinkAndBrakeSystemTests;
 
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static tools.vitruv.methodologisttemplate.vsum.DefaultModelElements.*;
+import static tools.vitruv.casestudies.brakesystem.vsum.DefaultModelElements.*;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -19,7 +19,6 @@ class BrakeDisk2SimulinkTests extends BrakeDiskAndSimulinkTests {
         var brakeDisk = createDefaultBrakeDisk();
         
         util.modifyView(brakesystemView, (view) -> {
-
             view.getRootObjects(Brakesystem.class).iterator().next()
                 .getBrakeComponents()
                 .add(brakeDisk);

@@ -1,4 +1,4 @@
-package tools.vitruv.methodologisttemplate.vsum;
+package tools.vitruv.casestudies.brakesystem.vsum;
 
 import java.nio.file.Path;
 import java.util.function.Consumer;

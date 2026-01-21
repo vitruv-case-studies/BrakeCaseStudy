@@ -1,4 +1,4 @@
-package tools.vitruv.methodologisttemplate.vsum.CAD2SimulinkTests;
+package tools.vitruv.casestudies.brakesystem.vsum.CAD2SimulinkTests;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -24,7 +24,7 @@ import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
-import tools.vitruv.methodologisttemplate.vsum.TestUtil;
+import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 
 import simulink.SimulinkModel;
 import simulink.SubSystem;
@@ -66,7 +66,6 @@ public class CAD2SimuLinkTest {
 							SimulinkModel simulinkModel = v.getRootObjects(SimulinkModel.class).stream().findFirst().orElseThrow();
 							return simulinkModel.getName().equals("TestCADModel");
 						}));
-        
     }
 
 
@@ -89,8 +88,7 @@ public class CAD2SimuLinkTest {
                             .findFirst()
                             .orElseThrow();
                     return block.getName().equals("TestNamespace");
-                }));
-              
+                }));       
     }
 
 
@@ -115,7 +113,6 @@ public class CAD2SimuLinkTest {
                             .orElseThrow();
                     return subSystem.getName().equals("TestNamespace");
                 }));
-              
     }
 
 
@@ -140,7 +137,6 @@ public class CAD2SimuLinkTest {
                     return block.getParameters().stream()
                             .anyMatch(p -> p.getName().equals("TestStringParameter") && p.getValue().equals("TestValue") && p.getType().equals("string"));
                 }));
-              
     }
 
      @Test
@@ -182,7 +178,6 @@ public class CAD2SimuLinkTest {
                     return block.getParameters().stream()
                             .anyMatch(p -> p.getName().equals("TestNumericParameter") && p.getValue().equals("42.0") && p.getType().equals("double"));
                 }));
-              
     }
 
 
