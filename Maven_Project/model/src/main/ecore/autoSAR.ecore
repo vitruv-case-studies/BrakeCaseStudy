@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="autosar" nsURI="http://vitruv.tools/methodologisttemplate/autosar" nsPrefix="autosar">
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="autosar" nsURI="edu.kit.ipd.sdq.metamodels.autosar" nsPrefix="autosar">
   <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel"/>
   <eClassifiers xsi:type="ecore:EDataType" name="Identifier" instanceClassName="java.lang.String">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
@@ -68,11 +68,17 @@
       <details key="documentation" value="Abstract base class for all AUTOSAR software component types."/>
     </eAnnotations>
     <eStructuralFeatures xsi:type="ecore:EReference" name="ports" upperBound="-1"
-        eType="#//PortProtoype" containment="true"/>
+        eType="#//PortProtoype" containment="true">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="The PortPrototypes through which this SwComponentType can communicate.&#xA;The aggregation of PortPrototype is subject to variability with the purpose to support the conditional existence of PortPrototypes."/>
+      </eAnnotations>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="portgroup" upperBound="-1"
+        eType="#//PortGroup" containment="true"/>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="RunnableEntity" eSuperTypes="#//Identifiable">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
-      <details key="documentation" value="Executable unit of behavior within a software component, typically mapped to a function."/>
+      <details key="documentation" value="Executable unit of behavior within a software component, typically mapped to a function.&#xA;A RunnableEntity represents the smallest code-fragment that is provided by an AtomicSwComponentType and are executed under control of the RTE. RunnableEntitys are for&#xA;instance set up to respond to data reception or operation invocation on a server."/>
     </eAnnotations>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="CompositionSwComponentType" eSuperTypes="#//SwComponentType">
@@ -86,7 +92,7 @@
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="SwComponentPrototype" eSuperTypes="#//Identifiable">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
-      <details key="documentation" value="Instantiation of a software component type within a composition."/>
+      <details key="documentation" value="Role of a software component within a composition."/>
     </eAnnotations>
     <eStructuralFeatures xsi:type="ecore:EReference" name="type" lowerBound="1" eType="#//SwComponentType"/>
   </eClassifiers>
@@ -97,20 +103,35 @@
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="AssemblySwConnector" eSuperTypes="#//Connector">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
-      <details key="documentation" value="Connector that links a required port of one component instance to a provided port of another.&#xA;AssemblySwConnectors are exclusively used to connect SwComponentPrototypes in the context of a&#xA;CompositionSwComponentType."/>
+      <details key="documentation" value="Connector that links a required port of one component instance to a provided port of another.&#xA;AssemblySwConnectors are exclusively used to connect SwComponentPrototypes in the context of a CompositionSwComponentType."/>
     </eAnnotations>
-    <eStructuralFeatures xsi:type="ecore:EReference" name="provider" eType="#//PPortPrototype"/>
-    <eStructuralFeatures xsi:type="ecore:EReference" name="requester" eType="#//RPortPrototype"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="provider" eType="#//PPortPrototype">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="Instance of providing port."/>
+      </eAnnotations>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="requester" eType="#//RPortPrototype">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="Instance of requiring port."/>
+      </eAnnotations>
+    </eStructuralFeatures>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="PortProtoype" abstract="true">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
       <details key="documentation" value="This abstract class provides the ability to become a required PortPrototype&#xA;Base class for the ports of an AUTOSAR software component.&#xA;The aggregation of PortPrototypes is subject to variability with the purpose to support the conditional&#xA;existence of ports."/>
     </eAnnotations>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="PPortPrototype" eSuperTypes="#//PortProtoype"/>
-  <eClassifiers xsi:type="ecore:EClass" name="RPortPrototype" eSuperTypes="#//PortProtoype"/>
+  <eClassifiers xsi:type="ecore:EClass" name="PPortPrototype" eSuperTypes="#//AbstractProvidedPortPrototype">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="isOfType" eType="#//PortInterface"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="RPortPrototype" eSuperTypes="#//AbstractRequieredPortPrototype">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="isOfType" eType="#//PortInterface"/>
+  </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="AtomicSwComponentType" eSuperTypes="#//SwComponentType"/>
   <eClassifiers xsi:type="ecore:EClass" name="AUTOSAR">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="This Documentation was made with the help of these three documents:&#xA;- https://www.autosar.org/fileadmin/standards/R25-11/FO/AUTOSAR_FO_TPS_AbstractPlatformSpecification.pdf&#xA;- https://www.autosar.org/fileadmin/standards/R25-11/FO/AUTOSAR_FO_TPS_GenericStructureTemplate.pdf&#xA;- https://www.autosar.org/fileadmin/standards/R25-11/FO/AUTOSAR_FO_TPS_XMLSchemaProductionRules.pdf&#xA;- https://www.autosar.org/fileadmin/standards/R25-11/CP/AUTOSAR_CP_SWS_RTE.pdf"/>
+    </eAnnotations>
     <eStructuralFeatures xsi:type="ecore:EReference" name="arpackage" upperBound="-1"
         eType="#//ARPackage" containment="true"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="admindata" eType="#//AdminData"
@@ -123,4 +144,82 @@
     <eStructuralFeatures xsi:type="ecore:EReference" name="runnables" upperBound="-1"
         eType="#//RunnableEntity" containment="true"/>
   </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="AbstractProvidedPortPrototype" abstract="true"
+      eSuperTypes="#//PortProtoype"/>
+  <eClassifiers xsi:type="ecore:EClass" name="AbstractRequieredPortPrototype" abstract="true"
+      eSuperTypes="#//PortProtoype"/>
+  <eClassifiers xsi:type="ecore:EClass" name="PortGroup">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="portprotoype" upperBound="-1"
+        eType="#//PortProtoype"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ParameterSwComponentType" eSuperTypes="#//SwComponentType">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="The ParameterSwComponentType defines parameters and characteristic values accessible via provided Ports. The provided values are the same for all connected SwComponentPrototypes"/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ServiceProxySwComponentType" eSuperTypes="#//AtomicSwComponentType">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="This class provides the ability to express a software-component which provides access to an internal service for remote ECUs. It acts as a proxy for the service providing access to the service.&#xA;An important use case is the request of vehicle mode switches: Such requests can be communicated via sender-receiver interfaces across ECU boundaries, but the mode manager being responsible to perform&#xA;the mode switches is an AUTOSAR Service which is located in the Basic Software and is not visible in the VFB view. To handle this situation, a ServiceProxySwComponentType will act as proxy for the mode&#xA;manager. It will have R-Ports to be connected with the mode requestors on VFB level and Service-Ports to be connected with the local mode manager at ECU integration time.&#xA;Apart from the semantics, a ServiceProxySwComponentType has these specific properties:&#xA;• A prototype of it can be mapped to more than one ECUs in the system description.&#xA;• Exactly one additional instance of it will be created in the ECU-Extract per ECU to which the prototype&#xA;has been mapped.&#xA;• For remote communication, it can have only R-Ports with sender-receiver interfaces and 1:n semantics.&#xA;• There shall be no connectors between two prototypes of any ServiceProxySwComponentType."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SensorActuatorSwComponentType" eSuperTypes="#//AtomicSwComponentType">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="The SensorActuatorSwComponentType introduces the possibility to link from the software representation of a sensor/actuator to its hardware description provided by the ECU Resource Template."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ServiceSwComponentType" eSuperTypes="#//AtomicSwComponentType">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="ServiceSwComponentType is used for configuring services for a given ECU. Instances of this class are only to be created in ECU Configuration phase for the specific purpose of the service configuration."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="NvBlockSwComponentType" eSuperTypes="#//AtomicSwComponentType">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="The NvBlockSwComponentType defines non volatile data which data can be shared between SwComponentPrototypes. The non volatile data of the NvBlockSwComponentType are accessible via provided and required ports."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ComplexDeviceDriverSwComponentType"
+      eSuperTypes="#//AtomicSwComponentType">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="The ComplexDeviceDriverSwComponentType is a special AtomicSwComponentType that has direct access to hardware on an ECU and which is therefore linked to a specific ECU or specific hardware. The ComplexDeviceDriverSwComponentType introduces the possibility to link from the software representation to its hardware description provided by the ECU Resource Template."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="EcuAbstractionSwComponentType" eSuperTypes="#//AtomicSwComponentType">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="The ECUAbstraction is a special AtomicSwComponentType that resides between a software-component that wants to access ECU periphery and the Microcontroller Abstraction. The EcuAbstractionSwComponentType introduces the possibility to link from the software representation to its hardware description provided by the ECU Resource Template."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="DelegationSwConnector" eSuperTypes="#//Connector">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="A delegation connector delegates one inner PortPrototype (a port of a component that is used inside the composition) to a outer PortPrototype of compatible type that belongs directly to the composition&#xA;(a port that is owned by the composition)."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="innerport" eType="#//PortProtoype">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="The port that belongs to the ComponentPrototype in the composition"/>
+      </eAnnotations>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="outerport" eType="#//PortProtoype">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="The port that is located on the outside of the CompositionType"/>
+      </eAnnotations>
+    </eStructuralFeatures>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="PortInterface" abstract="true" eSuperTypes="#//ARElement">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Abstract base class for an interface that is either provided or required by a port of a software component."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="PRPortPrototype" eSuperTypes="#//AbstractProvidedPortPrototype #//AbstractRequieredPortPrototype">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="isOfType" eType="#//PortInterface"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ClientServerInterface" eSuperTypes="#//PortInterface">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="A client/server interface declares a number of operations that can be invoked on a server by a client."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="TriggerInterface" eSuperTypes="#//PortInterface">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="A trigger interface declares a number of triggers that can be sent by an trigger source."/>
+    </eAnnotations>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="NewEClass35"/>
 </ecore:EPackage>
