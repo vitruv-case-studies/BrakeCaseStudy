@@ -1,0 +1,66 @@
+import java.io.File;
+
+
+
+import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+import "http://vitruv.tools/methodologisttemplate/autosar" as autosar
+
+reactions: autosar2simulink
+in reaction to changes in autosar
+execute actions in simulink
+
+
+// Root Reactions
+reaction AutoSarModelInsertedAsRoot {
+    after element autosar::AUTOSAR inserted as root
+    call createAndRegisterRoot(newValue)
+}
+
+routine createAndRegisterRoot(autosar::AUTOSAR model) {
+    match {
+        require absence of simulink::SimulinkModel corresponding to model
+    }
+    create {
+        val mSimulink = new simulink::SimulinkModel
+    }
+    update {
+        persistProjectRelative(model, mSimulink, new File("").toString() + "simulink.xml")
+        addCorrespondenceBetween(model, mSimulink)
+    }
+}
+
+
+reaction AutoSarModelDeletedAsRoot {
+    after element autosar::AUTOSAR deleted
+    call deleteAndUnregisterRoot(affectedEObject)
+}       
+
+routine deleteAndUnregisterRoot(autosar::AUTOSAR model) {
+    match {
+       val mSimulink = retrieve simulink::SimulinkModel corresponding to model 
+    }
+    update {
+        removeCorrespondenceBetween(model, mSimulink)
+        removeObject(mSimulink)
+    }
+}
+
+
+reaction AtomicSwComponentTypeInserted {
+    after element autosar::AtomicSwComponentType inserted in autosar::ARPackage[elements]
+    call createCorrespondingSimuLinkBlock(newValue)
+}
+
+routine createCorrespondingSimuLinkBlock(autosar::AtomicSwComponentType component) {
+    match {
+        val mSimulinkModel = retrieve simulink::SimulinkModel corresponding to component.eContainer().eContainer()
+    }
+    create {
+        val mBlock = new simulink::Block
+    }
+    update {
+        mBlock.name = component.getShortName()
+        mSimulinkModel.getContains().add(mBlock)
+        addCorrespondenceBetween(component, mBlock)
+    }
+}

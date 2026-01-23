@@ -1,0 +1,30 @@
+import java.io.File;
+
+
+
+import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+import "http://vitruv.tools/methodologisttemplate/autosar" as autosar
+
+reactions: simulink2autosar
+in reaction to changes in simulink
+execute actions in autosar
+
+
+// Root Reactions
+reaction SimulinkModelInsertedAsRoot {
+    after element simulink::SimulinkModel inserted as root
+    call createAndRegisterRoot(newValue)
+}
+
+routine createAndRegisterRoot(simulink::SimulinkModel model) {
+    match {
+        require absence of autosar::AUTOSAR corresponding to model
+    }
+    create {
+        val mAutosar = new autosar::AUTOSAR
+    }
+    update {
+        persistProjectRelative(model, mAutosar, new File("").toString() + "autosar.xml")
+        addCorrespondenceBetween(model, mAutosar)
+    }
+}
