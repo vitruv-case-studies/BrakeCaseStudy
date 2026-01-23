@@ -12,7 +12,6 @@ build.properties
 plugin.properties
 
 .DS_Store
-.github/*
 .mvn/
 
 
