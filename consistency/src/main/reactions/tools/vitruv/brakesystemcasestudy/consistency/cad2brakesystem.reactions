@@ -178,8 +178,6 @@ routine updateCorrespondingAttribute(cad::Parameter parameter) {
             return
         } 
 
-        // System.out.println("Updating BrakeComponent" + mBrakeComponent)
-
         if (mBrakeComponent instanceof ABSSensor) {
             updateABSSensor(parameter)
         } else if (mBrakeComponent instanceof BrakeCaliper) {
@@ -245,11 +243,12 @@ routine updateBrakeCaliper(cad::Parameter parameter) {
     update {
         if (parameter instanceof NumericParameter) {
             val numericParam = parameter as NumericParameter
+            val numericValue = Math.round(numericParam.value)
             switch (numericParam.name) {
                 case "Piston Diameter":
-                    brakeCaliper.setPistonDiameterInMM(Math.round(numericParam.value))
+                    brakeCaliper.setPistonDiameterInMM(numericValue)
                 case "Brake Disk Thickness":
-                    brakeCaliper.setBrakeDiskThickness(Math.round(numericParam.value))
+                    brakeCaliper.setBrakeDiskThickness(numericValue)
                 default:
                     return // Do nothing for unhandled numeric parameters
             }
