@@ -19,6 +19,7 @@
             class="edu.kit.ipd.sdq.metamodels.cad.CadPackage"
             genModel="src/main/ecore/cad.genmodel"/>
    </extension>
+
    <extension point="org.eclipse.emf.ecore.generated_package">
       <!-- @generated simuLink -->
       <package
@@ -26,14 +27,7 @@
             class="simulink.SimuLinkPackage"
             genModel="src/main/ecore/simuLink.genmodel"/>
    </extension>
-      <extension point="org.eclipse.emf.ecore.generated_package">
-      <!-- @generated autosar -->
-      <package
-            uri="http://vitruv.tools/methodologisttemplate/autosar"
-            class="autosar.AutosarPackage"
-            genModel="src/main/ecore/autoSAR.genmodel"/>
-   </extension>
-
+   
    <extension point="org.eclipse.emf.ecore.generated_package">
       <!-- @generated autoSAR -->
       <package
