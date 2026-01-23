@@ -3,9 +3,9 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore"
   xmlns:genmodel="http://www.eclipse.org/emf/2002/GenModel"
-  modelDirectory="/tools.vitruv.methodologisttemplate.model/target/generated-sources/ecore"
+  modelDirectory="/tools.vitruv.casestudies.brakesystem.model/target/generated-sources/ecore"
   creationIcons="false"
-  modelPluginID="tools.vitruv.methodologisttemplate.cad" modelName="Cad"
+  modelPluginID="tools.vitruv.casestudies.brakesystem.cad" modelName="Cad"
   rootExtendsClass="org.eclipse.emf.ecore.impl.MinimalEObjectImpl$Container"
   codeFormatting="true" importerID="org.eclipse.emf.importer.ecore" complianceLevel="23.0"
   copyrightFields="false" operationReflection="true" importOrganizing="true">

@@ -1,11 +1,11 @@
-package tools.vitruv.methodologisttemplate.viewtype;
+package tools.vitruv.casestudies.brakesystem.viewtype;
 
 import tools.vitruv.framework.views.impl.ChangeDerivingView;
-import tools.vitruv.methodologisttemplate.viewtype.impl.ChangeTransformingViewTypeImpl;
 
 import java.util.List;
 import java.util.function.Function;
 
+import tools.vitruv.casestudies.brakesystem.viewtype.impl.ChangeTransformingViewTypeImpl;
 import tools.vitruv.change.atomic.EChange;
 import tools.vitruv.change.atomic.hid.HierarchicalId;
 import tools.vitruv.framework.views.impl.IdentityMappingViewType;

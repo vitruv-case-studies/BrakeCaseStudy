@@ -220,7 +220,7 @@ routine updateABSSensor(cad::Parameter parameter) {
             return
         }
         if (parameter instanceof NumericParameter) {
-            val numericParam = parameter as NumericParameter
+            val numericParam = parameter 
             switch (numericParam.name) {
                 case "Fitting Depth":
                     absSensor.setFittingDepth(Math.round(numericParam.value))
@@ -242,7 +242,7 @@ routine updateBrakeCaliper(cad::Parameter parameter) {
     }
     update {
         if (parameter instanceof NumericParameter) {
-            val numericParam = parameter as NumericParameter
+            val numericParam = parameter 
             val numericValue = Math.round(numericParam.value)
             switch (numericParam.name) {
                 case "Piston Diameter":
@@ -263,7 +263,7 @@ routine updateBrakeHose(cad::Parameter parameter) {
     }
     update {
         if (parameter instanceof StringParameter ) {
-            val stringParam = parameter as StringParameter
+            val stringParam = parameter 
             switch (parameter.name) {
                 case "Thread 1":
                     brakeHose.setThreadSize1(stringParam.value)
@@ -275,7 +275,7 @@ routine updateBrakeHose(cad::Parameter parameter) {
             return
         }
         if (parameter instanceof NumericParameter) {
-            val numericParam = parameter as NumericParameter
+            val numericParam = parameter 
             if (numericParam.name == "Length") {
                 brakeHose.setLengthInMM(Math.round(numericParam.value))
             } 
@@ -290,7 +290,7 @@ routine updateBrakeDisk(cad::Parameter parameter) {
     }
     update {
         if (parameter instanceof NumericParameter) {
-            val numericParam = parameter as NumericParameter
+            val numericParam = parameter 
             switch (numericParam.name) {
                 case "Diameter":
                     brakeDisk.setDiameterInMM(Math.round(numericParam.value))
@@ -312,7 +312,7 @@ routine updateBrakeDisk(cad::Parameter parameter) {
             return
         }
         if (parameter instanceof BooleanParameter) {
-            val booleanParam = parameter as BooleanParameter
+            val booleanParam = parameter
             if (booleanParam.name == "Ventilated") {
                 brakeDisk.setVentilated(booleanParam.value)
             } 

@@ -1,11 +1,10 @@
-package tools.vitruv.methodologisttemplate.viewtype.impl;
-
-import tools.vitruv.methodologisttemplate.viewtype.ChangeTransformingViewType;
+package tools.vitruv.casestudies.brakesystem.viewtype.impl;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+import tools.vitruv.casestudies.brakesystem.viewtype.ChangeTransformingViewType;
 import tools.vitruv.change.atomic.EChange;
 import tools.vitruv.change.atomic.hid.HierarchicalId;
 import tools.vitruv.change.composite.description.VitruviusChange;
