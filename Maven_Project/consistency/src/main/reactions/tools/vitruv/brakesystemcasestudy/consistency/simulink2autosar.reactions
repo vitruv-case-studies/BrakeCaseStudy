@@ -28,3 +28,57 @@ routine createAndRegisterRoot(simulink::SimulinkModel model) {
         addCorrespondenceBetween(model, mAutosar)
     }
 }
+
+reaction SimulinkModelDeletedAsRoot {
+    after element simulink::SimulinkModel deleted
+    call deleteAndUnregisterRoot(affectedEObject)
+}
+
+routine deleteAndUnregisterRoot(simulink::SimulinkModel model) {
+    match {
+       val mAutosar = retrieve autosar::AUTOSAR corresponding to model 
+    }
+    update {
+        removeCorrespondenceBetween(model, mAutosar)
+        removeObject(mAutosar)
+    }
+}
+
+// Block Reactions
+reaction SimulinkBlockInserted {
+    after element simulink::Block inserted in simulink::SimulinkModel[contains]
+    call createCorrespondingAutoSarComponent(newValue)
+}
+
+routine createCorrespondingAutoSarComponent(simulink::Block block) {
+    match {
+        val mAutosarModel = retrieve autosar::AUTOSAR corresponding to block.eContainer()
+    }
+    create {
+        val mComponent = new autosar::AtomicSwComponentType
+        
+        
+    }
+    update {
+        if (mAutosarModel.arpackage.size == 0) {
+            CreateDefaultARPackageIfNotExists(mAutosarModel)
+        }
+        val mARPackage = mAutosarModel.arpackage.get(0)
+        mComponent.setShortName(block.name)
+        mARPackage.elements.add(mComponent)
+        addCorrespondenceBetween(block, mComponent)
+        
+        
+    }
+}
+
+
+routine CreateDefaultARPackageIfNotExists(autosar::AUTOSAR mAutosarModel) {
+    create{
+        val newPackage = new autosar::ARPackage
+    }
+    update {   
+        newPackage.setShortName("DefaultPackage")    
+        mAutosarModel.arpackage.add(newPackage)
+    }
+}
