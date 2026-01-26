@@ -1,7 +1,17 @@
-Methodologist Template Project
-==============================
-This project is a template for the methodologists who are creating a V-SUM.
+# Vitruvius Brake Case Study 
+- based on the Methodologist Template (see [here](https://github.com/vitruv-tools/Methodologist-Template/tree/main))
 
+## Getting Started
+
+The project comes with a maven wrapper, so you can run it without installing Maven.
+To build the project you can run the following command:
+
+```bash
+./mvnw clean verify
+```
+
+Verify that all tests are passing. The tests are located in the `vsum` folder.
+Now you can start to modify the project to your needs. Or jump to the [Tutorial](#tutorial) section to get a quick start. First we will explain what tests are run and what they are testing.
 
 Model
 -----
@@ -24,3 +34,9 @@ Useful Links
 Details about the build process and configurations can be found in the readmes of the relevant projects.
 * https://github.com/vitruv-tools/Maven-Build-Parent/blob/main/readme.md
 * https://github.com/vitruv-tools/EMF-Template/blob/main/readme.md
+
+
+## Documentation of the Case Study
+
+In the wiki, you can find the documentation of the different ecore models and the semantic overlaps defined between the different metamodels.
+
