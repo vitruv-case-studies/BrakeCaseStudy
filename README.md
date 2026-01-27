@@ -11,7 +11,7 @@ To build the project you can run the following command:
 ```
 
 Verify that all tests are passing. The tests are located in the `vsum` folder.
-Now you can start to modify the project to your needs. Or jump to the [Tutorial](#tutorial) section to get a quick start. First we will explain what tests are run and what they are testing.
+Now you can start to modify the project to your needs.
 
 
 ## Documentation of the Case Study
