@@ -51,21 +51,20 @@ routine createAndRegisterNamespace(cad::Namespace namespace) {
     }
     update {
         val componentType = userInteractor.singleSelectionDialogBuilder.message(
-    			"What brake component does this namespace represent?").choices(
-    			Arrays.asList("ABSSensor","BrakeCaliper","BrakeHose","BrakeDisk")).windowModality(WindowModality.MODAL).
-    			startInteraction
-    		switch (componentType) {
-    			case 0:
-    				createABSSensor(namespace, mBrake)
-    			case 1:
-    				createBrakeCaliper(namespace, mBrake)
-    			case 2:
-                    createBrakeHose(namespace, mBrake)
-                case 3:
-                    createBrakeDisk(namespace, mBrake)
-    			default:
-    				return // do nothing
-    		}
+            "What brake component does this namespace represent?").choices(
+            Arrays.asList("ABSSensor","BrakeCaliper","BrakeHose","BrakeDisk")).windowModality(WindowModality.MODAL).startInteraction
+        switch (componentType) {
+            case 0:
+                createABSSensor(namespace, mBrake)
+            case 1:
+                createBrakeCaliper(namespace, mBrake)
+            case 2:
+                createBrakeHose(namespace, mBrake)
+            case 3:
+                createBrakeDisk(namespace, mBrake)
+            default:
+                return // do nothing
+        }
 
     }
 }
