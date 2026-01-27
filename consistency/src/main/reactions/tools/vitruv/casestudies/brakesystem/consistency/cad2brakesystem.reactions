@@ -51,7 +51,7 @@ routine createAndRegisterNamespace(cad::Namespace namespace) {
     }
     update {
         val componentType = userInteractor.singleSelectionDialogBuilder.message(
-    			"What brake component do you want to add to be correspondent to this namespace?").choices(
+    			"What brake component does this namespace represent?").choices(
     			Arrays.asList("ABSSensor","BrakeCaliper","BrakeHose","BrakeDisk")).windowModality(WindowModality.MODAL).
     			startInteraction
     		switch (componentType) {
