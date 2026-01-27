@@ -21,19 +21,19 @@ In the wiki, you can find the documentation of the different ecore models and th
 ## General Project Structure
 
 
-Model
+model
 -----
 This folder contains the model in the ecore format. When you do not use eclipse, please provide a genmodel of your ecore model so that code can be generated. 
 
-Consistency
+consistency
 -----------
 This folder contains the consistency specifications, like reactions.
 
-ViewType
+viewType
 --------
 This folder contains the definition of the view types. These are necessary to create views of the vsum. 
 
-Vsum
+vsum
 ----
 This folder contains the VSUM
 
