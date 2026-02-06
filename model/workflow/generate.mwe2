@@ -1,0 +1,26 @@
+module tools.vitruv.casestudies.brakesystem.model
+
+import org.eclipse.emf.mwe2.ecore.EcoreGenerator
+import org.eclipse.emf.mwe.utils.StandaloneSetup
+
+var workspaceRoot = ".."
+
+Workflow {
+
+    bean = StandaloneSetup {
+        scanClassPath = true
+        platformUri = workspaceRoot
+    }
+
+    component = EcoreGenerator {
+        genModel = "platform:/resource/tools.vitruv.casestudies.brakesystem.model/src/main/ecore/brakesystem.genmodel"
+        srcPath = "platform:/resource/tools.vitruv.casestudies.brakesystem.model/target/generated-sources/ecore"
+        generateCustomClasses = false
+    }
+
+    component = EcoreGenerator {
+        genModel = "platform:/resource/tools.vitruv.casestudies.brakesystem.model/src/main/ecore/cad.genmodel"
+        srcPath = "platform:/resource/tools.vitruv.casestudies.brakesystem.model/target/generated-sources/ecore"
+        generateCustomClasses = false
+    }
+}
