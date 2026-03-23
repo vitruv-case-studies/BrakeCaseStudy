@@ -31,7 +31,7 @@ public class TestUtil {
 
     public TestUserInteraction userInteraction = new TestUserInteraction();
 
-    public InternalVirtualModel createDefaultVirtualModel(Path projectPath,Iterable<ChangePropagationSpecification> additionalCPS) {
+    public InternalVirtualModel createDefaultVirtualModel(Path projectPath,Iterable<ChangePropagationSpecification> additionalCPS) throws java.io.IOException {
         InternalVirtualModel model = new VirtualModelBuilder()
                 .withStorageFolder(projectPath)
                 .withUserInteractorForResultProvider(

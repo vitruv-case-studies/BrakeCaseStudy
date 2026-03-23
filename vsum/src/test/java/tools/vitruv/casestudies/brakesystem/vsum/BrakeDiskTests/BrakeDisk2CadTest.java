@@ -75,7 +75,7 @@ public class BrakeDisk2CadTest {
 	 */
 	@ParameterizedTest(name = "Testing if deleting a {0} also deletes its corresponding Namespace")
 	@MethodSource("provideBrakeComponents")
-	void brakeComponentDeleteTest(BrakeComponent brakeComponent, @TempDir Path tempDir) {
+	void brakeComponentDeleteTest(BrakeComponent brakeComponent, @TempDir Path tempDir) throws Exception {
 		var vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
@@ -110,7 +110,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void brakeDiskInsertionAndPropagationTest(@TempDir Path tempDir) {
+	void brakeDiskInsertionAndPropagationTest(@TempDir Path tempDir) throws Exception {
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
@@ -151,7 +151,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void changeDiameterTest(@TempDir Path tempDir) {
+	void changeDiameterTest(@TempDir Path tempDir) throws Exception {
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
@@ -195,7 +195,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void changeIdTest(@TempDir Path tempDir) {
+	void changeIdTest(@TempDir Path tempDir) throws Exception {
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
@@ -238,7 +238,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void changeVentilatedTest(@TempDir Path tempDir) {
+	void changeVentilatedTest(@TempDir Path tempDir) throws Exception {
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
@@ -279,7 +279,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void changeOEMNumberTest(@TempDir Path tempDir) {
+	void changeOEMNumberTest(@TempDir Path tempDir) throws Exception {
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
