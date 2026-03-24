@@ -33,6 +33,7 @@ import tools.vitruv.framework.vsum.branch.merge.MergeConflict;
 import tools.vitruv.framework.vsum.branch.merge.SemanticChangeLog;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
+import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult.MergeDirection;
 import tools.vitruv.framework.vsum.internal.InternalVirtualModel;
 
 import brakesystem.BrakeDisk;
@@ -497,6 +498,123 @@ public class ThreeModelBranchingMergeTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // Scenario 8: Bidirectional merge — reverse resolves S4's indirect conflict
+    //
+    // Same setup as S4: A changes BrakeDisk.diameter (M₁), B sets CAD Diameter (M₂).
+    // A→B has INDIRECT_CONFLICT (derived(A) overwrites user(B) in M₂).
+    // B→A: replaying B's CAD parameter change onto A. If no reaction fires for
+    // M₂→M₁ on parameter value change, B→A is clean → use reversed result.
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("S8: bidirectional merge reverses S4 — derived(A) vs user(B) resolved via B→A")
+    void scenario8_bidirectional_reversesS4(@TempDir Path tempDir) throws Exception {
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300").call();
+
+            // Branch A: change BrakeDisk.diameter → 320 in M₁
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+
+            changeBrakeDiskDiameter(vsum, "disk1", 320);
+
+            commitWithChangelog(git, capture, tempDir, "feature", "BrakeDisk diameter→320");
+
+            // Branch B: user directly sets CAD Diameter → 350
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+
+            changeCADNumericParameter(vsum, "disk1", "Diameter", 350.0f);
+
+            commitWithChangelog(git, capture, tempDir, "main", "CAD Diameter→350 (user intent)");
+
+            vsum.dispose();
+
+            // Bidirectional merge: A→B has indirect conflict, B→A should be clean
+            SemanticMergeResult result = mergeBidirectional(
+                    tempDir, "feature", "main", interactionProvider);
+
+            assertTrue(result.isSuccess(),
+                    "Bidirectional merge should succeed via reverse direction");
+            assertEquals(MergeDirection.REVERSED, result.getMergeDirection(),
+                    "Should use REVERSED direction since A→B had indirect conflicts");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Scenario 9: Bidirectional merge — both directions have indirect conflicts
+    //
+    // A changes BrakeDisk.id in M₁ → reaction derives Namespace.id in M₂.
+    // B changes Namespace.id in M₂ → reaction derives BrakeComponent.id in M₁.
+    // A→B: derived(A) Namespace.id overwrites user(B) Namespace.id → INDIRECT
+    // B→A: derived(B) BrakeComponent.id overwrites user(A) BrakeDisk.id → INDIRECT
+    // → BIDIRECTIONAL_INDIRECT_CONFLICT (true conflict)
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("S9: bidirectional — both directions have indirect conflicts → true conflict")
+    void scenario9_bidirectional_bothDirectionsConflict(@TempDir Path tempDir) throws Exception {
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1").call();
+
+            // Branch A: change BrakeDisk.id → "diskA" in M₁
+            // Reaction derives: Namespace.id → "diskA" (M₂)
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+
+            changeBrakeDiskId(vsum, "disk1", "diskA");
+
+            commitWithChangelog(git, capture, tempDir, "feature", "BrakeDisk.id→diskA");
+
+            // Branch B: change Namespace.id → "nsB" in M₂
+            // Reaction derives: BrakeComponent.id → "nsB" (M₁)
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+
+            changeNamespaceId(vsum, "disk1", "nsB");
+
+            commitWithChangelog(git, capture, tempDir, "main", "Namespace.id→nsB");
+
+            vsum.dispose();
+
+            // Bidirectional merge:
+            // A→B: derived(A) Namespace.id="diskA" overwrites user(B) "nsB" → INDIRECT
+            // B→A: derived(B) BrakeComponent.id="nsB" overwrites user(A) "diskA" → INDIRECT
+            // → Both directions conflict → BIDIRECTIONAL_INDIRECT_CONFLICT
+            SemanticMergeResult result = mergeBidirectional(
+                    tempDir, "feature", "main", interactionProvider);
+
+            assertFalse(result.isSuccess(),
+                    "Both directions have indirect conflicts → should report CONFLICT");
+            assertFalse(result.getConflicts().isEmpty(),
+                    "Should have BIDIRECTIONAL_INDIRECT_CONFLICT(s)");
+
+            boolean hasBidirectionalConflict = result.getConflicts().stream()
+                    .anyMatch(c -> c.getType() == MergeConflict.ConflictType.BIDIRECTIONAL_INDIRECT_CONFLICT);
+            assertTrue(hasBidirectionalConflict,
+                    "Should have BIDIRECTIONAL_INDIRECT_CONFLICT type");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // Helper methods
     // ═══════════════════════════════════════════════════════════════════
 
@@ -526,6 +644,12 @@ public class ThreeModelBranchingMergeTest {
     private SemanticMergeResult merge(Path tempDir, String source, String target,
                                        TestUserInteraction.ResultProvider interactionProvider) throws Exception {
         return new SemanticMergeCommand().execute(tempDir, source, target, allCPS(), interactionProvider);
+    }
+
+    private SemanticMergeResult mergeBidirectional(Path tempDir, String branchA, String branchB,
+                                                     TestUserInteraction.ResultProvider interactionProvider) throws Exception {
+        return new SemanticMergeCommand().executeBidirectional(
+                tempDir, branchA, branchB, allCPS(), interactionProvider, null);
     }
 
     private ChangeLogCapture freshCapture(InternalVirtualModel vsum) {
