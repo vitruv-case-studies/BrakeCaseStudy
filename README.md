@@ -35,7 +35,31 @@ This folder contains the definition of the view types. These are necessary to cr
 
 vsum
 ----
-This folder contains the VSUM
+This folder contains the VSUM, integration tests, and the merge approach comparison framework.
+
+### Branching Merge Tests
+
+The `vsum` module contains tests for the semantic three-way merge across three models (Brakesystem, CAD, Safety). Seven scenarios (S1–S7) cover clean merges, indirect conflicts, user-vs-derived warnings, and direct conflicts.
+
+```bash
+# Run all branching merge tests:
+./mvnw -pl vsum test -Dtest=ThreeModelBranchingMergeTest
+```
+
+### Merge Approach Comparison (Vitruvius vs EMFCompare)
+
+The `comparison/` subpackage contains a baseline comparison framework that runs the same 7 scenarios through both the Vitruvius semantic merge and EMFCompare three-way merge. EMFCompare serves as the state-of-the-art baseline that treats all model changes equally — it cannot distinguish user-authored (original) changes from reaction-derived (consequential) changes.
+
+```bash
+# Generate the comparison table:
+./mvnw -pl vsum test -Dtest=MergeApproachComparisonTest#generateComparisonTable
+
+# Run individual approach tests:
+./mvnw -pl vsum test -Dtest=MergeApproachComparisonTest#vitruviusMerge
+./mvnw -pl vsum test -Dtest=MergeApproachComparisonTest#emfCompareMerge
+```
+
+The comparison table is written to `vsum/target/merge-comparison-table.md`.
 
 Useful Links
 ------------
