@@ -1,0 +1,157 @@
+
+import java.io.File;
+
+import "http://www.example.org/brakesystem" as brakesystem
+import "http://www.example.org/safety" as safety
+
+reactions: brakesystem2safety
+in reaction to changes in brakesystem
+execute actions in safety
+
+// ── Root mapping ──────────────────────────────────────────────────────
+
+reaction BrakesystemInsertedAsRoot_Safety {
+    after element brakesystem::Brakesystem inserted as root
+    call createSafetyAssessment(newValue)
+}
+
+routine createSafetyAssessment(brakesystem::Brakesystem repo) {
+    match {
+        require absence of safety::SafetyAssessment corresponding to repo
+    }
+    create {
+        val assessment = new safety::SafetyAssessment
+    }
+    update {
+        assessment.id = "safety-" + repo.instanceName
+        assessment.name = "Safety Assessment"
+        persistProjectRelative(repo, assessment, new File("").toString() + "safety.safety")
+        addCorrespondenceBetween(repo, assessment)
+    }
+}
+
+// ── Component insertion → SafetyEntry ─────────────────────────────────
+
+reaction BrakeComponentInserted_Safety {
+    after element brakesystem::BrakeComponent inserted in brakesystem::Brakesystem[BrakeComponents]
+    call createSafetyEntry(newValue)
+}
+
+routine createSafetyEntry(brakesystem::BrakeComponent comp) {
+    match {
+        val assessment = retrieve safety::SafetyAssessment corresponding to comp.eContainer()
+        require absence of safety::SafetyEntry corresponding to comp
+    }
+    create {
+        val entry = new safety::SafetyEntry
+    }
+    update {
+        entry.componentId = comp.id
+        entry.asilLevel = safety::ASILLevel::QM
+        entry.complianceStatus = "review-needed"
+        entry.safetyGoal = "Ensure safe operation of " + comp.id
+        assessment.safetyEntries.add(entry)
+        addCorrespondenceBetween(comp, entry)
+    }
+}
+
+// ── Component deletion → delete SafetyEntry ──────────────────────────
+
+reaction BrakeComponentDeleted_Safety {
+    after element brakesystem::BrakeComponent removed from brakesystem::Brakesystem[BrakeComponents]
+    call deleteSafetyEntry(oldValue)
+}
+
+routine deleteSafetyEntry(brakesystem::BrakeComponent comp) {
+    match {
+        val entry = retrieve safety::SafetyEntry corresponding to comp
+    }
+    update {
+        removeCorrespondenceBetween(comp, entry)
+        removeObject(entry)
+    }
+}
+
+// ── Component ID changed → update SafetyEntry.componentId ────────────
+
+reaction ComponentIdChanged_Safety {
+    after attribute replaced at brakesystem::BrakeComponent[id]
+    call updateSafetyEntryComponentId(affectedEObject)
+}
+
+routine updateSafetyEntryComponentId(brakesystem::BrakeComponent comp) {
+    match {
+        val entry = retrieve safety::SafetyEntry corresponding to comp
+    }
+    update {
+        entry.componentId = comp.id
+    }
+}
+
+// ── BrakeDisk diameter changed → recalculate thermalLoadRating ───────
+
+reaction BrakeDiskDiameterChanged_Safety {
+    after attribute replaced at brakesystem::BrakeDisk[diameterInMM]
+    call updateThermalLoadRating(affectedEObject)
+}
+
+routine updateThermalLoadRating(brakesystem::BrakeDisk disk) {
+    match {
+        val entry = retrieve safety::SafetyEntry corresponding to disk
+    }
+    update {
+        entry.thermalLoadRating = disk.diameterInMM * disk.brakeDiskThicknessInMM * 0.01f
+        entry.complianceStatus = "review-needed"
+    }
+}
+
+// ── BrakeDisk thickness changed → recalculate thermalLoadRating ──────
+
+reaction BrakeDiskThicknessChanged_Safety {
+    after attribute replaced at brakesystem::BrakeDisk[brakeDiskThicknessInMM]
+    call updateThermalLoadRatingFromThickness(affectedEObject)
+}
+
+routine updateThermalLoadRatingFromThickness(brakesystem::BrakeDisk disk) {
+    match {
+        val entry = retrieve safety::SafetyEntry corresponding to disk
+    }
+    update {
+        entry.thermalLoadRating = disk.diameterInMM * disk.brakeDiskThicknessInMM * 0.01f
+        entry.complianceStatus = "review-needed"
+    }
+}
+
+// ── BrakePad height changed → recalculate frictionArea ───────────────
+
+reaction BrakePadHeightChanged_Safety {
+    after attribute replaced at brakesystem::BrakePad[heightInMM]
+    call updateFrictionAreaFromHeight(affectedEObject)
+}
+
+routine updateFrictionAreaFromHeight(brakesystem::BrakePad pad) {
+    match {
+        val entry = retrieve safety::SafetyEntry corresponding to pad
+    }
+    update {
+        entry.frictionArea = pad.heightInMM * pad.widthInMM * 1.0f
+        entry.complianceStatus = "review-needed"
+    }
+}
+
+// ── BrakePad width changed → recalculate frictionArea ────────────────
+
+reaction BrakePadWidthChanged_Safety {
+    after attribute replaced at brakesystem::BrakePad[widthInMM]
+    call updateFrictionAreaFromWidth(affectedEObject)
+}
+
+routine updateFrictionAreaFromWidth(brakesystem::BrakePad pad) {
+    match {
+        val entry = retrieve safety::SafetyEntry corresponding to pad
+    }
+    update {
+        entry.frictionArea = pad.heightInMM * pad.widthInMM * 1.0f
+        entry.complianceStatus = "review-needed"
+    }
+}

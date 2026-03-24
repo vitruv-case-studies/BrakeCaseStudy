@@ -21,4 +21,12 @@
             genModel="src/main/ecore/cad.genmodel"/>
    </extension>
 
+   <extension point="org.eclipse.emf.ecore.generated_package">
+      <!-- @generated safety -->
+      <package
+            uri="http://www.example.org/safety"
+            class="safety.SafetyPackage"
+            genModel="src/main/ecore/safety.genmodel"/>
+   </extension>
+
 </plugin>

@@ -23,4 +23,10 @@ Workflow {
         srcPath = "platform:/resource/tools.vitruv.casestudies.brakesystem.model/target/generated-sources/ecore"
         generateCustomClasses = false
     }
+
+    component = EcoreGenerator {
+        genModel = "platform:/resource/tools.vitruv.casestudies.brakesystem.model/src/main/ecore/safety.genmodel"
+        srcPath = "platform:/resource/tools.vitruv.casestudies.brakesystem.model/target/generated-sources/ecore"
+        generateCustomClasses = false
+    }
 }

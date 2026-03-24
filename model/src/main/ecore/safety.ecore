@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="safety" nsURI="http://www.example.org/safety" nsPrefix="safety">
+  <eClassifiers xsi:type="ecore:EClass" name="SafetyAssessment">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Root container for safety analysis entries. Each brake system has one SafetyAssessment that tracks the safety classification and derived metrics for every component."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="id" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="safetyEntries" upperBound="-1"
+        eType="#//SafetyEntry" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SafetyEntry">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Safety assessment for a single brake component. Tracks ASIL level, safety goal, and derived metrics such as thermal load rating (for brake disks) and friction area (for brake pads)."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="componentId" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="asilLevel" eType="#//ASILLevel"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="safetyGoal" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="thermalLoadRating" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EFloat"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="frictionArea" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EFloat"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="complianceStatus" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="ASILLevel">
+    <eLiterals name="QM" literal="QM"/>
+    <eLiterals name="A" value="1" literal="A"/>
+    <eLiterals name="B" value="2" literal="B"/>
+    <eLiterals name="C" value="3" literal="C"/>
+    <eLiterals name="D" value="4" literal="D"/>
+  </eClassifiers>
+</ecore:EPackage>
