@@ -299,16 +299,21 @@ public class ThreeModelBranchingMergeTest {
             vsum.dispose();
 
             // Merge A→B: replaying A generates derived CAD Diameter=320,
-            // but B's user set it to 350 → indirect conflict
+            // but B's user set it to 350 → indirect conflict (derived(A) vs user(B))
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
 
-            // The merge should complete (not crash)
-            // It may succeed with warnings, or detect an indirect conflict
-            java.lang.System.out.println("S4 - Success: " + result.isSuccess());
-            java.lang.System.out.println("S4 - Conflicts: " + result.getConflicts().size());
-            java.lang.System.out.println("S4 - Warnings: " + result.getWarnings().size());
-            result.getWarnings().forEach(w -> java.lang.System.out.println("  WARN: " + w));
-            result.getConflicts().forEach(c -> java.lang.System.out.println("  CONFLICT: " + c));
+            // Merge succeeds (directed merge — A's changes are applied)
+            assertTrue(result.isSuccess(), "Merge should succeed in directed merge");
+
+            // Should have indirect conflict warnings: derived(replay(A)) overwrites user(B)
+            // on the CAD Diameter parameter (and possibly safety thermalLoadRating)
+            assertFalse(result.getWarnings().isEmpty(),
+                    "Should have warnings for derived(A) overwriting user(B)");
+
+            boolean hasIndirectConflict = result.getWarnings().stream()
+                    .anyMatch(w -> w.getType() == MergeConflict.ConflictType.INDIRECT_CONFLICT);
+            assertTrue(hasIndirectConflict,
+                    "Should have INDIRECT_CONFLICT warning (derived(A) overwrites user(B))");
         }
     }
 
@@ -358,14 +363,18 @@ public class ThreeModelBranchingMergeTest {
             // A's user change overwrites B's derived state → warning, A's intent (320) wins.
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
 
-            java.lang.System.out.println("S5 - Success: " + result.isSuccess());
-            java.lang.System.out.println("S5 - Conflicts: " + result.getConflicts().size());
-            java.lang.System.out.println("S5 - Warnings: " + result.getWarnings().size());
-            result.getWarnings().forEach(w -> java.lang.System.out.println("  WARN: " + w));
-            result.getConflicts().forEach(c -> java.lang.System.out.println("  CONFLICT: " + c));
-
             // Merge should succeed — user intent always wins over derived state
             assertTrue(result.isSuccess(), "Merge should succeed (user(A) overwrites derived(B))");
+
+            // Should have USER_VS_DERIVED_WARNING: A's user change to CAD parameter
+            // overwrites B's derived value (set by brakesystem2cad reaction on B)
+            assertFalse(result.getWarnings().isEmpty(),
+                    "Should have warnings for user(A) overwriting derived(B)");
+
+            boolean hasUserVsDerived = result.getWarnings().stream()
+                    .anyMatch(w -> w.getType() == MergeConflict.ConflictType.USER_VS_DERIVED_WARNING);
+            assertTrue(hasUserVsDerived,
+                    "Should have USER_VS_DERIVED_WARNING (A's user change overwrites B's reaction state)");
         }
     }
 
@@ -471,15 +480,19 @@ public class ThreeModelBranchingMergeTest {
             // which sets Namespace.id = "engineeringDisk" (derived), overwriting B's "cadCustomId" (user)
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
 
-            java.lang.System.out.println("S7 - Success: " + result.isSuccess());
-            java.lang.System.out.println("S7 - Conflicts: " + result.getConflicts().size());
-            java.lang.System.out.println("S7 - Warnings: " + result.getWarnings().size());
-            result.getWarnings().forEach(w -> java.lang.System.out.println("  WARN: " + w));
-            result.getConflicts().forEach(c -> java.lang.System.out.println("  CONFLICT: " + c));
-
-            // The merge completes but should report the indirect conflict/warning
-            // where derived(replay(A)) overwrites user(B) in M₂
+            // The merge completes but should report indirect conflicts/warnings
             assertTrue(result.isSuccess(), "Merge completes (changes applied)");
+
+            // Should have INDIRECT_CONFLICT warnings: derived(replay(A)) overwrites user(B)
+            // A's BrakeDisk.id change → reaction sets Namespace.id (M₂) and SafetyEntry.componentId (M₃),
+            // overwriting B's user-authored Namespace.id = "cadCustomId"
+            assertFalse(result.getWarnings().isEmpty(),
+                    "Should have warnings for derived(replay(A)) overwriting user(B)");
+
+            boolean hasIndirectConflict = result.getWarnings().stream()
+                    .anyMatch(w -> w.getType() == MergeConflict.ConflictType.INDIRECT_CONFLICT);
+            assertTrue(hasIndirectConflict,
+                    "Should have INDIRECT_CONFLICT warning (derived(A) overwrites user(B) in M₂/M₃)");
         }
     }
 
