@@ -1,29 +1,26 @@
 # Branching TODO
 
-## Open Questions
+## Resolved Questions
 
-### Scenario 4: user(B) vs derived(A) — reapply user(B)?
+### ~~Scenario 4: user(B) vs derived(A) — reapply user(B)?~~ → Resolved via Bidirectional Merge
 
-In the current implementation, when derived(A) overwrites user(B) during replay,
-we emit a warning and B's intent wins (the merge succeeds but the derived value
-is not applied). An alternative approach would be to **reapply user(B)'s change
-after the replay** so that:
+**Previous concern:** When derived(A) overwrites user(B) during replay A→B, discarding
+derived(A) leaves the reaction unexecuted and the model potentially inconsistent.
 
-1. A's transaction replays fully (reactions fire, derived state is generated)
-2. B's user change is then reapplied on top, overriding the derived value
+**Resolution:** Instead of reapplying user(B) after the replay (which risks triggering
+additional reactions that could undo A's primary change), we now use a **bidirectional merge**:
 
-This would preserve both: A's primary change propagates correctly through
-reactions, and B's explicit user intent is restored afterward.
+1. Try A→B. If indirect conflicts are detected (derived(A) vs user(B)), try B→A.
+2. In B→A, user(B)'s changes are replayed onto A's state. Reactions fire naturally
+   for B's changes, producing consistent derived state.
+3. If B→A has no indirect conflicts → use the reverse result (direction=REVERSED).
+4. If both directions have indirect conflicts → report BIDIRECTIONAL_INDIRECT_CONFLICT.
 
-**Concerns to investigate:**
-- Reapplying user(B) after replay may trigger additional reactions that create
-  an inconsistent state (e.g., if the CAD→brakesystem reaction fires again with
-  B's value, it could undo A's primary change).
-- The order of reapplication matters: if multiple derived(A) values conflict with
-  multiple user(B) values, the reapplication sequence could produce different
-  outcomes.
-- Need to define whether reapplication should go through `propagateChange()` or
-  be a raw model edit that bypasses reactions.
+This avoids the concerns about reapplication order and reaction cascades, because the
+merge engine always replays through `propagateChange()` in the normal way—it just
+selects the direction that avoids indirect conflicts.
 
-**Revisit after**: the 7 three-model scenarios are stable and the formalization
-is aligned with the implementation behavior.
+**Implementation:**
+- `SemanticMergeEngine.mergeBidirectional()` in Vitruv
+- `SemanticMergeCommand.executeBidirectional()` entry point
+- Test coverage: S8 (reverse resolves S4) and S9 (both directions conflict)
