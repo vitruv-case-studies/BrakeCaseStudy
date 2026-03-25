@@ -8,8 +8,11 @@
 
 ## Option A: Docker (Recommended)
 
+All Docker commands must be run from the **workspace root** (the parent directory containing `Vitruv-Change/`, `Vitruv/`, and `BrakeCaseStudy/`):
+
 ```bash
-docker build -t vitruv-merge-ae .
+# From workspace root:
+docker build -f BrakeCaseStudy/Dockerfile -t vitruv-merge-ae .
 docker run --rm vitruv-merge-ae                  # scenario comparison table
 docker run --rm vitruv-merge-ae --performance    # + performance benchmarks
 ```
