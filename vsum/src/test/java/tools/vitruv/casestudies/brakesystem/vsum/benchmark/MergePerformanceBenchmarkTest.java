@@ -65,7 +65,7 @@ public class MergePerformanceBenchmarkTest {
     // ═══════════════════════════════════════════════════════════════════
 
     @ParameterizedTest(name = "E1: Model size = {0} components")
-    @ValueSource(ints = {10, 50, 100, 250})
+    @ValueSource(ints = {10, 50, 100, 250, 500})
     @DisplayName("E1: Model size scaling")
     void e1_modelSizeScaling(int numComponents, @TempDir Path tempDir) throws Exception {
         var config = new BenchmarkConfig(numComponents, 5, 0.0, true, BASE_SEED);
@@ -78,7 +78,7 @@ public class MergePerformanceBenchmarkTest {
     @Test
     @DisplayName("E1: Full model size scaling suite")
     void e1_fullSuite(@TempDir Path tempDir) throws Exception {
-        int[] sizes = {10, 50, 100, 250};
+        int[] sizes = {10, 50, 100, 250, 500};
         List<BenchmarkResult> results = new ArrayList<>();
 
         for (int size : sizes) {
@@ -103,7 +103,7 @@ public class MergePerformanceBenchmarkTest {
     // ═══════════════════════════════════════════════════════════════════
 
     @ParameterizedTest(name = "E2: History length = {0} transactions")
-    @ValueSource(ints = {1, 5, 10, 25})
+    @ValueSource(ints = {1, 5, 10, 25, 50})
     @DisplayName("E2: History length scaling")
     void e2_historyLengthScaling(int numTransactions, @TempDir Path tempDir) throws Exception {
         var config = new BenchmarkConfig(50, numTransactions, 0.0, true, BASE_SEED);
@@ -116,7 +116,7 @@ public class MergePerformanceBenchmarkTest {
     @Test
     @DisplayName("E2: Full history length suite")
     void e2_fullSuite(@TempDir Path tempDir) throws Exception {
-        int[] lengths = {1, 5, 10, 25};
+        int[] lengths = {1, 5, 10, 25, 50};
         List<BenchmarkResult> results = new ArrayList<>();
 
         for (int length : lengths) {
@@ -278,7 +278,7 @@ public class MergePerformanceBenchmarkTest {
         // Save all results
         saveResults("full-benchmark", allResults, tempDir);
         System.out.println("\n=== Benchmark Complete ===");
-        System.out.println("Results saved to: " + tempDir.resolve("benchmark-results"));
+        System.out.println("Results saved to: " + Path.of(System.getProperty("user.dir")).resolve("target/benchmark-results"));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -419,7 +419,7 @@ public class MergePerformanceBenchmarkTest {
 
     private void saveResults(String experimentName, List<BenchmarkResult> results, Path baseDir)
             throws IOException {
-        Path outputDir = baseDir.resolve("benchmark-results");
+        Path outputDir = Path.of(System.getProperty("user.dir")).resolve("target/benchmark-results");
         Files.createDirectories(outputDir);
 
         // CSV
