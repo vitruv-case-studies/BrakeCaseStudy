@@ -30,7 +30,7 @@ case "${1:-}" in
 esac
 
 # Count total steps
-TOTAL_STEPS=5
+TOTAL_STEPS=6
 if $RUN_TRACK_B; then
     TOTAL_STEPS=$((TOTAL_STEPS + 1))
 fi
@@ -59,6 +59,11 @@ echo "      Dependencies built successfully."
 next_step "Building BrakeCaseStudy..."
 cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw clean install -DskipTests -q
 echo "      BrakeCaseStudy built successfully."
+
+# Build Vitruv-Merge-Tests (shared comparison infrastructure, dependency of MobSTr)
+next_step "Building Vitruv-Merge-Tests..."
+cd "$WORKSPACE/Vitruv-Merge-Tests" && ./mvnw clean install -Dmaven.test.skip=true -q
+echo "      Vitruv-Merge-Tests built successfully."
 
 # Build MobSTr case study
 next_step "Building MobSTr case study..."
@@ -118,12 +123,12 @@ echo "=================================================="
 echo " Evaluation complete."
 echo ""
 echo " Output locations:"
-echo "   BrakeCaseStudy comparison: BrakeCaseStudy/target/merge-comparison-table.md"
-echo "   MobSTr comparison:        mobstr-vsum/target/merge-comparison-table.md"
+echo "   BrakeCaseStudy comparison: BrakeCaseStudy/vsum/target/merge-comparison-table.md"
+echo "   MobSTr comparison:        mobstr-vsum/vsum/target/merge-comparison-table.md"
 if $RUN_TRACK_B; then
-    echo "   Track B results:           BrakeCaseStudy/target/track-b-results.md"
+    echo "   Track B results:           BrakeCaseStudy/vsum/target/trackb-summary.md"
 fi
 if $RUN_PERFORMANCE; then
-    echo "   Performance benchmarks:    BrakeCaseStudy/target/performance-benchmarks.md"
+    echo "   Performance benchmarks:    BrakeCaseStudy/vsum/target/benchmark-results/"
 fi
 echo "=================================================="

@@ -6,8 +6,9 @@
 ## Build from workspace root:
 ##   docker build -f BrakeCaseStudy/Dockerfile -t vitruv-merge-ae .
 ## Run:
-##   docker run --rm vitruv-merge-ae
-##   docker run --rm vitruv-merge-ae --performance
+##   docker run --rm vitruv-merge-ae                  # comparison tables
+##   docker run --rm vitruv-merge-ae --performance    # + performance benchmarks
+##   docker run --rm vitruv-merge-ae --all            # + Track B (63 scenarios)
 ##
 
 FROM eclipse-temurin:17-jdk AS builder
@@ -20,13 +21,15 @@ WORKDIR /workspace
 COPY Vitruv-Change/ Vitruv-Change/
 COPY Vitruv/ Vitruv/
 COPY BrakeCaseStudy/ BrakeCaseStudy/
+COPY Vitruv-Merge-Tests/ Vitruv-Merge-Tests/
 COPY mobstr-vsum/ mobstr-vsum/
 
 # Build dependencies (cached layer)
 RUN cd Vitruv-Change && ./mvnw clean install -Dmaven.test.skip=true -q
 RUN cd Vitruv && ./mvnw clean install -Dmaven.test.skip=true -q
-RUN cd mobstr-vsum && ./mvnw clean install -DskipTests -q
 RUN cd BrakeCaseStudy && ./mvnw clean install -DskipTests -q
+RUN cd Vitruv-Merge-Tests && ./mvnw clean install -Dmaven.test.skip=true -q
+RUN cd mobstr-vsum && ./mvnw clean install -DskipTests -q
 
 # Runtime stage (same image, keeps Maven cache)
 FROM builder

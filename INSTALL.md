@@ -13,8 +13,9 @@ All Docker commands must be run from the **workspace root** (the parent director
 ```bash
 # From workspace root:
 docker build -f BrakeCaseStudy/Dockerfile -t vitruv-merge-ae .
-docker run --rm vitruv-merge-ae                  # scenario comparison table
+docker run --rm vitruv-merge-ae                  # comparison tables (both case studies)
 docker run --rm vitruv-merge-ae --performance    # + performance benchmarks
+docker run --rm vitruv-merge-ae --all            # + Track B (63 scenarios) + benchmarks
 ```
 
 ## Option B: Local Build
@@ -35,8 +36,9 @@ cd ../BrakeCaseStudy && bash reproduce.sh
 
 ## Output
 
-- `target/merge-comparison-table.md` — Markdown comparison table (Table 1)
-- `target/benchmark-results/` — CSV and markdown performance data (if run)
+- `vsum/target/merge-comparison-table.md` — Markdown comparison table (Table 1)
+- `vsum/target/trackb-summary.md` — Track B evaluation summary (63 scenarios)
+- `vsum/target/benchmark-results/` — CSV and markdown performance data (if run)
 
 ## Troubleshooting
 
