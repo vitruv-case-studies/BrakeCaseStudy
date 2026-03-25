@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.BeforeAll;
@@ -19,11 +20,16 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import brakesystem.BrakesystemPackage;
+import edu.kit.ipd.sdq.metamodels.cad.CadPackage;
+import safety.SafetyPackage;
 import tools.vitruv.change.testutils.TestUserInteraction;
 import tools.vitruv.framework.vsum.branch.merge.ConflictResolutionProvider;
 import tools.vitruv.framework.vsum.branch.merge.MergeConflict;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
+import tools.vitruv.merge.comparison.EMFCompareThreeWayMerge;
+import tools.vitruv.merge.comparison.MergeEvaluationResult;
 
 /**
  * Comparison test that runs all 7 three-model merge scenarios through both
@@ -37,13 +43,19 @@ import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
  */
 public class MergeApproachComparisonTest {
 
+    private static final List<String> MODEL_FILES = List.of(
+            "brakesystem.model", "example.cad", "safety.safety");
+
     private final ThreeModelScenarioSetup setup = new ThreeModelScenarioSetup();
-    private final EMFCompareThreeWayMerge emfCompareMerge = new EMFCompareThreeWayMerge();
+    private final EMFCompareThreeWayMerge emfCompareMerge = new EMFCompareThreeWayMerge(MODEL_FILES);
 
     @BeforeAll
     static void registerFactories() {
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
                 .putIfAbsent("*", new XMIResourceFactoryImpl());
+        EPackage.Registry.INSTANCE.put(BrakesystemPackage.eNS_URI, BrakesystemPackage.eINSTANCE);
+        EPackage.Registry.INSTANCE.put(CadPackage.eNS_URI, CadPackage.eINSTANCE);
+        EPackage.Registry.INSTANCE.put(SafetyPackage.eNS_URI, SafetyPackage.eINSTANCE);
     }
 
     // ═══════════════════════════════════════════════════════════════════

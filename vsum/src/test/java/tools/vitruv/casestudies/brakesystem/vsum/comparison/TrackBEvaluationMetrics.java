@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 import tools.vitruv.framework.vsum.branch.merge.MergeConflict;
 import tools.vitruv.framework.vsum.branch.merge.MergeConflict.ConflictType;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
+import tools.vitruv.merge.comparison.MergeEvaluationResult;
 
 /**
  * Extended metrics DTO for Track B evaluation with per-type conflict/warning breakdown,

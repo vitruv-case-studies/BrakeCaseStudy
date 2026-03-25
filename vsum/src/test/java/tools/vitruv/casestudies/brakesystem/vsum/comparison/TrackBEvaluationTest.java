@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
+import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
@@ -22,8 +23,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import brakesystem.Brakesystem;
+import brakesystem.BrakesystemPackage;
 import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
+import edu.kit.ipd.sdq.metamodels.cad.CadPackage;
 import safety.SafetyAssessment;
+import safety.SafetyPackage;
 import tools.vitruv.change.testutils.TestUserInteraction;
 import tools.vitruv.framework.views.ViewTypeFactory;
 import tools.vitruv.framework.vsum.VirtualModel;
@@ -33,6 +37,8 @@ import tools.vitruv.framework.vsum.branch.merge.MergeTracer;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
 import tools.vitruv.framework.vsum.internal.InternalVirtualModel;
+import tools.vitruv.merge.comparison.EMFCompareThreeWayMerge;
+import tools.vitruv.merge.comparison.MergeEvaluationResult;
 
 /**
  * Track B evaluation: runs automatically generated merge scenarios across
@@ -44,16 +50,21 @@ import tools.vitruv.framework.vsum.internal.InternalVirtualModel;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class TrackBEvaluationTest {
 
+    private static final List<String> MODEL_FILES = List.of(
+            "brakesystem.model", "example.cad", "safety.safety");
     private static final Map<String, TrackBEvaluationMetrics> allResults = new ConcurrentHashMap<>();
     private static final long[] SEEDS = {42L, 43L, 44L, 45L, 46L};
 
     private final ScenarioGenerator generator = new ScenarioGenerator();
-    private final EMFCompareThreeWayMerge emfCompareMerge = new EMFCompareThreeWayMerge();
+    private final EMFCompareThreeWayMerge emfCompareMerge = new EMFCompareThreeWayMerge(MODEL_FILES);
 
     @BeforeAll
     static void registerFactories() {
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
                 .putIfAbsent("*", new XMIResourceFactoryImpl());
+        EPackage.Registry.INSTANCE.put(BrakesystemPackage.eNS_URI, BrakesystemPackage.eINSTANCE);
+        EPackage.Registry.INSTANCE.put(CadPackage.eNS_URI, CadPackage.eINSTANCE);
+        EPackage.Registry.INSTANCE.put(SafetyPackage.eNS_URI, SafetyPackage.eINSTANCE);
         MergeTracer.setOutputDirectory(Path.of("merge-traces"));
     }
 
