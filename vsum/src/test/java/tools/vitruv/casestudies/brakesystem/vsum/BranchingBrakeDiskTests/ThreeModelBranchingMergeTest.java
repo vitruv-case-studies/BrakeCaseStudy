@@ -79,6 +79,11 @@ public class ThreeModelBranchingMergeTest {
     @Test
     @DisplayName("S1: user(A) changes BrakeDisk diameter in M₁ → derived M₂+M₃ update; B adds ABSSensor → clean merge")
     void scenario1_userA_changesM1_derivedM2M3(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S1", "Clean merge — diameter change + sensor addition",
+                "user(A) changes BrakeDisk.diameter 300→320 in M₁ (derives M₂ CAD + M₃ Safety);\n"
+                + "║  user(B) adds ABSSensor in M₁. Non-overlapping user changes.",
+                "SUCCESS, 0 blocking conflicts, 1 warning (user-vs-derived on CAD).\n"
+                + "║  Merged state: disk1.diameter=320, sensor1 present, safety thermalLoad=80.0");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -112,6 +117,7 @@ public class ThreeModelBranchingMergeTest {
 
             // Merge feature → main
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S1", result);
 
             assertTrue(result.isSuccess(), "Merge should succeed — non-overlapping changes");
 
@@ -145,6 +151,11 @@ public class ThreeModelBranchingMergeTest {
     @Test
     @DisplayName("S2: user(A) renames Namespace.id in M₂ → derived M₁+M₃ update; B adds caliper → clean merge")
     void scenario2_userA_changesM2_derivedM1M3(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S2", "Clean merge — namespace rename + caliper addition",
+                "user(A) renames Namespace.id 'disk1'→'disk1-rev2' in M₂ (derives M₁+M₃);\n"
+                + "║  user(B) adds BrakeCaliper in M₁. Non-overlapping user changes.",
+                "SUCCESS, 0 blocking conflicts, 1 warning.\n"
+                + "║  Merged state: component id='disk1-rev2', caliper1 present, safety componentId updated");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -176,6 +187,7 @@ public class ThreeModelBranchingMergeTest {
             vsum.dispose();
 
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S2", result);
 
             assertTrue(result.isSuccess(), "Merge should succeed — different elements touched");
 
@@ -204,6 +216,12 @@ public class ThreeModelBranchingMergeTest {
     @Test
     @DisplayName("S3: A changes BrakeDisk in M₁, B changes BrakePad via M₁ → both derive to M₃, no conflict")
     void scenario3_bothChangeM1_derivedOverlapInM3(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S3", "Clean merge — disk + pad changes, both derive to M₃",
+                "user(A) changes BrakeDisk.diameter 300→320 in M₁ (derives M₃ thermalLoadRating);\n"
+                + "║  user(B) changes BrakePad.height 50→55 in M₁ (derives M₃ frictionArea).\n"
+                + "║  Both derive to different SafetyEntries in M₃ — no overlap.",
+                "SUCCESS, 0 blocking conflicts, 1 warning.\n"
+                + "║  Merged: disk1 thermalLoad=80.0, pad1 frictionArea=5500.0");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -236,6 +254,7 @@ public class ThreeModelBranchingMergeTest {
             vsum.dispose();
 
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S3", result);
 
             assertTrue(result.isSuccess(), "Merge should succeed — different SafetyEntries");
 
@@ -268,6 +287,12 @@ public class ThreeModelBranchingMergeTest {
     @Test
     @DisplayName("S4: derived(A) in M₂ vs user(B) in M₂ → warning, B's intent preserved")
     void scenario4_derivedA_vs_userB_warning(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S4", "Indirect conflict — derived(A) vs user(B) in M₂",
+                "user(A) changes BrakeDisk.diameter 300→320 in M₁ → reaction derives CAD Diameter=320;\n"
+                + "║  user(B) directly sets CAD Diameter=350 in M₂ (user intent).\n"
+                + "║  Merge A→B: replay(A) derives CAD Diameter=320, overwriting user(B)'s 350.",
+                "SUCCESS with INDIRECT_CONFLICT warning(s) (2 warnings).\n"
+                + "║  Vitruvius detects derived(A) overwriting user(B). EMF Compare: 1 hard conflict.");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -302,6 +327,7 @@ public class ThreeModelBranchingMergeTest {
             // Merge A→B: replaying A generates derived CAD Diameter=320,
             // but B's user set it to 350 → indirect conflict (derived(A) vs user(B))
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S4", result);
 
             // Merge succeeds (directed merge — A's changes are applied)
             assertTrue(result.isSuccess(), "Merge should succeed in directed merge");
@@ -329,6 +355,12 @@ public class ThreeModelBranchingMergeTest {
     @Test
     @DisplayName("S5: user(A) in M₂ overwrites derived(B) in M₂ → warning, A's intent wins")
     void scenario5_userA_vs_derivedB_warning(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S5", "User vs derived — user(A) overwrites derived(B) in M₂",
+                "user(A) directly sets CAD Diameter=320 in M₂ (user intent);\n"
+                + "║  user(B) changes BrakeDisk.diameter 300→350 in M₁ → reaction derives CAD Diameter=350.\n"
+                + "║  Merge A→B: A's user CAD change (320) overwrites B's derived state (350).",
+                "SUCCESS with USER_VS_DERIVED_WARNING (1 warning).\n"
+                + "║  User(A) intent wins over derived(B). EMF Compare: 1 hard conflict.");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -363,6 +395,7 @@ public class ThreeModelBranchingMergeTest {
             // Merge A→B: A's user CAD change (320) replays onto B where CAD Diameter=350 (derived).
             // A's user change overwrites B's derived state → warning, A's intent (320) wins.
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S5", result);
 
             // Merge should succeed — user intent always wins over derived state
             assertTrue(result.isSuccess(), "Merge should succeed (user(A) overwrites derived(B))");
@@ -386,6 +419,12 @@ public class ThreeModelBranchingMergeTest {
     @Test
     @DisplayName("S6: user(A) and user(B) both change BrakeDisk.diameter → direct MODIFY_MODIFY conflict")
     void scenario6_directConflict_userA_vs_userB(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S6", "Direct conflict — user(A) vs user(B) on same attribute",
+                "user(A) changes BrakeDisk.diameter 300→320 in M₁;\n"
+                + "║  user(B) changes BrakeDisk.diameter 300→350 in M₁.\n"
+                + "║  Same element, same feature, different values → MODIFY_MODIFY.",
+                "CONFLICT with 1 blocking MODIFY_MODIFY conflict on 'diameterInMM'.\n"
+                + "║  EMF Compare: 3 conflicts (brakesystem + derived CAD + derived safety).");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -417,6 +456,7 @@ public class ThreeModelBranchingMergeTest {
             vsum.dispose();
 
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S6", result);
 
             assertFalse(result.isSuccess(), "Merge should fail — direct user-vs-user conflict");
             assertFalse(result.getConflicts().isEmpty(), "Should have at least one conflict");
@@ -445,6 +485,13 @@ public class ThreeModelBranchingMergeTest {
     @Test
     @DisplayName("S7: derived(replay(A)) overwrites user(B) across M₂ and M₃ → indirect conflict")
     void scenario7_indirectConflict_acrossM2andM3(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S7", "Cross-model indirect conflict via id rename cascade",
+                "user(A) renames BrakeDisk.id 'disk1'→'engineeringDisk' in M₁\n"
+                + "║    → reaction derives Namespace.id (M₂) and SafetyEntry.componentId (M₃);\n"
+                + "║  user(B) directly sets Namespace.id='cadCustomId' in M₂ (user intent).\n"
+                + "║  Merge A→B: derived(A) Namespace.id overwrites user(B) in M₂.",
+                "SUCCESS with INDIRECT_CONFLICT warning(s) (2 warnings).\n"
+                + "║  EMF Compare: 5 hard conflicts (brakesystem + cad + safety).");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -480,6 +527,7 @@ public class ThreeModelBranchingMergeTest {
             // Merge A→B: replaying A's BrakeDisk.id change triggers IdChanged reaction
             // which sets Namespace.id = "engineeringDisk" (derived), overwriting B's "cadCustomId" (user)
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S7", result);
 
             // The merge completes but should report indirect conflicts/warnings
             assertTrue(result.isSuccess(), "Merge completes (changes applied)");
@@ -509,6 +557,12 @@ public class ThreeModelBranchingMergeTest {
     @Test
     @DisplayName("S8: bidirectional merge reverses S4 — derived(A) vs user(B) resolved via B→A")
     void scenario8_bidirectional_reversesS4(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S8", "Bidirectional merge — reverse resolves S4's indirect conflict",
+                "Same setup as S4: A changes diameter in M₁, B sets CAD Diameter in M₂.\n"
+                + "║  A→B has INDIRECT_CONFLICT (derived(A) overwrites user(B) in M₂).\n"
+                + "║  B→A: replaying B's CAD change onto A — no reaction interference → clean.",
+                "SUCCESS with direction=REVERSED.\n"
+                + "║  The bidirectional fallback resolves the indirect conflict by trying B→A.");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -542,6 +596,7 @@ public class ThreeModelBranchingMergeTest {
             // Bidirectional merge: A→B has indirect conflict, B→A should be clean
             SemanticMergeResult result = mergeBidirectional(
                     tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S8", result);
 
             assertTrue(result.isSuccess(),
                     "Bidirectional merge should succeed via reverse direction");
@@ -563,6 +618,13 @@ public class ThreeModelBranchingMergeTest {
     @Test
     @DisplayName("S9: bidirectional — both directions have indirect conflicts → true conflict")
     void scenario9_bidirectional_bothDirectionsConflict(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S9", "Bidirectional — both directions have indirect conflicts",
+                "user(A) renames BrakeDisk.id 'disk1'→'diskA' in M₁ → derives Namespace.id in M₂;\n"
+                + "║  user(B) renames Namespace.id 'disk1'→'nsB' in M₂ → derives BrakeComponent.id in M₁.\n"
+                + "║  A→B: derived(A) Namespace.id='diskA' overwrites user(B) 'nsB' → INDIRECT.\n"
+                + "║  B→A: derived(B) BrakeComponent.id='nsB' overwrites user(A) 'diskA' → INDIRECT.",
+                "CONFLICT with BIDIRECTIONAL_INDIRECT_CONFLICT.\n"
+                + "║  Both directions produce indirect conflicts — true semantic conflict, requires user.");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -601,6 +663,7 @@ public class ThreeModelBranchingMergeTest {
             // → Both directions conflict → BIDIRECTIONAL_INDIRECT_CONFLICT
             SemanticMergeResult result = mergeBidirectional(
                     tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S9", result);
 
             assertFalse(result.isSuccess(),
                     "Both directions have indirect conflicts → should report CONFLICT");
@@ -612,6 +675,47 @@ public class ThreeModelBranchingMergeTest {
             assertTrue(hasBidirectionalConflict,
                     "Should have BIDIRECTIONAL_INDIRECT_CONFLICT type");
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Trace output helpers
+    // ═══════════════════════════════════════════════════════════════════
+
+    private static void printScenarioHeader(String scenario, String title, String description, String expected) {
+        System.out.println();
+        System.out.println("╔══════════════════════════════════════════════════════════════════════╗");
+        System.out.println("║  " + scenario + ": " + title);
+        System.out.println("║");
+        System.out.println("║  " + description);
+        System.out.println("║");
+        System.out.println("║  EXPECTED: " + expected);
+        System.out.println("╚══════════════════════════════════════════════════════════════════════╝");
+        System.out.println();
+    }
+
+    private static void printScenarioResult(String scenario, SemanticMergeResult result) {
+        System.out.println();
+        System.out.println("┌──────────────────────────────────────────────────────────────────────┐");
+        System.out.println("│  " + scenario + " — ACTUAL RESULT: " + result.getStatus());
+        if (result.isSuccess()) {
+            System.out.println("│    Changes applied: " + result.getAppliedChanges().size());
+            System.out.println("│    Direction: " + result.getMergeDirection());
+        }
+        if (!result.getConflicts().isEmpty()) {
+            System.out.println("│    Blocking conflicts: " + result.getConflicts().size());
+            for (var c : result.getConflicts()) {
+                System.out.println("│      - " + c.getType() + " on '" + c.getConflictingFeature()
+                        + "' (ours=" + c.getOursValue() + ", theirs=" + c.getTheirsValue() + ")");
+            }
+        }
+        if (!result.getWarnings().isEmpty()) {
+            System.out.println("│    Warnings: " + result.getWarnings().size());
+            for (var w : result.getWarnings()) {
+                System.out.println("│      - " + w.getType() + " on '" + w.getConflictingFeature() + "'");
+            }
+        }
+        System.out.println("└──────────────────────────────────────────────────────────────────────┘");
+        System.out.println();
     }
 
     // ═══════════════════════════════════════════════════════════════════
