@@ -321,7 +321,7 @@ public class MergePerformanceBenchmarkTest {
         long mergeEnd = System.nanoTime();
         long memAfter = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
 
-        return new BenchmarkResult(config.label(), config.numComponents(),
+        var benchmarkResult = new BenchmarkResult(config.label(), config.numComponents(),
                 config.numTransactionsPerBranch(), config.overlapFraction(),
                 config.highReactionDensity())
                 .setupTime(scenario.setupTimeNanos())
@@ -333,6 +333,9 @@ public class MergePerformanceBenchmarkTest {
                 .mergeSucceeded(mergeResult.isSuccess())
                 .mergeDirection("FORWARD")
                 .peakMemory(Math.max(0, memAfter - memBefore));
+
+        applyTimingStats(benchmarkResult, mergeResult);
+        return benchmarkResult;
     }
 
     private BenchmarkResult runBidirectionalBenchmark(BenchmarkConfig config, Path tempDir)
@@ -356,7 +359,7 @@ public class MergePerformanceBenchmarkTest {
         String direction = mergeResult.getMergeDirection() != null
                 ? mergeResult.getMergeDirection().name() : "FORWARD";
 
-        return new BenchmarkResult(config.label(), config.numComponents(),
+        var benchmarkResult = new BenchmarkResult(config.label(), config.numComponents(),
                 config.numTransactionsPerBranch(), config.overlapFraction(),
                 config.highReactionDensity())
                 .setupTime(scenario.setupTimeNanos())
@@ -368,6 +371,22 @@ public class MergePerformanceBenchmarkTest {
                 .mergeSucceeded(mergeResult.isSuccess())
                 .mergeDirection(direction)
                 .peakMemory(Math.max(0, memAfter - memBefore));
+
+        applyTimingStats(benchmarkResult, mergeResult);
+        return benchmarkResult;
+    }
+
+    /**
+     * Extracts per-phase timing stats from the merge result and applies them to the benchmark result.
+     */
+    private void applyTimingStats(BenchmarkResult benchmark, SemanticMergeResult mergeResult) {
+        var timing = mergeResult.getTimingStats();
+        if (timing != null) {
+            benchmark.gitStateExtractionTime(timing.getGitStateExtractionNanos());
+            benchmark.dtoLoadingTime(timing.getDtoLoadingNanos());
+            benchmark.conflictDetectionTime(timing.getConflictDetectionNanos());
+            benchmark.replayTime(timing.getReplayNanos());
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -385,6 +404,12 @@ public class MergePerformanceBenchmarkTest {
                 .map(BenchmarkResult::getTotalMergeTimeNanos).sorted().toList();
         List<Long> replayTimes = runs.stream()
                 .map(BenchmarkResult::getReplayTimeNanos).sorted().toList();
+        List<Long> gitExtractTimes = runs.stream()
+                .map(BenchmarkResult::getGitStateExtractionNanos).sorted().toList();
+        List<Long> dtoLoadTimes = runs.stream()
+                .map(BenchmarkResult::getDtoLoadingNanos).sorted().toList();
+        List<Long> conflictDetectTimes = runs.stream()
+                .map(BenchmarkResult::getConflictDetectionNanos).sorted().toList();
         List<Long> peakMems = runs.stream()
                 .map(BenchmarkResult::getPeakMemoryBytes).sorted().toList();
 
@@ -397,6 +422,9 @@ public class MergePerformanceBenchmarkTest {
                         .sorted().skip(medianIdx).findFirst().orElse(0))
                 .totalMergeTime(mergeTimes.get(medianIdx))
                 .replayTime(replayTimes.get(medianIdx))
+                .gitStateExtractionTime(gitExtractTimes.get(medianIdx))
+                .dtoLoadingTime(dtoLoadTimes.get(medianIdx))
+                .conflictDetectionTime(conflictDetectTimes.get(medianIdx))
                 .directConflicts(first.getDirectConflicts())
                 .warnings(first.getWarnings())
                 .changesReplayed(first.getChangesReplayed())
