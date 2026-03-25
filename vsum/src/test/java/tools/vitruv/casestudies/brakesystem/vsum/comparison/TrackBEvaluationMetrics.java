@@ -39,6 +39,10 @@ public class TrackBEvaluationMetrics {
     private final boolean vitruviusSuccess;
     private final String vitruviusError;
 
+    // Consistency verification
+    private final boolean consistencyVerified;
+    private final String consistencyError;
+
     // Timing (milliseconds)
     private final long setupTimeMs;
     private final long vitruviusMergeTimeMs;
@@ -61,6 +65,8 @@ public class TrackBEvaluationMetrics {
         this.mergeDirection = b.mergeDirection;
         this.vitruviusSuccess = b.vitruviusSuccess;
         this.vitruviusError = b.vitruviusError;
+        this.consistencyVerified = b.consistencyVerified;
+        this.consistencyError = b.consistencyError;
         this.setupTimeMs = b.setupTimeMs;
         this.vitruviusMergeTimeMs = b.vitruviusMergeTimeMs;
         this.emfCompareMergeTimeMs = b.emfCompareMergeTimeMs;
@@ -149,12 +155,39 @@ public class TrackBEvaluationMetrics {
     public String getMergeDirection() { return mergeDirection; }
     public boolean isVitruviusSuccess() { return vitruviusSuccess; }
     public String getVitruviusError() { return vitruviusError; }
+    public boolean isConsistencyVerified() { return consistencyVerified; }
+    public String getConsistencyError() { return consistencyError; }
     public long getSetupTimeMs() { return setupTimeMs; }
     public long getVitruviusMergeTimeMs() { return vitruviusMergeTimeMs; }
     public long getEmfCompareMergeTimeMs() { return emfCompareMergeTimeMs; }
 
     public int getConflictReduction() {
         return emfCompareConflicts - vitruviusBlockingTotal;
+    }
+
+    /**
+     * Returns a copy of this metrics with consistency verification results set.
+     */
+    public TrackBEvaluationMetrics withConsistencyResult(boolean verified, String error) {
+        var b = new Builder(this.config);
+        b.modifyModifyConflicts = this.modifyModifyConflicts;
+        b.deleteModifyConflicts = this.deleteModifyConflicts;
+        b.modifyDeleteConflicts = this.modifyDeleteConflicts;
+        b.bidirectionalIndirectConflicts = this.bidirectionalIndirectConflicts;
+        b.indirectConflictWarnings = this.indirectConflictWarnings;
+        b.userVsDerivedWarnings = this.userVsDerivedWarnings;
+        b.emfCompareConflicts = this.emfCompareConflicts;
+        b.emfComparePerModel = this.emfComparePerModel;
+        b.totalChangesReplayed = this.totalChangesReplayed;
+        b.mergeDirection = this.mergeDirection;
+        b.vitruviusSuccess = this.vitruviusSuccess;
+        b.vitruviusError = this.vitruviusError;
+        b.consistencyVerified = verified;
+        b.consistencyError = error;
+        b.setupTimeMs = this.setupTimeMs;
+        b.vitruviusMergeTimeMs = this.vitruviusMergeTimeMs;
+        b.emfCompareMergeTimeMs = this.emfCompareMergeTimeMs;
+        return b.build();
     }
 
     private static class Builder {
@@ -167,6 +200,8 @@ public class TrackBEvaluationMetrics {
         String mergeDirection = "N/A";
         boolean vitruviusSuccess;
         String vitruviusError;
+        boolean consistencyVerified;
+        String consistencyError;
         long setupTimeMs, vitruviusMergeTimeMs, emfCompareMergeTimeMs;
 
         Builder(ScenarioConfig config) { this.config = config; }

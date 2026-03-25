@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import org.eclipse.emf.ecore.resource.Resource;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -20,10 +21,17 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import brakesystem.Brakesystem;
+import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
+import safety.SafetyAssessment;
 import tools.vitruv.change.testutils.TestUserInteraction;
+import tools.vitruv.framework.views.ViewTypeFactory;
+import tools.vitruv.framework.vsum.VirtualModel;
 import tools.vitruv.framework.vsum.branch.merge.ConflictResolutionProvider;
+import tools.vitruv.framework.vsum.branch.merge.GitStateLoader;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
+import tools.vitruv.framework.vsum.internal.InternalVirtualModel;
 
 /**
  * Track B evaluation: runs automatically generated merge scenarios across
@@ -36,7 +44,7 @@ import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
 public class TrackBEvaluationTest {
 
     private static final Map<String, TrackBEvaluationMetrics> allResults = new ConcurrentHashMap<>();
-    private static final long[] SEEDS = {42L, 43L, 44L};
+    private static final long[] SEEDS = {42L, 43L, 44L, 45L, 46L};
 
     private final ScenarioGenerator generator = new ScenarioGenerator();
     private final EMFCompareThreeWayMerge emfCompareMerge = new EMFCompareThreeWayMerge();
@@ -121,15 +129,25 @@ public class TrackBEvaluationTest {
         } else {
             metrics = TrackBEvaluationMetrics.from(config, vitResult, emfResult, setupMs, vitMs, emfMs);
         }
+
+        // 5. Post-merge consistency check
+        if (vitResult != null && vitResult.isSuccess() && vitResult.getMergedStateFolder() != null) {
+            metrics = verifyConsistency(metrics, vitResult.getMergedStateFolder());
+        } else {
+            metrics = metrics.withConsistencyResult(false,
+                    vitError != null ? "Merge failed: " + vitError : "Merge not successful");
+        }
+
         allResults.put(config.id(), metrics);
 
         // Log per-scenario result
         System.out.printf("[%s] Vit: %d blocking, %d warnings | EMF: %d conflicts | "
-                        + "setup=%dms, vit=%dms, emf=%dms%s%n",
+                        + "consistent=%s | setup=%dms, vit=%dms, emf=%dms%s%n",
                 config.id(),
                 metrics.getVitruviusBlockingTotal(),
                 metrics.getVitruviusWarningsTotal(),
                 metrics.getEmfCompareConflicts(),
+                metrics.isConsistencyVerified() ? "YES" : "NO",
                 setupMs, vitMs, emfMs,
                 vitError != null ? " | ERROR: " + vitError : "");
     }
@@ -162,7 +180,90 @@ public class TrackBEvaluationTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // Scenario configuration generation (5 families, 63 total)
+    // Post-merge consistency verification
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Verifies that the merged VSUM state is consistent: all three model resources
+     * exist, no unresolved proxies remain, and component count is positive.
+     */
+    private TrackBEvaluationMetrics verifyConsistency(TrackBEvaluationMetrics metrics, Path mergedStateFolder) {
+        InternalVirtualModel merged = null;
+        try {
+            var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+            merged = GitStateLoader.loadVsumFromDir(mergedStateFolder,
+                    ThreeModelScenarioSetup.allCPS(), interactionProvider);
+
+            // Check M1: Brakesystem model exists and has components
+            Brakesystem bs = getModelRoot(merged, Brakesystem.class, "bs-check");
+            if (bs == null) {
+                return metrics.withConsistencyResult(false, "Brakesystem model root not found");
+            }
+            if (bs.getBrakeComponents().isEmpty()) {
+                return metrics.withConsistencyResult(false, "Brakesystem has no components");
+            }
+
+            // Check M2: CAD model exists
+            CAD_Model cad = getModelRoot(merged, CAD_Model.class, "cad-check");
+            if (cad == null) {
+                return metrics.withConsistencyResult(false, "CAD model root not found");
+            }
+
+            // Check M3: Safety model exists
+            SafetyAssessment safety = getModelRoot(merged, SafetyAssessment.class, "safety-check");
+            if (safety == null) {
+                return metrics.withConsistencyResult(false, "Safety model root not found");
+            }
+
+            // Check for unresolved proxies across all model resources
+            for (var sourceModel : merged.getViewSourceModels()) {
+                var rs = sourceModel.getResourceSet();
+                EcoreUtil.resolveAll(rs);
+                for (Resource resource : rs.getResources()) {
+                    for (var error : resource.getErrors()) {
+                        if (error.getMessage() != null && error.getMessage().contains("proxy")) {
+                            return metrics.withConsistencyResult(false,
+                                    "Unresolved proxy in " + resource.getURI() + ": " + error.getMessage());
+                        }
+                    }
+                }
+            }
+
+            return metrics.withConsistencyResult(true, null);
+
+        } catch (Exception e) {
+            return metrics.withConsistencyResult(false,
+                    e.getClass().getSimpleName() + ": " + e.getMessage());
+        } finally {
+            if (merged != null) {
+                try {
+                    merged.dispose();
+                } catch (Exception ignored) {
+                    // Best-effort cleanup
+                }
+            }
+        }
+    }
+
+    /**
+     * Loads a model root of the given type from the VSUM via an identity-mapping view.
+     */
+    private <T> T getModelRoot(VirtualModel vsum, Class<T> rootType, String viewName) {
+        try {
+            var selector = vsum.createSelector(ViewTypeFactory.createIdentityMappingViewType(viewName));
+            selector.getSelectableElements().stream()
+                    .filter(rootType::isInstance)
+                    .forEach(e -> selector.setSelected(e, true));
+            var view = selector.createView();
+            var roots = view.getRootObjects(rootType);
+            return roots.iterator().hasNext() ? roots.iterator().next() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Scenario configuration generation (5 families, 105 total)
     // ═══════════════════════════════════════════════════════════════════
 
     static Stream<ScenarioConfig> scenarioConfigs() {
@@ -176,7 +277,7 @@ public class TrackBEvaluationTest {
     }
 
     /**
-     * Family 1: History Length Scaling (15 scenarios).
+     * Family 1: History Length Scaling (25 scenarios).
      * How does merge time and conflict count scale with commit count?
      */
     static List<ScenarioConfig> family1_historyLength() {
@@ -190,7 +291,7 @@ public class TrackBEvaluationTest {
     }
 
     /**
-     * Family 2: Overlap Density (12 scenarios).
+     * Family 2: Overlap Density (20 scenarios).
      * How does conflict rate change as branches touch more of the same elements?
      */
     static List<ScenarioConfig> family2_overlapDensity() {
@@ -204,7 +305,7 @@ public class TrackBEvaluationTest {
     }
 
     /**
-     * Family 3: Reaction-Trigger Density (9 scenarios).
+     * Family 3: Reaction-Trigger Density (15 scenarios).
      * Does higher reaction density increase Vitruvius's advantage?
      */
     static List<ScenarioConfig> family3_reactionTriggerDensity() {
@@ -218,7 +319,7 @@ public class TrackBEvaluationTest {
     }
 
     /**
-     * Family 4: Base State Size (9 scenarios).
+     * Family 4: Base State Size (15 scenarios).
      * How does component count affect merge behavior?
      */
     static List<ScenarioConfig> family4_baseStateSize() {
@@ -232,7 +333,7 @@ public class TrackBEvaluationTest {
     }
 
     /**
-     * Family 5: Bidirectional Merge (18 scenarios).
+     * Family 5: Bidirectional Merge (30 scenarios).
      * How often does bidirectional fallback help?
      */
     static List<ScenarioConfig> family5_bidirectional() {
