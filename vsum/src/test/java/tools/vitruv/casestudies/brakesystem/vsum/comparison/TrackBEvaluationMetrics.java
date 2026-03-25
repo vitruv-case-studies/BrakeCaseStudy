@@ -1,0 +1,175 @@
+package tools.vitruv.casestudies.brakesystem.vsum.comparison;
+
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import tools.vitruv.framework.vsum.branch.merge.MergeConflict;
+import tools.vitruv.framework.vsum.branch.merge.MergeConflict.ConflictType;
+import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
+
+/**
+ * Extended metrics DTO for Track B evaluation with per-type conflict/warning breakdown,
+ * timing, and EMFCompare comparison data.
+ */
+public class TrackBEvaluationMetrics {
+
+    private final ScenarioConfig config;
+
+    // Conflict breakdown by type
+    private final int modifyModifyConflicts;
+    private final int deleteModifyConflicts;
+    private final int modifyDeleteConflicts;
+    private final int bidirectionalIndirectConflicts;
+
+    // Warning breakdown by type
+    private final int indirectConflictWarnings;
+    private final int userVsDerivedWarnings;
+
+    // Totals
+    private final int vitruviusBlockingTotal;
+    private final int vitruviusWarningsTotal;
+
+    // EMFCompare
+    private final int emfCompareConflicts;
+    private final Map<String, Integer> emfComparePerModel;
+
+    // Merge info
+    private final int totalChangesReplayed;
+    private final String mergeDirection;
+    private final boolean vitruviusSuccess;
+    private final String vitruviusError;
+
+    // Timing (milliseconds)
+    private final long setupTimeMs;
+    private final long vitruviusMergeTimeMs;
+    private final long emfCompareMergeTimeMs;
+
+    private TrackBEvaluationMetrics(Builder b) {
+        this.config = b.config;
+        this.modifyModifyConflicts = b.modifyModifyConflicts;
+        this.deleteModifyConflicts = b.deleteModifyConflicts;
+        this.modifyDeleteConflicts = b.modifyDeleteConflicts;
+        this.bidirectionalIndirectConflicts = b.bidirectionalIndirectConflicts;
+        this.indirectConflictWarnings = b.indirectConflictWarnings;
+        this.userVsDerivedWarnings = b.userVsDerivedWarnings;
+        this.vitruviusBlockingTotal = b.modifyModifyConflicts + b.deleteModifyConflicts
+                + b.modifyDeleteConflicts + b.bidirectionalIndirectConflicts;
+        this.vitruviusWarningsTotal = b.indirectConflictWarnings + b.userVsDerivedWarnings;
+        this.emfCompareConflicts = b.emfCompareConflicts;
+        this.emfComparePerModel = b.emfComparePerModel;
+        this.totalChangesReplayed = b.totalChangesReplayed;
+        this.mergeDirection = b.mergeDirection;
+        this.vitruviusSuccess = b.vitruviusSuccess;
+        this.vitruviusError = b.vitruviusError;
+        this.setupTimeMs = b.setupTimeMs;
+        this.vitruviusMergeTimeMs = b.vitruviusMergeTimeMs;
+        this.emfCompareMergeTimeMs = b.emfCompareMergeTimeMs;
+    }
+
+    /**
+     * Builds metrics from a SemanticMergeResult and EMFCompare result.
+     */
+    public static TrackBEvaluationMetrics from(ScenarioConfig config,
+            SemanticMergeResult vitResult, MergeEvaluationResult emfResult,
+            long setupMs, long vitMs, long emfMs) {
+        var b = new Builder(config);
+        b.setupTimeMs = setupMs;
+        b.vitruviusMergeTimeMs = vitMs;
+        b.emfCompareMergeTimeMs = emfMs;
+
+        if (vitResult != null) {
+            b.vitruviusSuccess = vitResult.isSuccess();
+            b.totalChangesReplayed = vitResult.getAppliedChanges() != null
+                    ? vitResult.getAppliedChanges().size() : 0;
+            b.mergeDirection = vitResult.getMergeDirection() != null
+                    ? vitResult.getMergeDirection().name() : "N/A";
+
+            // Breakdown conflicts by type
+            if (vitResult.getConflicts() != null) {
+                var conflictsByType = vitResult.getConflicts().stream()
+                        .collect(Collectors.groupingBy(MergeConflict::getType, Collectors.counting()));
+                b.modifyModifyConflicts = conflictsByType.getOrDefault(ConflictType.MODIFY_MODIFY, 0L).intValue();
+                b.deleteModifyConflicts = conflictsByType.getOrDefault(ConflictType.DELETE_MODIFY, 0L).intValue();
+                b.modifyDeleteConflicts = conflictsByType.getOrDefault(ConflictType.MODIFY_DELETE, 0L).intValue();
+                b.bidirectionalIndirectConflicts = conflictsByType
+                        .getOrDefault(ConflictType.BIDIRECTIONAL_INDIRECT_CONFLICT, 0L).intValue();
+            }
+
+            // Breakdown warnings by type
+            if (vitResult.getWarnings() != null) {
+                var warningsByType = vitResult.getWarnings().stream()
+                        .collect(Collectors.groupingBy(MergeConflict::getType, Collectors.counting()));
+                b.indirectConflictWarnings = warningsByType.getOrDefault(ConflictType.INDIRECT_CONFLICT, 0L).intValue();
+                b.userVsDerivedWarnings = warningsByType
+                        .getOrDefault(ConflictType.USER_VS_DERIVED_WARNING, 0L).intValue();
+            }
+        }
+
+        if (emfResult != null) {
+            b.emfCompareConflicts = emfResult.getDirectConflictCount();
+            b.emfComparePerModel = emfResult.getConflictsPerModel();
+        }
+
+        return b.build();
+    }
+
+    /**
+     * Builds metrics for a failed Vitruvius merge.
+     */
+    public static TrackBEvaluationMetrics forError(ScenarioConfig config,
+            String error, MergeEvaluationResult emfResult,
+            long setupMs, long vitMs, long emfMs) {
+        var b = new Builder(config);
+        b.setupTimeMs = setupMs;
+        b.vitruviusMergeTimeMs = vitMs;
+        b.emfCompareMergeTimeMs = emfMs;
+        b.vitruviusSuccess = false;
+        b.vitruviusError = error;
+        if (emfResult != null) {
+            b.emfCompareConflicts = emfResult.getDirectConflictCount();
+            b.emfComparePerModel = emfResult.getConflictsPerModel();
+        }
+        return b.build();
+    }
+
+    // ── Getters ──
+
+    public ScenarioConfig getConfig() { return config; }
+    public int getModifyModifyConflicts() { return modifyModifyConflicts; }
+    public int getDeleteModifyConflicts() { return deleteModifyConflicts; }
+    public int getModifyDeleteConflicts() { return modifyDeleteConflicts; }
+    public int getBidirectionalIndirectConflicts() { return bidirectionalIndirectConflicts; }
+    public int getIndirectConflictWarnings() { return indirectConflictWarnings; }
+    public int getUserVsDerivedWarnings() { return userVsDerivedWarnings; }
+    public int getVitruviusBlockingTotal() { return vitruviusBlockingTotal; }
+    public int getVitruviusWarningsTotal() { return vitruviusWarningsTotal; }
+    public int getEmfCompareConflicts() { return emfCompareConflicts; }
+    public Map<String, Integer> getEmfComparePerModel() { return emfComparePerModel; }
+    public int getTotalChangesReplayed() { return totalChangesReplayed; }
+    public String getMergeDirection() { return mergeDirection; }
+    public boolean isVitruviusSuccess() { return vitruviusSuccess; }
+    public String getVitruviusError() { return vitruviusError; }
+    public long getSetupTimeMs() { return setupTimeMs; }
+    public long getVitruviusMergeTimeMs() { return vitruviusMergeTimeMs; }
+    public long getEmfCompareMergeTimeMs() { return emfCompareMergeTimeMs; }
+
+    public int getConflictReduction() {
+        return emfCompareConflicts - vitruviusBlockingTotal;
+    }
+
+    private static class Builder {
+        final ScenarioConfig config;
+        int modifyModifyConflicts, deleteModifyConflicts, modifyDeleteConflicts, bidirectionalIndirectConflicts;
+        int indirectConflictWarnings, userVsDerivedWarnings;
+        int emfCompareConflicts;
+        Map<String, Integer> emfComparePerModel = Map.of();
+        int totalChangesReplayed;
+        String mergeDirection = "N/A";
+        boolean vitruviusSuccess;
+        String vitruviusError;
+        long setupTimeMs, vitruviusMergeTimeMs, emfCompareMergeTimeMs;
+
+        Builder(ScenarioConfig config) { this.config = config; }
+        TrackBEvaluationMetrics build() { return new TrackBEvaluationMetrics(this); }
+    }
+}

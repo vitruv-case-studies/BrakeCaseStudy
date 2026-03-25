@@ -23,7 +23,11 @@ import tools.vitruv.framework.vsum.branch.merge.ChangeLogCapture;
 import tools.vitruv.framework.vsum.branch.merge.SemanticChangeLog;
 import tools.vitruv.framework.vsum.internal.InternalVirtualModel;
 
+import brakesystem.ABSSensor;
+import brakesystem.BrakeCaliper;
+import brakesystem.BrakeComponent;
 import brakesystem.BrakeDisk;
+import brakesystem.BrakeHose;
 import brakesystem.BrakePad;
 import brakesystem.Brakesystem;
 import brakesystem.BrakesystemFactory;
@@ -499,6 +503,99 @@ public class ThreeModelScenarioSetup {
                 .map(p -> (NumericParameter) p)
                 .findFirst().orElseThrow();
         param.setValue(newValue);
+        view.commitChanges();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Additional model manipulation helpers (Track B evaluation)
+    // ═══════════════════════════════════════════════════════════════════
+
+    public static void addBrakeHose(VirtualModel vsum, String id, int length, String threadSize1, String threadSize2) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        var hose = BrakesystemFactory.eINSTANCE.createBrakeHose();
+        hose.setId(id);
+        hose.setLengthInMM(length);
+        hose.setThreadSize1(threadSize1);
+        hose.setThreadSize2(threadSize2);
+        bs.getBrakeComponents().add(hose);
+        view.commitChanges();
+    }
+
+    public static void changeBrakeDiskThickness(VirtualModel vsum, String id, int newThickness) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        var disk = bs.getBrakeComponents().stream()
+                .filter(c -> c.getId().equals(id) && c instanceof BrakeDisk)
+                .map(c -> (BrakeDisk) c)
+                .findFirst().orElseThrow();
+        disk.setBrakeDiskThicknessInMM(newThickness);
+        view.commitChanges();
+    }
+
+    public static void changeBrakePadWidth(VirtualModel vsum, String id, int newWidth) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        var pad = bs.getBrakeComponents().stream()
+                .filter(c -> c.getId().equals(id) && c instanceof BrakePad)
+                .map(c -> (BrakePad) c)
+                .findFirst().orElseThrow();
+        pad.setWidthInMM(newWidth);
+        view.commitChanges();
+    }
+
+    public static void changeBrakeDiskCenteringDiameter(VirtualModel vsum, String id, int newValue) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        var disk = bs.getBrakeComponents().stream()
+                .filter(c -> c.getId().equals(id) && c instanceof BrakeDisk)
+                .map(c -> (BrakeDisk) c)
+                .findFirst().orElseThrow();
+        disk.setCenteringDiameterInMM(newValue);
+        view.commitChanges();
+    }
+
+    public static void changeBrakeDiskRimHoleNumber(VirtualModel vsum, String id, int newValue) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        var disk = bs.getBrakeComponents().stream()
+                .filter(c -> c.getId().equals(id) && c instanceof BrakeDisk)
+                .map(c -> (BrakeDisk) c)
+                .findFirst().orElseThrow();
+        disk.setRimHoleNumber(newValue);
+        view.commitChanges();
+    }
+
+    public static void changeCaliperPistonDiameter(VirtualModel vsum, String id, int newValue) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        var caliper = bs.getBrakeComponents().stream()
+                .filter(c -> c.getId().equals(id) && c instanceof BrakeCaliper)
+                .map(c -> (BrakeCaliper) c)
+                .findFirst().orElseThrow();
+        caliper.setPistonDiameterInMM(newValue);
+        view.commitChanges();
+    }
+
+    public static void changeABSSensorLength(VirtualModel vsum, String id, int newLength) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        var sensor = bs.getBrakeComponents().stream()
+                .filter(c -> c.getId().equals(id) && c instanceof ABSSensor)
+                .map(c -> (ABSSensor) c)
+                .findFirst().orElseThrow();
+        sensor.setLengthInMM(newLength);
+        view.commitChanges();
+    }
+
+    public static void changeABSSensorPins(VirtualModel vsum, String id, int newPins) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        var sensor = bs.getBrakeComponents().stream()
+                .filter(c -> c.getId().equals(id) && c instanceof ABSSensor)
+                .map(c -> (ABSSensor) c)
+                .findFirst().orElseThrow();
+        sensor.setNumberOfPins(newPins);
         view.commitChanges();
     }
 
