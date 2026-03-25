@@ -20,10 +20,12 @@ WORKDIR /workspace
 COPY Vitruv-Change/ Vitruv-Change/
 COPY Vitruv/ Vitruv/
 COPY BrakeCaseStudy/ BrakeCaseStudy/
+COPY mobstr-vsum/ mobstr-vsum/
 
 # Build dependencies (cached layer)
 RUN cd Vitruv-Change && ./mvnw clean install -Dmaven.test.skip=true -q
 RUN cd Vitruv && ./mvnw clean install -Dmaven.test.skip=true -q
+RUN cd mobstr-vsum && ./mvnw clean install -DskipTests -q
 RUN cd BrakeCaseStudy && ./mvnw clean install -DskipTests -q
 
 # Runtime stage (same image, keeps Maven cache)
