@@ -599,6 +599,17 @@ public class ThreeModelScenarioSetup {
         view.commitChanges();
     }
 
+    /**
+     * Changes the Brakesystem root's instanceName — triggers NO cross-model Reactions
+     * (neither M1→M2 CAD nor M1→M3 Safety), making it suitable for low reaction density benchmarks.
+     */
+    public static void changeBrakesystemInstanceName(VirtualModel vsum, String newName) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        bs.setInstanceName(newName);
+        view.commitChanges();
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // View helpers
     // ═══════════════════════════════════════════════════════════════════

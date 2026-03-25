@@ -246,7 +246,7 @@ public class MergePerformanceBenchmarkTest {
 
         // E1: Model size
         System.out.println("--- E1: Model Size Scaling ---");
-        for (int size : new int[]{10, 50, 100, 250}) {
+        for (int size : new int[]{10, 50, 100, 250, 500}) {
             var config = new BenchmarkConfig(size, 5, 0.0, true, BASE_SEED);
             Path runDir = Files.createDirectories(tempDir.resolve("full_e1_" + size));
             var result = runBenchmark(config, runDir);
@@ -256,7 +256,7 @@ public class MergePerformanceBenchmarkTest {
 
         // E2: History length
         System.out.println("\n--- E2: History Length Scaling ---");
-        for (int txn : new int[]{1, 5, 10, 25}) {
+        for (int txn : new int[]{1, 5, 10, 25, 50}) {
             var config = new BenchmarkConfig(50, txn, 0.0, true, BASE_SEED);
             Path runDir = Files.createDirectories(tempDir.resolve("full_e2_" + txn));
             var result = runBenchmark(config, runDir);

@@ -175,9 +175,10 @@ public class ScalableModelGenerator {
                 int newDiameter = valueOffset + t * 10 + rng.nextInt(50);
                 ThreeModelScenarioSetup.changeBrakeDiskDiameter(vsum, diskId, newDiameter);
             } else {
-                // Change diameter only (still triggers reactions, but simpler change)
-                int newDiameter = valueOffset + t * 10 + rng.nextInt(50);
-                ThreeModelScenarioSetup.changeBrakeDiskDiameter(vsum, diskId, newDiameter);
+                // Change Brakesystem root instanceName — triggers NO cross-model Reactions
+                // (no M1->M2 or M1->M3 propagation), isolating merge cost from reaction overhead
+                String newName = "instance_" + branch + "_" + t + "_" + rng.nextInt(1000);
+                ThreeModelScenarioSetup.changeBrakesystemInstanceName(vsum, newName);
             }
             totalChanges++;
 
