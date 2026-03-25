@@ -29,6 +29,7 @@ import tools.vitruv.framework.views.ViewTypeFactory;
 import tools.vitruv.framework.vsum.VirtualModel;
 import tools.vitruv.framework.vsum.branch.merge.ConflictResolutionProvider;
 import tools.vitruv.framework.vsum.branch.merge.GitStateLoader;
+import tools.vitruv.framework.vsum.branch.merge.MergeTracer;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
 import tools.vitruv.framework.vsum.internal.InternalVirtualModel;
@@ -53,6 +54,7 @@ public class TrackBEvaluationTest {
     static void registerFactories() {
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
                 .putIfAbsent("*", new XMIResourceFactoryImpl());
+        MergeTracer.setOutputDirectory(Path.of("merge-traces"));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -63,6 +65,19 @@ public class TrackBEvaluationTest {
     @MethodSource("scenarioConfigs")
     @Order(1)
     void evaluateScenario(ScenarioConfig config, @TempDir Path tempDir) throws Exception {
+        // Initialize trace for this scenario
+        MergeTracer.init("BrakeCaseStudy-TrackB", config.id());
+        MergeTracer.trace("");
+        MergeTracer.boxStart("Track B: " + config.id());
+        MergeTracer.boxLine("Family: " + config.family());
+        MergeTracer.boxLine("Base components: " + config.baseComponentCount()
+                + " | Commits/branch: " + config.commitsPerBranchA()
+                + " | Overlap: " + (int)(config.overlapFraction() * 100) + "%"
+                + " | Reaction density: " + (int)(config.reactionTriggerFraction() * 100) + "%");
+        MergeTracer.boxLine("Bidirectional: " + config.bidirectional() + " | Seed: " + config.seed());
+        MergeTracer.boxEnd();
+        MergeTracer.trace("");
+
         long setupMs = 0, vitMs = 0, emfMs = 0;
         SemanticMergeResult vitResult = null;
         MergeEvaluationResult emfResult = null;
@@ -140,7 +155,28 @@ public class TrackBEvaluationTest {
 
         allResults.put(config.id(), metrics);
 
-        // Log per-scenario result
+        // Log per-scenario result to trace and console
+        MergeTracer.trace("");
+        MergeTracer.resultStart("Track B Result: " + config.id());
+        MergeTracer.resultLine("  Vitruvius: " + metrics.getVitruviusBlockingTotal() + " blocking, "
+                + metrics.getVitruviusWarningsTotal() + " warnings");
+        MergeTracer.resultLine("  EMF Compare: " + metrics.getEmfCompareConflicts() + " conflicts");
+        MergeTracer.resultLine("  Conflict reduction: " + metrics.getConflictReduction());
+        if (vitResult != null) {
+            MergeTracer.resultLine("  Merge status: " + vitResult.getStatus()
+                    + " | Direction: " + vitResult.getMergeDirection());
+        }
+        MergeTracer.resultLine("  Consistency verified: "
+                + (metrics.isConsistencyVerified() ? "YES" : "NO"
+                + (metrics.getConsistencyError() != null ? " — " + metrics.getConsistencyError() : "")));
+        MergeTracer.resultLine("  Timing: setup=" + setupMs + "ms, vitruvius=" + vitMs + "ms, emf=" + emfMs + "ms");
+        if (vitError != null) {
+            MergeTracer.resultLine("  ERROR: " + vitError);
+        }
+        MergeTracer.resultEnd();
+        MergeTracer.trace("");
+        MergeTracer.close();
+
         System.out.printf("[%s] Vit: %d blocking, %d warnings | EMF: %d conflicts | "
                         + "consistent=%s | setup=%dms, vit=%dms, emf=%dms%s%n",
                 config.id(),
