@@ -30,6 +30,7 @@ import tools.vitruv.framework.vsum.VirtualModelBuilder;
 import tools.vitruv.framework.vsum.branch.merge.ChangeLogCapture;
 import tools.vitruv.framework.vsum.branch.merge.GitStateLoader;
 import tools.vitruv.framework.vsum.branch.merge.MergeConflict;
+import tools.vitruv.framework.vsum.branch.merge.MergeTracer;
 import tools.vitruv.framework.vsum.branch.merge.SemanticChangeLog;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
@@ -70,6 +71,8 @@ public class ThreeModelBranchingMergeTest {
     @BeforeAll
     static void setup() {
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("*", new XMIResourceFactoryImpl());
+        // Write trace logs into merge-traces/ under the BrakeCaseStudy project
+        MergeTracer.setOutputDirectory(Path.of("merge-traces"));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -681,41 +684,50 @@ public class ThreeModelBranchingMergeTest {
     // Trace output helpers
     // ═══════════════════════════════════════════════════════════════════
 
+    private static final String CASE_STUDY_NAME = "BrakeCaseStudy";
+
     private static void printScenarioHeader(String scenario, String title, String description, String expected) {
-        System.out.println();
-        System.out.println("╔══════════════════════════════════════════════════════════════════════╗");
-        System.out.println("║  " + scenario + ": " + title);
-        System.out.println("║");
-        System.out.println("║  " + description);
-        System.out.println("║");
-        System.out.println("║  EXPECTED: " + expected);
-        System.out.println("╚══════════════════════════════════════════════════════════════════════╝");
-        System.out.println();
+        MergeTracer.init(CASE_STUDY_NAME, scenario);
+        MergeTracer.trace("");
+        MergeTracer.boxStart(scenario + ": " + title);
+        MergeTracer.boxLine("");
+        for (String line : description.split("\n")) {
+            // Strip leading "║  " if present (from multi-line string literals)
+            String cleaned = line.startsWith("║  ") ? line.substring(3) : line;
+            MergeTracer.boxLine(cleaned);
+        }
+        MergeTracer.boxLine("");
+        for (String line : ("EXPECTED: " + expected).split("\n")) {
+            String cleaned = line.startsWith("║  ") ? line.substring(3) : line;
+            MergeTracer.boxLine(cleaned);
+        }
+        MergeTracer.boxEnd();
+        MergeTracer.trace("");
     }
 
     private static void printScenarioResult(String scenario, SemanticMergeResult result) {
-        System.out.println();
-        System.out.println("┌──────────────────────────────────────────────────────────────────────┐");
-        System.out.println("│  " + scenario + " — ACTUAL RESULT: " + result.getStatus());
+        MergeTracer.trace("");
+        MergeTracer.resultStart(scenario + " — ACTUAL RESULT: " + result.getStatus());
         if (result.isSuccess()) {
-            System.out.println("│    Changes applied: " + result.getAppliedChanges().size());
-            System.out.println("│    Direction: " + result.getMergeDirection());
+            MergeTracer.resultLine("  Changes applied: " + result.getAppliedChanges().size());
+            MergeTracer.resultLine("  Direction: " + result.getMergeDirection());
         }
         if (!result.getConflicts().isEmpty()) {
-            System.out.println("│    Blocking conflicts: " + result.getConflicts().size());
+            MergeTracer.resultLine("  Blocking conflicts: " + result.getConflicts().size());
             for (var c : result.getConflicts()) {
-                System.out.println("│      - " + c.getType() + " on '" + c.getConflictingFeature()
+                MergeTracer.resultLine("    - " + c.getType() + " on '" + c.getConflictingFeature()
                         + "' (ours=" + c.getOursValue() + ", theirs=" + c.getTheirsValue() + ")");
             }
         }
         if (!result.getWarnings().isEmpty()) {
-            System.out.println("│    Warnings: " + result.getWarnings().size());
+            MergeTracer.resultLine("  Warnings: " + result.getWarnings().size());
             for (var w : result.getWarnings()) {
-                System.out.println("│      - " + w.getType() + " on '" + w.getConflictingFeature() + "'");
+                MergeTracer.resultLine("    - " + w.getType() + " on '" + w.getConflictingFeature() + "'");
             }
         }
-        System.out.println("└──────────────────────────────────────────────────────────────────────┘");
-        System.out.println();
+        MergeTracer.resultEnd();
+        MergeTracer.trace("");
+        MergeTracer.close();
     }
 
     // ═══════════════════════════════════════════════════════════════════
