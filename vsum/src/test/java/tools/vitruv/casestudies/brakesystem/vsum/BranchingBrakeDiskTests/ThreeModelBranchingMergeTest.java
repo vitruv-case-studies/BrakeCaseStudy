@@ -681,6 +681,136 @@ public class ThreeModelBranchingMergeTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // Scenario 10: Interleaving merge succeeds where A→B has indirect conflict
+    //
+    // Same setup as S4/S8: A changes BrakeDisk.diameter → reaction derives CAD Diameter.
+    // B directly sets CAD Diameter (user intent).
+    // A→B: INDIRECT_CONFLICT (derived(A) overwrites user(B)).
+    // Interleaving: a clean ordering exists (either A-first-from-base or B-first) → SUCCESS.
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("S10: interleaving merge succeeds where A→B has indirect conflict")
+    void scenario10_interleaving_succeedsWhereDirectedFails(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S10", "Interleaving — resolves indirect conflict via commit ordering",
+                "Same as S4/S8: A changes BrakeDisk.diameter in M\u2081 \u2192 derives CAD Diameter;\n"
+                + "\u2551  B directly sets CAD Diameter in M\u2082 (user intent).\n"
+                + "\u2551  A\u2192B: INDIRECT_CONFLICT. Interleaving tries all orderings from base.",
+                "SUCCESS with direction=INTERLEAVED (or REVERSED).\n"
+                + "\u2551  At least one ordering avoids indirect conflicts.");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300").call();
+
+            // Branch A: change BrakeDisk.diameter -> 320 in M1
+            // Reaction derives CAD NumericParameter("Diameter") -> 320
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+
+            changeBrakeDiskDiameter(vsum, "disk1", 320);
+
+            commitWithChangelog(git, capture, tempDir, "feature", "BrakeDisk diameter->320");
+
+            // Branch B: user directly sets CAD Diameter -> 350
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+
+            changeCADNumericParameter(vsum, "disk1", "Diameter", 350.0f);
+
+            commitWithChangelog(git, capture, tempDir, "main", "CAD Diameter->350 (user intent)");
+
+            vsum.dispose();
+
+            // Interleaving merge: tries all orderings from base
+            SemanticMergeResult result = mergeWithInterleaving(
+                    tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S10", result);
+
+            assertTrue(result.isSuccess(),
+                    "Interleaving merge should succeed - at least one ordering is clean");
+
+            boolean hasIndirectConflict = result.getWarnings().stream()
+                    .anyMatch(w -> w.getType() == MergeConflict.ConflictType.INDIRECT_CONFLICT);
+            assertFalse(hasIndirectConflict,
+                    "The chosen ordering should have no INDIRECT_CONFLICT warnings");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Scenario 11: Interleaving merge fails — no ordering resolves bidirectional conflict
+    //
+    // Same setup as S9: A renames BrakeDisk.id, B renames Namespace.id.
+    // Both directions cascade: no interleaving avoids indirect conflicts.
+    // -> INTERLEAVING_CONFLICT
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("S11: interleaving merge fails — no ordering resolves bidirectional id rename conflict")
+    void scenario11_interleaving_failsWhenNoOrderingWorks(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S11", "Interleaving — fails with INTERLEAVING_CONFLICT",
+                "Same as S9: A renames BrakeDisk.id \u2192 'diskA' (derives Namespace.id);\n"
+                + "\u2551  B renames Namespace.id \u2192 'nsB' (derives BrakeComponent.id).\n"
+                + "\u2551  Both orderings [A,B] and [B,A] produce indirect conflicts.",
+                "CONFLICT with INTERLEAVING_CONFLICT.\n"
+                + "\u2551  No commit ordering avoids indirect conflicts.");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1").call();
+
+            // Branch A: change BrakeDisk.id -> "diskA" in M1
+            // Reaction derives: Namespace.id -> "diskA" (M2)
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+
+            changeBrakeDiskId(vsum, "disk1", "diskA");
+
+            commitWithChangelog(git, capture, tempDir, "feature", "BrakeDisk.id->diskA");
+
+            // Branch B: change Namespace.id -> "nsB" in M2
+            // Reaction derives: BrakeComponent.id -> "nsB" (M1)
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+
+            changeNamespaceId(vsum, "disk1", "nsB");
+
+            commitWithChangelog(git, capture, tempDir, "main", "Namespace.id->nsB");
+
+            vsum.dispose();
+
+            // Interleaving merge: all orderings produce indirect conflicts
+            SemanticMergeResult result = mergeWithInterleaving(
+                    tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S11", result);
+
+            assertFalse(result.isSuccess(),
+                    "Interleaving merge should fail - no ordering resolves bidirectional id rename");
+            assertFalse(result.getConflicts().isEmpty(),
+                    "Should have INTERLEAVING_CONFLICT(s)");
+
+            boolean hasInterleavingConflict = result.getConflicts().stream()
+                    .anyMatch(c -> c.getType() == MergeConflict.ConflictType.INTERLEAVING_CONFLICT);
+            assertTrue(hasInterleavingConflict,
+                    "Should have INTERLEAVING_CONFLICT type");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // Trace output helpers
     // ═══════════════════════════════════════════════════════════════════
 
@@ -765,6 +895,12 @@ public class ThreeModelBranchingMergeTest {
     private SemanticMergeResult mergeBidirectional(Path tempDir, String branchA, String branchB,
                                                      TestUserInteraction.ResultProvider interactionProvider) throws Exception {
         return new SemanticMergeCommand().executeBidirectional(
+                tempDir, branchA, branchB, allCPS(), interactionProvider, null);
+    }
+
+    private SemanticMergeResult mergeWithInterleaving(Path tempDir, String branchA, String branchB,
+                                                       TestUserInteraction.ResultProvider interactionProvider) throws Exception {
+        return new SemanticMergeCommand().executeWithInterleaving(
                 tempDir, branchA, branchB, allCPS(), interactionProvider, null);
     }
 
