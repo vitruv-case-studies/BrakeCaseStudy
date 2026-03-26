@@ -811,6 +811,113 @@ public class ThreeModelBranchingMergeTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // Scenario 12: Interleaving — guard failure causes INTERLEAVING_CONFLICT
+    //
+    // Base: BrakeDisk 'disk1' (M1) + CAD Namespace 'disk1' (M2, reaction-derived).
+    // Branch A (feature): a_1 removes 'disk1' from M1
+    //   → Reaction deletes the CAD Namespace 'disk1' in M2 (cascade).
+    // Branch B (main): b_1 directly changes the CAD Diameter parameter for 'disk1' to 315.
+    //
+    // Orderings tried:
+    //   [a_1, b_1]: a_1 deletes namespace → b_1 cannot access its parameter
+    //               → replay-applicability conflict (guard failure) → ordering skipped.
+    //   [b_1, a_1]: b_1 sets Diameter=315 → a_1 reaction deletes the namespace
+    //               (and its parameters) → b_1's change is overwritten → INDIRECT_CONFLICT.
+    // Both orderings fail → INTERLEAVING_CONFLICT.
+    // ═══════════════════════════════════════════════════════════════════
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Scenario 12: Interleaving — guard failure causes INTERLEAVING_CONFLICT
+    //
+    // Base: BrakeDisk 'disk1' (M1) + CAD Namespace 'disk1' (M2, reaction-derived).
+    // Branch A (feature, 2 commits):
+    //   a_1: rename BrakeDisk.id 'disk1' → 'diskA'
+    //        Reaction: Namespace.id → 'diskA'
+    //   a_2: delete BrakeDisk 'diskA' from M1
+    //        Reaction: delete Namespace 'diskA' from M2 (cascade)
+    // Branch B (main, 1 commit):
+    //   b_1: directly rename Namespace.id 'disk1' → 'diskB' (M2)
+    //        Reaction (cad2brakesystem): BrakeComponent.id → 'diskB'
+    //
+    // Three orderings with m=2, n=1 are tried:
+    //   [a_1, a_2, b_1]: namespace deleted by a_2; b_1 can't access it
+    //                    → replay-applicability conflict (guard failure) → skipped.
+    //   [a_1, b_1, a_2]: a_1 sets disk1.id='diskA'; b_1 reaction sets disk1.id='diskB'
+    //                    → indirect conflict (b_1 reaction overwrites a_1 user change).
+    //   [b_1, a_1, a_2]: b_1 sets namespace.id='diskB'; a_1 reaction sets namespace.id='diskA'
+    //                    → indirect conflict (a_1 reaction overwrites b_1 user change).
+    // All orderings fail → INTERLEAVING_CONFLICT.
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("S12: interleaving — guard failure + indirect conflicts cause INTERLEAVING_CONFLICT")
+    void scenario12_interleaving_guardFailureCausesInterleavingConflict(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S12", "Interleaving — guard failure → INTERLEAVING_CONFLICT",
+                "Base: disk1 in M1, CAD Namespace 'disk1' in M2.\n"
+                + "║  Branch A (feature, 2 commits):\n"
+                + "║    a_1: rename BrakeDisk.id 'disk1'→'diskA' (reaction: Namespace.id='diskA').\n"
+                + "║    a_2: delete BrakeDisk 'diskA' (reaction: delete Namespace 'diskA').\n"
+                + "║  Branch B (main, 1 commit):\n"
+                + "║    b_1: rename Namespace.id 'disk1'→'diskB' (reaction: BrakeComponent.id='diskB').\n"
+                + "║  [a_1,a_2,b_1]: namespace deleted before b_1 → guard failure → skipped.\n"
+                + "║  [a_1,b_1,a_2]: b_1 reaction overwrites a_1 user BrakeDisk.id → INDIRECT_CONFLICT.\n"
+                + "║  [b_1,a_1,a_2]: a_1 reaction overwrites b_1 user Namespace.id → INDIRECT_CONFLICT.",
+                "INTERLEAVING_CONFLICT — no ordering avoids the conflict.");
+
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1").call();
+
+            // Branch A: a_1 rename disk1→diskA, a_2 delete diskA
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+
+            changeBrakeDiskId(vsum, "disk1", "diskA");
+
+            commitWithChangelog(git, capture, tempDir, "feature", "BrakeDisk.id: disk1→diskA");
+
+            capture = freshCapture(vsum);
+
+            removeBrakeDisk(vsum, "diskA");
+
+            commitWithChangelog(git, capture, tempDir, "feature", "Delete diskA");
+
+            // Branch B: b_1 rename Namespace.id disk1→diskB directly in M2
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+
+            changeNamespaceId(vsum, "disk1", "diskB");
+
+            commitWithChangelog(git, capture, tempDir, "main", "Namespace.id: disk1→diskB");
+
+            vsum.dispose();
+
+            // Interleaving merge: all 3 orderings fail
+            SemanticMergeResult result = mergeWithInterleaving(
+                    tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S12", result);
+
+            assertFalse(result.isSuccess(),
+                    "Interleaving merge should fail — no ordering is conflict-free");
+            assertFalse(result.getConflicts().isEmpty(),
+                    "Should have INTERLEAVING_CONFLICT(s)");
+
+            boolean hasInterleavingConflict = result.getConflicts().stream()
+                    .anyMatch(c -> c.getType() == MergeConflict.ConflictType.INTERLEAVING_CONFLICT);
+            assertTrue(hasInterleavingConflict,
+                    "Should have INTERLEAVING_CONFLICT type");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // Trace output helpers
     // ═══════════════════════════════════════════════════════════════════
 
@@ -1040,6 +1147,17 @@ public class ThreeModelBranchingMergeTest {
                 .map(p -> (NumericParameter) p)
                 .findFirst().orElseThrow();
         param.setValue(newValue);
+        view.commitChanges();
+    }
+
+    private void removeBrakeDisk(VirtualModel vsum, String id) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        var disk = bs.getBrakeComponents().stream()
+                .filter(c -> c.getId().equals(id) && c instanceof BrakeDisk)
+                .map(c -> (BrakeDisk) c)
+                .findFirst().orElseThrow();
+        bs.getBrakeComponents().remove(disk);
         view.commitChanges();
     }
 
