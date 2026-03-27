@@ -1302,6 +1302,120 @@ public class ThreeModelBranchingMergeTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // Cascade deletion scenarios (C1–C2): EMF containment cascade handling
+    // ═══════════════════════════════════════════════════════════════════
+
+    // C1: Branch A removes the Brakesystem root (cascade-deletes all BrakeComponents).
+    //     Branch B modifies a BrakeComponent (disk1.diameter).
+    //     Without cascade UUID tracking, this would go undetected (parent UUID ≠ child UUID).
+    //     With Approach A: cascade UUIDs are captured at changelog time → conflict detected.
+
+    @Test
+    @DisplayName("C1: cascade deletion — parent removed, child modified → DELETE_MODIFY detected")
+    void cascadeC1_parentDeleteChildModify(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("C1", "Cascade DELETE_MODIFY — parent removed, child modified",
+                "Base: Brakesystem with disk1 (diameter=300) and pad1.\n"
+                + "║  Branch A (feature): remove entire Brakesystem root (cascade deletes all children).\n"
+                + "║  Branch B (main): change disk1.diameter 300→350.\n"
+                + "║  Without cascade tracking: no UUID overlap → merge crashes at replay.\n"
+                + "║  With cascade tracking: disk1 UUID in cascadeDeletedUuids → DELETE_MODIFY.",
+                "CONFLICT with DELETE_MODIFY on disk1's UUID.");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+            addBrakePad(vsum, "pad1", 40, 50, 10);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 + pad1").call();
+            git.branchCreate().setName("feature").call();
+
+            // Branch B (main) FIRST: modify disk1.diameter (VSUM still has full state)
+            var capture = freshCapture(vsum);
+            changeBrakeDiskDiameter(vsum, "disk1", 350);
+            commitWithChangelog(git, capture, tempDir, "main", "diameter→350");
+
+            // Branch A (feature): remove entire Brakesystem root
+            git.checkout().setName("feature").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+            removeBrakesystemRoot(vsum, tempDir);
+            commitWithChangelog(git, capture, tempDir, "feature", "remove Brakesystem root");
+
+            vsum.dispose();
+
+            SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("C1", result);
+
+            assertFalse(result.isSuccess(),
+                    "Merge should fail — child element cascade-deleted by parent removal");
+            assertFalse(result.getConflicts().isEmpty(), "Should have conflicts");
+            boolean hasDeleteConflict = result.getConflicts().stream()
+                    .anyMatch(c -> c.getType() == MergeConflict.ConflictType.DELETE_MODIFY
+                            || c.getType() == MergeConflict.ConflictType.MODIFY_DELETE
+                            || c.getType() == MergeConflict.ConflictType.REPLAY_APPLICABILITY);
+            assertTrue(hasDeleteConflict,
+                    "Should detect DELETE_MODIFY via cascade UUID tracking, got: " + result.getConflicts());
+        }
+    }
+
+    // C2: Branch A removes the Brakesystem root (cascade-deletes disk1 and pad1).
+    //     Branch B modifies pad1 (different child than C1 tests).
+    //     Verifies cascade tracking captures ALL children, not just the first.
+
+    @Test
+    @DisplayName("C2: cascade deletion — parent removed, second child modified → detected")
+    void cascadeC2_parentDeleteSecondChildModify(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("C2", "Cascade DELETE — parent removed, pad1 modified",
+                "Base: Brakesystem with disk1 and pad1.\n"
+                + "║  Branch A (feature): remove Brakesystem root.\n"
+                + "║  Branch B (main): change pad1.heightInMM 40→60.\n"
+                + "║  Tests that cascade tracks ALL children, not just the first.",
+                "CONFLICT with DELETE_MODIFY on pad1's UUID.");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+            addBrakePad(vsum, "pad1", 40, 50, 10);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 + pad1").call();
+
+            git.branchCreate().setName("feature").call();
+
+            // Branch B (main) FIRST: modify pad1.heightInMM
+            var capture = freshCapture(vsum);
+            changeBrakePadHeight(vsum, "pad1", 60);
+            commitWithChangelog(git, capture, tempDir, "main", "pad1 height→60");
+
+            // Branch A (feature): remove entire Brakesystem root
+            git.checkout().setName("feature").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+            removeBrakesystemRoot(vsum, tempDir);
+            commitWithChangelog(git, capture, tempDir, "feature", "remove Brakesystem root");
+
+            vsum.dispose();
+
+            SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("C2", result);
+
+            assertFalse(result.isSuccess(),
+                    "Merge should fail — pad1 cascade-deleted by parent removal");
+            boolean hasDeleteConflict = result.getConflicts().stream()
+                    .anyMatch(c -> c.getType() == MergeConflict.ConflictType.DELETE_MODIFY
+                            || c.getType() == MergeConflict.ConflictType.MODIFY_DELETE
+                            || c.getType() == MergeConflict.ConflictType.REPLAY_APPLICABILITY);
+            assertTrue(hasDeleteConflict,
+                    "Should detect cascade delete conflict on pad1, got: " + result.getConflicts());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // Trace output helpers
     // ═══════════════════════════════════════════════════════════════════
 
@@ -1408,7 +1522,7 @@ public class ThreeModelBranchingMergeTest {
         git.commit().setMessage(message).call();
         String sha = git.log().setMaxCount(1).call().iterator().next().getName();
         new SemanticChangeLog(sha, branch, capture.drainChanges(),
-                capture.drainUuidMapping()).saveTo(tempDir);
+                capture.drainUuidMapping(), capture.drainCascadeDeletedUuids()).saveTo(tempDir);
         git.add().addFilepattern(".").call();
         git.commit().setAmend(true).setMessage(message + " + changelog").call();
     }
@@ -1531,6 +1645,14 @@ public class ThreeModelBranchingMergeTest {
                 .map(p -> (NumericParameter) p)
                 .findFirst().orElseThrow();
         param.setValue(newValue);
+        view.commitChanges();
+    }
+
+    private void removeBrakesystemRoot(VirtualModel vsum, Path projectPath) {
+        var view = selectBrakesystemView(vsum).withChangeRecordingTrait();
+        var bs = view.getRootObjects(Brakesystem.class).iterator().next();
+        // Remove the root element from its resource — this cascade-deletes all children
+        bs.eResource().getContents().remove(bs);
         view.commitChanges();
     }
 
