@@ -6,7 +6,7 @@
 # Usage:
 #   ./reproduce.sh                  # Run both case study comparison tables (Table 1)
 #   ./reproduce.sh --performance    # Also run performance benchmarks (E1-E5)
-#   ./reproduce.sh --all            # Run everything: comparisons + Track B (63 scenarios) + performance
+#   ./reproduce.sh --all            # Run everything: comparisons + Track B (105 scenarios) + performance
 #
 # Requirements: Java 17 (OpenJDK), Maven (wrapper included)
 #
@@ -94,13 +94,13 @@ cd "$WORKSPACE/mobstr-vsum" && ./mvnw -pl vsum test \
     -Dtest=MobSTrComparisonTest \
     -Dsurefire.useFile=false 2>&1 | grep -E '^\||\#|Summary|Vitruvius|EMFCompare|===|Tests run|BUILD'
 
-# Track B evaluation (63 scenarios) — only with --all
+# Track B evaluation (105 scenarios) — only with --all
 if $RUN_TRACK_B; then
     echo ""
-    next_step "Running Track B evaluation (63 scenarios)..."
+    next_step "Running Track B evaluation (105 scenarios)..."
     echo ""
 
-    echo "--- Track B Evaluation (63 scenarios) ---"
+    echo "--- Track B Evaluation (105 scenarios) ---"
     cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
         -Dtest=TrackBEvaluationTest \
         -Dsurefire.useFile=false
@@ -112,9 +112,9 @@ if $RUN_PERFORMANCE; then
     next_step "Running performance benchmarks (E1-E5)..."
     echo ""
 
-    echo "--- Performance Benchmarks ---"
+    echo "--- Performance Benchmarks (E1: model size, E2: history length — 5 reps + warmup) ---"
     cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
-        -Dtest=MergePerformanceBenchmarkTest#fullBenchmarkSuite \
+        -Dtest="MergePerformanceBenchmarkTest#e1_fullSuite+e2_fullSuite" \
         -Dsurefire.useFile=false
 fi
 
