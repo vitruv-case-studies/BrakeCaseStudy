@@ -814,22 +814,6 @@ public class ThreeModelBranchingMergeTest {
     // Scenario 12: Interleaving — guard failure causes INTERLEAVING_CONFLICT
     //
     // Base: BrakeDisk 'disk1' (M1) + CAD Namespace 'disk1' (M2, reaction-derived).
-    // Branch A (feature): a_1 removes 'disk1' from M1
-    //   → Reaction deletes the CAD Namespace 'disk1' in M2 (cascade).
-    // Branch B (main): b_1 directly changes the CAD Diameter parameter for 'disk1' to 315.
-    //
-    // Orderings tried:
-    //   [a_1, b_1]: a_1 deletes namespace → b_1 cannot access its parameter
-    //               → replay-applicability conflict (guard failure) → ordering skipped.
-    //   [b_1, a_1]: b_1 sets Diameter=315 → a_1 reaction deletes the namespace
-    //               (and its parameters) → b_1's change is overwritten → INDIRECT_CONFLICT.
-    // Both orderings fail → INTERLEAVING_CONFLICT.
-    // ═══════════════════════════════════════════════════════════════════
-
-    // ═══════════════════════════════════════════════════════════════════
-    // Scenario 12: Interleaving — guard failure causes INTERLEAVING_CONFLICT
-    //
-    // Base: BrakeDisk 'disk1' (M1) + CAD Namespace 'disk1' (M2, reaction-derived).
     // Branch A (feature, 2 commits):
     //   a_1: rename BrakeDisk.id 'disk1' → 'diskA'
     //        Reaction: Namespace.id → 'diskA'
