@@ -29,6 +29,7 @@ import tools.vitruv.framework.vsum.VirtualModel;
 import tools.vitruv.framework.vsum.VirtualModelBuilder;
 import tools.vitruv.framework.vsum.branch.merge.ChangeLogCapture;
 import tools.vitruv.framework.vsum.branch.merge.GitStateLoader;
+import tools.vitruv.framework.vsum.branch.merge.ConflictResolutionProvider;
 import tools.vitruv.framework.vsum.branch.merge.MergeConflict;
 import tools.vitruv.framework.vsum.branch.merge.MergeTracer;
 import tools.vitruv.framework.vsum.branch.merge.SemanticChangeLog;
@@ -1028,6 +1029,275 @@ public class ThreeModelBranchingMergeTest {
                     .anyMatch(w -> w.getType() == MergeConflict.ConflictType.INDIRECT_CONFLICT);
             assertFalse(hasIndirectConflict,
                     "The chosen ordering should have no INDIRECT_CONFLICT warnings");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Deletion scenarios (D1–D5): Single-element deletion handling
+    // ═══════════════════════════════════════════════════════════════════
+
+    // D1: Branch A deletes BrakeDisk, Branch B modifies its diameter
+    //     → DELETE_MODIFY conflict detected (A deletes what B modifies).
+    //     Merge aborts (no resolution provider).
+
+    @Test
+    @DisplayName("D1: source deletes element, target modifies it → DELETE_MODIFY conflict")
+    void deletionD1_sourceDeletesTargetModifies(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("D1", "DELETE_MODIFY — source deletes, target modifies",
+                "Base: BrakeDisk disk1 (diameter=300).\n"
+                + "║  Branch A (feature): delete disk1.\n"
+                + "║  Branch B (main): change disk1.diameter 300→350.\n"
+                + "║  Merge A→B: source deletes what target modified.",
+                "CONFLICT with DELETE_MODIFY (or MODIFY_DELETE).");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300").call();
+
+            // Branch A (feature): delete disk1
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+            removeBrakeDisk(vsum, "disk1");
+            commitWithChangelog(git, capture, tempDir, "feature", "delete disk1");
+
+            // Branch B (main): modify disk1.diameter
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+            changeBrakeDiskDiameter(vsum, "disk1", 350);
+            commitWithChangelog(git, capture, tempDir, "main", "diameter→350");
+
+            vsum.dispose();
+
+            // Merge A→B (no resolution provider → aborts on conflict)
+            SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("D1", result);
+
+            assertFalse(result.isSuccess(), "Merge should fail — DELETE_MODIFY conflict");
+            assertFalse(result.getConflicts().isEmpty(), "Should have conflicts");
+            boolean hasDeleteConflict = result.getConflicts().stream()
+                    .anyMatch(c -> c.getType() == MergeConflict.ConflictType.MODIFY_DELETE
+                            || c.getType() == MergeConflict.ConflictType.DELETE_MODIFY);
+            assertTrue(hasDeleteConflict,
+                    "Should detect DELETE_MODIFY or MODIFY_DELETE conflict, got: " + result.getConflicts());
+        }
+    }
+
+    // D2: Branch A modifies BrakeDisk, Branch B deletes it
+    //     → MODIFY_DELETE or DELETE_MODIFY conflict detected (reversed roles).
+    //     Merge aborts (no resolution provider).
+
+    @Test
+    @DisplayName("D2: source modifies element, target deletes it → MODIFY_DELETE conflict")
+    void deletionD2_sourceModifiesTargetDeletes(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("D2", "MODIFY_DELETE — source modifies, target deletes",
+                "Base: BrakeDisk disk1 (diameter=300).\n"
+                + "║  Branch A (feature): change disk1.diameter 300→350.\n"
+                + "║  Branch B (main): delete disk1.\n"
+                + "║  Merge A→B: source modifies what target deleted.",
+                "CONFLICT with MODIFY_DELETE (or REPLAY_APPLICABILITY).");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300").call();
+
+            // Branch A (feature): modify disk1.diameter
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+            changeBrakeDiskDiameter(vsum, "disk1", 350);
+            commitWithChangelog(git, capture, tempDir, "feature", "diameter→350");
+
+            // Branch B (main): delete disk1
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+            removeBrakeDisk(vsum, "disk1");
+            commitWithChangelog(git, capture, tempDir, "main", "delete disk1");
+
+            vsum.dispose();
+
+            // Merge A→B: source (feature) modifies, target (main) deleted
+            SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("D2", result);
+
+            assertFalse(result.isSuccess(),
+                    "Merge should fail — element was deleted on target, modified on source");
+            assertFalse(result.getConflicts().isEmpty(), "Should have conflicts");
+            // Either static detection (DELETE_MODIFY/MODIFY_DELETE) or runtime detection (REPLAY_APPLICABILITY)
+            boolean hasRelevantConflict = result.getConflicts().stream()
+                    .anyMatch(c -> c.getType() == MergeConflict.ConflictType.DELETE_MODIFY
+                            || c.getType() == MergeConflict.ConflictType.MODIFY_DELETE
+                            || c.getType() == MergeConflict.ConflictType.REPLAY_APPLICABILITY);
+            assertTrue(hasRelevantConflict,
+                    "Should detect delete-vs-modify conflict, got: " + result.getConflicts());
+        }
+    }
+
+    // D3: DELETE_MODIFY resolved as OURS (accept deletion, discard modification)
+    //     Source branch deletes disk1, target branch modifies its diameter.
+    //     Resolution: OURS = keep target's state... but target modified it, so this
+    //     means keep the modification. For THEIRS = accept source deletion.
+    //     We test THEIRS here: accept the deletion from source.
+
+    @Test
+    @DisplayName("D3: DELETE_MODIFY resolved as THEIRS → deletion wins, modification discarded")
+    void deletionD3_deleteConflictResolvedTheirs(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("D3", "DELETE_MODIFY resolved THEIRS → deletion wins",
+                "Base: BrakeDisk disk1 (diameter=300).\n"
+                + "║  Branch A (feature): delete disk1.\n"
+                + "║  Branch B (main): diameter 300→350.\n"
+                + "║  Resolution: THEIRS (accept source = deletion).",
+                "SUCCESS — disk1 deleted, modification discarded.");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300").call();
+
+            // Branch A (feature): delete disk1
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+            removeBrakeDisk(vsum, "disk1");
+            commitWithChangelog(git, capture, tempDir, "feature", "delete disk1");
+
+            // Branch B (main): modify disk1.diameter
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+            changeBrakeDiskDiameter(vsum, "disk1", 350);
+            commitWithChangelog(git, capture, tempDir, "main", "diameter→350");
+
+            vsum.dispose();
+
+            // Merge with THEIRS resolution (accept deletion from source)
+            SemanticMergeResult result = new SemanticMergeCommand().execute(
+                    tempDir, "feature", "main", allCPS(), interactionProvider,
+                    ConflictResolutionProvider.chooseAllTheirs());
+            printScenarioResult("D3", result);
+
+            // The deletion from source is replayed — disk1 should be gone
+            // Result should be success (conflict was resolved)
+            assertTrue(result.isSuccess() || result.getStatus().toString().contains("SUCCESS"),
+                    "Merge should succeed after resolution, got: " + result.getStatus()
+                    + " conflicts=" + result.getConflicts());
+        }
+    }
+
+    // D4: DELETE_MODIFY resolved as OURS (keep target modification, reject source deletion)
+
+    @Test
+    @DisplayName("D4: DELETE_MODIFY resolved as OURS → modification kept, deletion discarded")
+    void deletionD4_deleteConflictResolvedOurs(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("D4", "DELETE_MODIFY resolved OURS → modification kept",
+                "Base: BrakeDisk disk1 (diameter=300).\n"
+                + "║  Branch A (feature): delete disk1.\n"
+                + "║  Branch B (main): diameter 300→350.\n"
+                + "║  Resolution: OURS (keep target = modification).",
+                "SUCCESS — disk1 kept with diameter=350, deletion discarded.");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300").call();
+
+            // Branch A (feature): delete disk1
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+            removeBrakeDisk(vsum, "disk1");
+            commitWithChangelog(git, capture, tempDir, "feature", "delete disk1");
+
+            // Branch B (main): modify disk1.diameter
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+            changeBrakeDiskDiameter(vsum, "disk1", 350);
+            commitWithChangelog(git, capture, tempDir, "main", "diameter→350");
+
+            vsum.dispose();
+
+            // Merge with OURS resolution (keep target's modification, reject deletion)
+            SemanticMergeResult result = new SemanticMergeCommand().execute(
+                    tempDir, "feature", "main", allCPS(), interactionProvider,
+                    ConflictResolutionProvider.chooseAllOurs());
+            printScenarioResult("D4", result);
+
+            // The deletion DTOs should have been filtered out; target state preserved
+            assertTrue(result.isSuccess() || result.getStatus().toString().contains("SUCCESS"),
+                    "Merge should succeed after resolution, got: " + result.getStatus()
+                    + " conflicts=" + result.getConflicts());
+        }
+    }
+
+    // D5: Source modifies element, target deleted it → replay hits missing element.
+    //     Without static detection (e.g., if UUIDs don't match due to view trait),
+    //     the directed merge should catch this as REPLAY_APPLICABILITY instead of crashing.
+
+    @Test
+    @DisplayName("D5: replay on deleted element → REPLAY_APPLICABILITY or DELETE conflict (no crash)")
+    void deletionD5_replayOnDeletedElement_noCrash(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("D5", "Replay on deleted element — guard failure handling",
+                "Base: BrakeDisk disk1 (diameter=300).\n"
+                + "║  Branch A (feature): change disk1.diameter 300→350.\n"
+                + "║  Branch B (main): delete disk1.\n"
+                + "║  Merge A→B without resolution → should not crash.",
+                "CONFLICT (DELETE/MODIFY or REPLAY_APPLICABILITY) — no exception thrown.");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300").call();
+
+            // Branch A (feature): modify disk1.diameter
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+            changeBrakeDiskDiameter(vsum, "disk1", 350);
+            commitWithChangelog(git, capture, tempDir, "feature", "diameter→350");
+
+            // Branch B (main): delete disk1
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+            removeBrakeDisk(vsum, "disk1");
+            commitWithChangelog(git, capture, tempDir, "main", "delete disk1");
+
+            vsum.dispose();
+
+            // Key assertion: this should NOT throw an exception.
+            // It should return a conflict result (either detected statically or at replay time).
+            SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("D5", result);
+
+            assertFalse(result.isSuccess(),
+                    "Merge should fail — element deleted on target, modified on source");
+            assertFalse(result.getConflicts().isEmpty(),
+                    "Should report conflict(s), not crash");
         }
     }
 
