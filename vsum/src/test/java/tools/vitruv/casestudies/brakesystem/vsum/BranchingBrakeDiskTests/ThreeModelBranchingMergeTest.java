@@ -902,6 +902,136 @@ public class ThreeModelBranchingMergeTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // S13: Interleaving resolves OPPOSITE indirect conflicts in two model areas
+    //
+    // Motivation: This is the core case for interleaving. Both directed merges
+    // (A→B and B→A) fail with INDIRECT_CONFLICT, but in DIFFERENT areas.
+    // An interleaving orders commits so that each user change is applied AFTER
+    // the reaction that would otherwise overwrite it.
+    //
+    // Setup:
+    //   Base: disk1 (diameter=300, thickness=25) → thermalLoadRating=75.0
+    //         pad1  (height=40, width=50)         → frictionArea=2000.0
+    //
+    //   Branch A (two commits):
+    //     a_1: M1 BrakeDisk.diameterInMM 300→320
+    //          → Reaction: M2 CAD Diameter=320
+    //          → Reaction: M3 thermalLoadRating = 320×25×0.01 = 80.0
+    //     a_2: M3 SafetyEntry(pad1).frictionArea = 9999 (direct user override)
+    //          → No reaction (M1→M3 is one-way; no M3→M1)
+    //
+    //   Branch B (two commits):
+    //     b_1: M3 SafetyEntry(disk1).thermalLoadRating = 100 (direct user override)
+    //          → No reaction (M1→M3 is one-way; no M3→M1)
+    //     b_2: M1 BrakePad.heightInMM 40→60
+    //          → Reaction: M2 CAD Height=60
+    //          → Reaction: M3 frictionArea = 60×50 = 3000.0
+    //
+    // Conflict analysis:
+    //   A→B (replay A onto B's head):
+    //     a_1 → reaction derives thermalLoadRating=80, overwrites b_1's user 100
+    //           → INDIRECT_CONFLICT
+    //   B→A (replay B onto A's head):
+    //     b_2 → reaction derives frictionArea=3000, overwrites a_2's user 9999
+    //           → INDIRECT_CONFLICT
+    //   Both fail → BIDIRECTIONAL_INDIRECT_CONFLICT
+    //
+    // Dependency graph (inter-branch edges only):
+    //   a_1.reactionFP ∩ b_1.directFP = {thermalLoadRating} → edge a_1 → b_1
+    //   b_2.reactionFP ∩ a_2.directFP = {frictionArea}      → edge b_2 → a_2
+    //   No other inter-branch overlaps → NO CYCLE
+    //
+    // Valid ordering (topological sort): [a_1, b_1, b_2, a_2]
+    //   1. a_1: diameter→320, derives thermalLoadRating=80
+    //   2. b_1: user sets thermalLoadRating=100 (overwrites derived → ok)
+    //   3. b_2: padHeight→60, derives frictionArea=3000
+    //   4. a_2: user sets frictionArea=9999 (overwrites derived → ok)
+    //   → No INDIRECT_CONFLICT → SUCCESS with INTERLEAVED
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("S13: interleaving resolves opposite indirect conflicts where bidirectional fails")
+    void scenario13_interleaving_resolvesOppositeIndirectConflicts(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("S13",
+                "Interleaving — resolves opposite indirect conflicts in two model areas",
+                "Base: disk1 (d=300, t=25, thermalLoadRating=75) + pad1 (h=40, w=50, frictionArea=2000).\n"
+                + "║  Branch A: a_1 changes M1 diameter→320 (derives thermalLoadRating=80);\n"
+                + "║            a_2 directly sets M3 pad1.frictionArea=9999.\n"
+                + "║  Branch B: b_1 directly sets M3 disk1.thermalLoadRating=100;\n"
+                + "║            b_2 changes M1 padHeight→60 (derives frictionArea=3000).\n"
+                + "║  A→B: INDIRECT (a_1 reaction overwrites b_1 user thermalLoadRating).\n"
+                + "║  B→A: INDIRECT (b_2 reaction overwrites a_2 user frictionArea).\n"
+                + "║  Interleaving [a_1,b_1,b_2,a_2]: each user change comes after its conflict.",
+                "SUCCESS with direction=INTERLEAVED. No INDIRECT_CONFLICT.");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            // BASE: two components — disk1 and pad1
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+            addBrakePad(vsum, "pad1", 40, 50, 10);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300 t=25, pad1 h=40 w=50").call();
+
+            // ── Branch A ──
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+
+            // a_1: change BrakeDisk.diameterInMM 300→320
+            //   Reaction: CAD Diameter → 320, Safety thermalLoadRating → 80.0
+            var capture = freshCapture(vsum);
+            changeBrakeDiskDiameter(vsum, "disk1", 320);
+            commitWithChangelog(git, capture, tempDir, "feature", "a_1: disk1 diameter→320");
+
+            // a_2: directly set Safety pad1.frictionArea = 9999 (user override, no reaction)
+            capture = freshCapture(vsum);
+            changeSafetyEntryFrictionArea(vsum, "pad1", 9999.0f);
+            commitWithChangelog(git, capture, tempDir, "feature", "a_2: pad1 frictionArea→9999 (user)");
+
+            // ── Branch B ──
+            git.checkout().setName("main").call();
+            vsum.reload();
+
+            // b_1: directly set Safety disk1.thermalLoadRating = 100 (user override, no reaction)
+            capture = freshCapture(vsum);
+            changeSafetyEntryThermalLoadRating(vsum, "disk1", 100.0f);
+            commitWithChangelog(git, capture, tempDir, "main", "b_1: disk1 thermalLoadRating→100 (user)");
+
+            // b_2: change BrakePad.heightInMM 40→60
+            //   Reaction: CAD Height → 60, Safety frictionArea → 3000.0
+            capture = freshCapture(vsum);
+            changeBrakePadHeight(vsum, "pad1", 60);
+            commitWithChangelog(git, capture, tempDir, "main", "b_2: pad1 height→60");
+
+            vsum.dispose();
+
+            // ── Verify bidirectional also fails ──
+            SemanticMergeResult bidirResult = mergeBidirectional(
+                    tempDir, "feature", "main", interactionProvider);
+            assertFalse(bidirResult.isSuccess(),
+                    "Bidirectional merge should fail — both directions have INDIRECT_CONFLICT");
+
+            // ── Interleaving merge ──
+            SemanticMergeResult result = mergeWithInterleaving(
+                    tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("S13", result);
+
+            assertTrue(result.isSuccess(),
+                    "Interleaving should succeed — ordering [a_1,b_1,b_2,a_2] avoids both conflicts");
+
+            assertEquals(MergeDirection.INTERLEAVED, result.getMergeDirection(),
+                    "Direction should be INTERLEAVED");
+
+            boolean hasIndirectConflict = result.getWarnings().stream()
+                    .anyMatch(w -> w.getType() == MergeConflict.ConflictType.INDIRECT_CONFLICT);
+            assertFalse(hasIndirectConflict,
+                    "The chosen ordering should have no INDIRECT_CONFLICT warnings");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // Trace output helpers
     // ═══════════════════════════════════════════════════════════════════
 
@@ -1142,6 +1272,34 @@ public class ThreeModelBranchingMergeTest {
                 .map(c -> (BrakeDisk) c)
                 .findFirst().orElseThrow();
         bs.getBrakeComponents().remove(disk);
+        view.commitChanges();
+    }
+
+    private void changeSafetyEntryThermalLoadRating(VirtualModel vsum, String componentId, float newRating) {
+        var selector = vsum.createSelector(ViewTypeFactory.createIdentityMappingViewType("safety-edit"));
+        selector.getSelectableElements().stream()
+                .filter(e -> e instanceof SafetyAssessment)
+                .forEach(e -> selector.setSelected(e, true));
+        var view = selector.createView().withChangeRecordingTrait();
+        var assessment = view.getRootObjects(SafetyAssessment.class).iterator().next();
+        var entry = assessment.getSafetyEntries().stream()
+                .filter(e -> componentId.equals(e.getComponentId()))
+                .findFirst().orElseThrow();
+        entry.setThermalLoadRating(newRating);
+        view.commitChanges();
+    }
+
+    private void changeSafetyEntryFrictionArea(VirtualModel vsum, String componentId, float newArea) {
+        var selector = vsum.createSelector(ViewTypeFactory.createIdentityMappingViewType("safety-edit"));
+        selector.getSelectableElements().stream()
+                .filter(e -> e instanceof SafetyAssessment)
+                .forEach(e -> selector.setSelected(e, true));
+        var view = selector.createView().withChangeRecordingTrait();
+        var assessment = view.getRootObjects(SafetyAssessment.class).iterator().next();
+        var entry = assessment.getSafetyEntries().stream()
+                .filter(e -> componentId.equals(e.getComponentId()))
+                .findFirst().orElseThrow();
+        entry.setFrictionArea(newArea);
         view.commitChanges();
     }
 
