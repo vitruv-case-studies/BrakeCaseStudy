@@ -65,7 +65,7 @@ public class MergePerformanceBenchmarkTest {
     // ═══════════════════════════════════════════════════════════════════
 
     @ParameterizedTest(name = "E1: Model size = {0} components")
-    @ValueSource(ints = {10, 50, 100, 250, 500})
+    @ValueSource(ints = {10, 50, 100, 250, 500, 750, 1000})
     @DisplayName("E1: Model size scaling")
     void e1_modelSizeScaling(int numComponents, @TempDir Path tempDir) throws Exception {
         var config = new BenchmarkConfig(numComponents, 5, 0.0, true, BASE_SEED);
@@ -78,7 +78,7 @@ public class MergePerformanceBenchmarkTest {
     @Test
     @DisplayName("E1: Full model size scaling suite")
     void e1_fullSuite(@TempDir Path tempDir) throws Exception {
-        int[] sizes = {10, 50, 100, 250, 500};
+        int[] sizes = {10, 50, 100, 250, 500, 750, 1000};
         List<BenchmarkResult> results = new ArrayList<>();
 
         for (int size : sizes) {
@@ -96,6 +96,29 @@ public class MergePerformanceBenchmarkTest {
 
         printResults("E1: Model Size Scaling", results);
         saveResults("e1-model-size", results, tempDir);
+    }
+
+    @Test
+    @DisplayName("E1: Quick smoke test (10, 50 components only)")
+    void e1_smokeTest(@TempDir Path tempDir) throws Exception {
+        int[] sizes = {10, 50};
+        List<BenchmarkResult> results = new ArrayList<>();
+
+        for (int size : sizes) {
+            List<BenchmarkResult> runs = new ArrayList<>();
+            for (int rep = 0; rep < WARMUP_RUNS + REPETITIONS; rep++) {
+                Path runDir = Files.createDirectories(tempDir.resolve("e1s_" + size + "_r" + rep));
+                var config = new BenchmarkConfig(size, 5, 0.0, true, BASE_SEED + rep);
+                var result = runBenchmark(config, runDir);
+                if (rep >= WARMUP_RUNS) {
+                    runs.add(result);
+                }
+            }
+            results.add(aggregateResults(runs, "E1_C" + size));
+        }
+
+        printResults("E1: Smoke Test", results);
+        saveResults("e1-smoke-test", results, tempDir);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -246,7 +269,7 @@ public class MergePerformanceBenchmarkTest {
 
         // E1: Model size
         System.out.println("--- E1: Model Size Scaling ---");
-        for (int size : new int[]{10, 50, 100, 250, 500}) {
+        for (int size : new int[]{10, 50, 100, 250, 500, 750, 1000}) {
             var config = new BenchmarkConfig(size, 5, 0.0, true, BASE_SEED);
             Path runDir = Files.createDirectories(tempDir.resolve("full_e1_" + size));
             var result = runBenchmark(config, runDir);
@@ -394,7 +417,7 @@ public class MergePerformanceBenchmarkTest {
     // ═══════════════════════════════════════════════════════════════════
 
     /**
-     * Aggregates multiple runs into a single result with median timing.
+     * Aggregates multiple runs into a single result with median timing and mean ± stddev.
      */
     private BenchmarkResult aggregateResults(List<BenchmarkResult> runs, String label) {
         if (runs.isEmpty()) throw new IllegalArgumentException("No runs to aggregate");
@@ -416,6 +439,12 @@ public class MergePerformanceBenchmarkTest {
         var first = runs.get(0);
         int medianIdx = runs.size() / 2;
 
+        // Compute mean and stddev for merge and replay times
+        double meanMerge = runs.stream().mapToDouble(BenchmarkResult::getTotalMergeTimeMs).average().orElse(0);
+        double meanReplay = runs.stream().mapToDouble(BenchmarkResult::getReplayTimeMs).average().orElse(0);
+        double stddevMerge = stddev(runs.stream().mapToDouble(BenchmarkResult::getTotalMergeTimeMs).toArray());
+        double stddevReplay = stddev(runs.stream().mapToDouble(BenchmarkResult::getReplayTimeMs).toArray());
+
         return new BenchmarkResult(label, first.getNumComponents(), first.getNumTransactions(),
                 first.getOverlapFraction(), first.isHighReactionDensity())
                 .setupTime(runs.stream().mapToLong(BenchmarkResult::getSetupTimeNanos)
@@ -431,7 +460,17 @@ public class MergePerformanceBenchmarkTest {
                 .transactionsReplayed(first.getTransactionsReplayed())
                 .mergeSucceeded(first.isMergeSucceeded())
                 .mergeDirection(first.getMergeDirection())
-                .peakMemory(peakMems.get(medianIdx));
+                .peakMemory(peakMems.get(medianIdx))
+                .stats(meanMerge, stddevMerge, meanReplay, stddevReplay, runs.size());
+    }
+
+    private static double stddev(double[] values) {
+        double mean = 0;
+        for (double v : values) mean += v;
+        mean /= values.length;
+        double sumSqDiff = 0;
+        for (double v : values) sumSqDiff += (v - mean) * (v - mean);
+        return Math.sqrt(sumSqDiff / values.length);
     }
 
     private void printResults(String title, List<BenchmarkResult> results) {
@@ -463,15 +502,31 @@ public class MergePerformanceBenchmarkTest {
         Path mdFile = outputDir.resolve(experimentName + ".md");
         StringBuilder md = new StringBuilder();
         md.append("# ").append(experimentName).append("\n\n");
-        md.append("| Config | Components | Transactions | Merge Time (ms) | Replay Time (ms) | ")
-                .append("Conflicts | Warnings | Memory (MB) |\n");
-        md.append("|--------|-----------|-------------|----------------|-----------------|")
-                .append("-----------|----------|------------|\n");
-        for (var r : results) {
-            md.append(String.format("| %s | %d | %d | %.1f | %.1f | %d | %d | %.1f |\n",
-                    r.getConfigLabel(), r.getNumComponents(), r.getNumTransactions(),
-                    r.getTotalMergeTimeMs(), r.getReplayTimeMs(),
-                    r.getDirectConflicts(), r.getWarnings(), r.getPeakMemoryMB()));
+        boolean hasStats = results.stream().anyMatch(BenchmarkResult::hasStats);
+        if (hasStats) {
+            md.append("| Config | Components | Transactions | Merge (median ms) | Merge (mean ± σ ms) | ")
+                    .append("Replay (median ms) | Replay (mean ± σ ms) | n | Conflicts | Warnings | Memory (MB) |\n");
+            md.append("|--------|-----------|-------------|:-----------------:|:-------------------:|")
+                    .append(":-----------------:|:--------------------:|:-:|-----------|----------|------------|\n");
+            for (var r : results) {
+                md.append(String.format("| %s | %d | %d | %.1f | %.1f ± %.1f | %.1f | %.1f ± %.1f | %d | %d | %d | %.1f |\n",
+                        r.getConfigLabel(), r.getNumComponents(), r.getNumTransactions(),
+                        r.getTotalMergeTimeMs(), r.getMeanMergeTimeMs(), r.getStddevMergeTimeMs(),
+                        r.getReplayTimeMs(), r.getMeanReplayTimeMs(), r.getStddevReplayTimeMs(),
+                        r.getSampleCount(),
+                        r.getDirectConflicts(), r.getWarnings(), r.getPeakMemoryMB()));
+            }
+        } else {
+            md.append("| Config | Components | Transactions | Merge Time (ms) | Replay Time (ms) | ")
+                    .append("Conflicts | Warnings | Memory (MB) |\n");
+            md.append("|--------|-----------|-------------|----------------|-----------------|")
+                    .append("-----------|----------|------------|\n");
+            for (var r : results) {
+                md.append(String.format("| %s | %d | %d | %.1f | %.1f | %d | %d | %.1f |\n",
+                        r.getConfigLabel(), r.getNumComponents(), r.getNumTransactions(),
+                        r.getTotalMergeTimeMs(), r.getReplayTimeMs(),
+                        r.getDirectConflicts(), r.getWarnings(), r.getPeakMemoryMB()));
+            }
         }
         Files.writeString(mdFile, md.toString());
 

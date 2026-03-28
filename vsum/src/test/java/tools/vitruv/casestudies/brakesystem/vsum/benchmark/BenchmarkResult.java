@@ -33,6 +33,13 @@ public class BenchmarkResult {
     // Memory
     private long peakMemoryBytes;
 
+    // Aggregation statistics (populated only for aggregated results)
+    private double meanMergeTimeMs;
+    private double stddevMergeTimeMs;
+    private double meanReplayTimeMs;
+    private double stddevReplayTimeMs;
+    private int sampleCount;
+
     public BenchmarkResult(String configLabel, int numComponents, int numTransactions,
                            double overlapFraction, boolean highReactionDensity) {
         this.configLabel = configLabel;
@@ -56,6 +63,14 @@ public class BenchmarkResult {
     public BenchmarkResult mergeSucceeded(boolean s) { this.mergeSucceeded = s; return this; }
     public BenchmarkResult mergeDirection(String d) { this.mergeDirection = d; return this; }
     public BenchmarkResult peakMemory(long bytes) { this.peakMemoryBytes = bytes; return this; }
+    public BenchmarkResult stats(double meanMerge, double stddevMerge, double meanReplay, double stddevReplay, int count) {
+        this.meanMergeTimeMs = meanMerge;
+        this.stddevMergeTimeMs = stddevMerge;
+        this.meanReplayTimeMs = meanReplay;
+        this.stddevReplayTimeMs = stddevReplay;
+        this.sampleCount = count;
+        return this;
+    }
 
     // Getters
     public String getConfigLabel() { return configLabel; }
@@ -76,6 +91,12 @@ public class BenchmarkResult {
     public boolean isMergeSucceeded() { return mergeSucceeded; }
     public String getMergeDirection() { return mergeDirection; }
     public long getPeakMemoryBytes() { return peakMemoryBytes; }
+    public double getMeanMergeTimeMs() { return meanMergeTimeMs; }
+    public double getStddevMergeTimeMs() { return stddevMergeTimeMs; }
+    public double getMeanReplayTimeMs() { return meanReplayTimeMs; }
+    public double getStddevReplayTimeMs() { return stddevReplayTimeMs; }
+    public int getSampleCount() { return sampleCount; }
+    public boolean hasStats() { return sampleCount > 0; }
 
     public double getTotalMergeTimeMs() { return totalMergeTimeNanos / 1_000_000.0; }
     public double getSetupTimeMs() { return setupTimeNanos / 1_000_000.0; }
@@ -88,6 +109,7 @@ public class BenchmarkResult {
     public static String csvHeader() {
         return "config,numComponents,numTransactions,overlapFraction,reactionDensity,"
                 + "setupTimeMs,totalMergeTimeMs,replayTimeMs,"
+                + "meanMergeTimeMs,stddevMergeTimeMs,meanReplayTimeMs,stddevReplayTimeMs,sampleCount,"
                 + "directConflicts,warnings,changesReplayed,transactionsReplayed,"
                 + "mergeSucceeded,mergeDirection,peakMemoryMB";
     }
@@ -96,10 +118,11 @@ public class BenchmarkResult {
      * Returns a CSV data line.
      */
     public String toCsvLine() {
-        return String.format("%s,%d,%d,%.2f,%s,%.1f,%.1f,%.1f,%d,%d,%d,%d,%s,%s,%.1f",
+        return String.format("%s,%d,%d,%.2f,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%d,%d,%s,%s,%.1f",
                 configLabel, numComponents, numTransactions, overlapFraction,
                 highReactionDensity ? "high" : "low",
                 getSetupTimeMs(), getTotalMergeTimeMs(), getReplayTimeMs(),
+                meanMergeTimeMs, stddevMergeTimeMs, meanReplayTimeMs, stddevReplayTimeMs, sampleCount,
                 directConflicts, warnings, changesReplayed, transactionsReplayed,
                 mergeSucceeded, mergeDirection != null ? mergeDirection : "FORWARD",
                 getPeakMemoryMB());
@@ -109,6 +132,14 @@ public class BenchmarkResult {
      * Returns a formatted summary line for console output.
      */
     public String toSummaryLine() {
+        if (hasStats()) {
+            return String.format("%-25s | %4d comp | %3d txn | merge: %7.1f ± %5.1f ms | replay: %7.1f ± %5.1f ms | "
+                            + "conflicts: %d | warnings: %d | mem: %.0f MB  (n=%d, median merge: %.1f ms)",
+                    configLabel, numComponents, numTransactions,
+                    meanMergeTimeMs, stddevMergeTimeMs, meanReplayTimeMs, stddevReplayTimeMs,
+                    directConflicts, warnings, getPeakMemoryMB(),
+                    sampleCount, getTotalMergeTimeMs());
+        }
         return String.format("%-25s | %4d comp | %3d txn | merge: %7.1f ms | replay: %7.1f ms | "
                         + "conflicts: %d | warnings: %d | mem: %.0f MB",
                 configLabel, numComponents, numTransactions,
