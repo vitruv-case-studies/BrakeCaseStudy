@@ -33,6 +33,8 @@
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute safety.ecore#//SafetyEntry/thermalLoadRating" />
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute safety.ecore#//SafetyEntry/frictionArea" />
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute safety.ecore#//SafetyEntry/complianceStatus" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute safety.ecore#//SafetyEntry/hazardDescription" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute safety.ecore#//SafetyEntry/verificationMethod" />
     </genClasses>
   </genPackages>
 </genmodel:GenModel>
