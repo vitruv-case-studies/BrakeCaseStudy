@@ -58,15 +58,15 @@ cd "$WORKSPACE/Vitruv-Change" && ./mvnw install -pl propagation -am -Dmaven.test
 cd "$WORKSPACE/Vitruv" && ./mvnw clean install -Dmaven.test.skip=true -q
 echo "      Dependencies built successfully."
 
+# Build Vitruv-Merge-Tests (shared comparison infrastructure, dependency of BrakeCaseStudy and MobSTr)
+next_step "Building Vitruv-Merge-Tests..."
+cd "$WORKSPACE/Vitruv-Merge-Tests" && ./mvnw clean install -Dmaven.test.skip=true -q
+echo "      Vitruv-Merge-Tests built successfully."
+
 # Build BrakeCaseStudy (compile tests but don't run yet)
 next_step "Building BrakeCaseStudy..."
 cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw clean install -DskipTests -q
 echo "      BrakeCaseStudy built successfully."
-
-# Build Vitruv-Merge-Tests (shared comparison infrastructure, dependency of MobSTr)
-next_step "Building Vitruv-Merge-Tests..."
-cd "$WORKSPACE/Vitruv-Merge-Tests" && ./mvnw clean install -Dmaven.test.skip=true -q
-echo "      Vitruv-Merge-Tests built successfully."
 
 # Build MobSTr case study
 next_step "Building MobSTr case study..."
