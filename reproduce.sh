@@ -77,13 +77,13 @@ echo ""
 echo "--- BrakeCaseStudy Scenario Comparison (Vitruvius vs EMFCompare) ---"
 cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
     -Dtest=MergeApproachComparisonTest#generateComparisonTable \
-    -Dsurefire.useFile=false 2>&1 | grep -E '^\||\#|Summary|Vitruvius|EMFCompare|==='
+    -Dsurefire.useFile=false
 
 echo ""
 echo "--- Bidirectional Merge Scenarios (S8-S9) ---"
 cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
     -Dtest=ThreeModelBranchingMergeTest#s8_bidirectionalMerge_reverseResolvesIndirectConflict,ThreeModelBranchingMergeTest#s9_bidirectionalMerge_bothDirectionsConflict \
-    -Dsurefire.useFile=false 2>&1 | grep -E 'Tests run|BUILD'
+    -Dsurefire.useFile=false
 
 # Run MobSTr comparison
 next_step "Running MobSTr comparison (Table 1b: Vitruvius vs EMFCompare)..."
@@ -92,7 +92,7 @@ echo ""
 echo "--- MobSTr Scenario Comparison (Vitruvius vs EMFCompare) ---"
 cd "$WORKSPACE/mobstr-vsum" && ./mvnw -pl vsum test \
     -Dtest=MobSTrComparisonTest \
-    -Dsurefire.useFile=false 2>&1 | grep -E '^\||\#|Summary|Vitruvius|EMFCompare|===|Tests run|BUILD'
+    -Dsurefire.useFile=false
 
 # Track B evaluation (105 scenarios) — only with --all
 if $RUN_TRACK_B; then
