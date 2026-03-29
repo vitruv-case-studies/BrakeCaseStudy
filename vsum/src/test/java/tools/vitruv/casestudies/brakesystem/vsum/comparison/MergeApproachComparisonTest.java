@@ -133,14 +133,14 @@ public class MergeApproachComparisonTest {
 
         SemanticMergeResult mergeResult;
         try {
-            // Try without conflict resolution first
-            mergeResult = new SemanticMergeCommand().execute(
+            // Try without conflict resolution first (interleaving merge)
+            mergeResult = new SemanticMergeCommand().executeWithInterleaving(
                     scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
-                    ThreeModelScenarioSetup.allCPS(), interactionProvider);
+                    ThreeModelScenarioSetup.allCPS(), interactionProvider, null);
         } catch (Exception e) {
             // If merge fails with an exception, try with resolution to get conflict info
             try {
-                mergeResult = new SemanticMergeCommand().execute(
+                mergeResult = new SemanticMergeCommand().executeWithInterleaving(
                         scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
                         ThreeModelScenarioSetup.allCPS(), interactionProvider,
                         ConflictResolutionProvider.chooseAllTheirs());

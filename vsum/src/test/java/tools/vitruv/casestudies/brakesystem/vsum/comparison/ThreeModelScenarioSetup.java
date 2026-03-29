@@ -378,7 +378,8 @@ public class ThreeModelScenarioSetup {
         git.commit().setMessage(message).call();
         String sha = git.log().setMaxCount(1).call().iterator().next().getName();
         new SemanticChangeLog(sha, branch, capture.drainChanges(),
-                capture.drainUuidMapping(), capture.drainCascadeDeletedUuids()).saveTo(tempDir);
+                capture.drainUuidMapping(), capture.drainCascadeDeletedUuids(),
+                capture.drainConsequentialFootprints()).saveTo(tempDir);
         git.add().addFilepattern(".").call();
         git.commit().setAmend(true).setMessage(message + " + changelog").call();
     }
