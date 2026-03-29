@@ -81,12 +81,12 @@ public class ThreeModelBranchingMergeTest {
     // ═══════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("S1: user(A) changes BrakeDisk diameter in M₁ → derived M₂+M₃ update; B adds ABSSensor → clean merge")
-    void scenario1_userA_changesM1_derivedM2M3(@TempDir Path tempDir) throws Exception {
-        printScenarioHeader("S1", "Clean merge — diameter change + sensor addition",
-                "user(A) changes BrakeDisk.diameter 300→320 in M₁ (derives M₂ CAD + M₃ Safety);\n"
-                + "║  user(B) adds ABSSensor in M₁. Non-overlapping user changes.",
-                "SUCCESS, 0 blocking conflicts, 1 warning (user-vs-derived on CAD).\n"
+    @DisplayName("CLEAN: original(A) changes BrakeDisk diameter in M₁ → consequential M₂+M₃ update; B adds ABSSensor → clean merge")
+    void clean_originalA_changesM1_consequentialM2M3(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("CLEAN", "Clean merge — diameter change + sensor addition",
+                "original(A) changes BrakeDisk.diameter 300→320 in M₁ (derives M₂ CAD + M₃ Safety);\n"
+                + "║  original(B) adds ABSSensor in M₁. Non-overlapping original changes.",
+                "SUCCESS, 0 blocking conflicts.\n"
                 + "║  Merged state: disk1.diameter=320, sensor1 present, safety thermalLoad=80.0");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
@@ -121,7 +121,7 @@ public class ThreeModelBranchingMergeTest {
 
             // Merge feature → main
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
-            printScenarioResult("S1", result);
+            printScenarioResult("CLEAN", result);
 
             assertTrue(result.isSuccess(), "Merge should succeed — non-overlapping changes");
 
@@ -289,14 +289,14 @@ public class ThreeModelBranchingMergeTest {
     // ═══════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("S4: derived(A) in M₂ vs user(B) in M₂ → warning, B's intent preserved")
-    void scenario4_derivedA_vs_userB_warning(@TempDir Path tempDir) throws Exception {
-        printScenarioHeader("S4", "Indirect conflict — derived(A) vs user(B) in M₂",
-                "user(A) changes BrakeDisk.diameter 300→320 in M₁ → reaction derives CAD Diameter=320;\n"
-                + "║  user(B) directly sets CAD Diameter=350 in M₂ (user intent).\n"
-                + "║  Merge A→B: replay(A) derives CAD Diameter=320, overwriting user(B)'s 350.",
-                "SUCCESS with INDIRECT_CONFLICT warning(s) (2 warnings).\n"
-                + "║  Vitruvius detects derived(A) overwriting user(B). EMF Compare: 1 hard conflict.");
+    @DisplayName("RESOLVED_OVERLAP: consequential(A) in M₂ vs original(B) in M₂ → resolved by interleaving")
+    void resolvedOverlap_consequentialA_vs_originalB(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("RESOLVED_OVERLAP", "Consequential overlap resolved — consequential(A) vs original(B) in M₂",
+                "original(A) changes BrakeDisk.diameter 300→320 in M₁ → reaction derives CAD Diameter=320;\n"
+                + "║  original(B) directly sets CAD Diameter=350 in M₂ (original intent).\n"
+                + "║  Acyclic dependency graph → interleaving replays B first, preserving B's intent.",
+                "SUCCESS, 0 blocking conflicts.\n"
+                + "║  EMF Compare: 1 hard conflict.");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -331,20 +331,9 @@ public class ThreeModelBranchingMergeTest {
             // Merge A→B: replaying A generates derived CAD Diameter=320,
             // but B's user set it to 350 → indirect conflict (derived(A) vs user(B))
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
-            printScenarioResult("S4", result);
+            printScenarioResult("RESOLVED_OVERLAP", result);
 
-            // Merge succeeds (directed merge — A's changes are applied)
-            assertTrue(result.isSuccess(), "Merge should succeed in directed merge");
-
-            // Should have indirect conflict warnings: derived(replay(A)) overwrites user(B)
-            // on the CAD Diameter parameter (and possibly safety thermalLoadRating)
-            assertFalse(result.getWarnings().isEmpty(),
-                    "Should have warnings for derived(A) overwriting user(B)");
-
-            boolean hasIndirectConflict = result.getWarnings().stream()
-                    .anyMatch(w -> w.getType() == MergeConflict.ConflictType.INDIRECT_CONFLICT);
-            assertTrue(hasIndirectConflict,
-                    "Should have INDIRECT_CONFLICT warning (derived(A) overwrites user(B))");
+            assertTrue(result.isSuccess(), "Merge should succeed — acyclic dependency, interleaving resolves");
         }
     }
 
@@ -421,14 +410,14 @@ public class ThreeModelBranchingMergeTest {
     // ═══════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("S6: user(A) and user(B) both change BrakeDisk.diameter → direct MODIFY_MODIFY conflict")
-    void scenario6_directConflict_userA_vs_userB(@TempDir Path tempDir) throws Exception {
-        printScenarioHeader("S6", "Direct conflict — user(A) vs user(B) on same attribute",
-                "user(A) changes BrakeDisk.diameter 300→320 in M₁;\n"
-                + "║  user(B) changes BrakeDisk.diameter 300→350 in M₁.\n"
+    @DisplayName("DIRECT: original(A) and original(B) both change BrakeDisk.diameter → direct MODIFY_MODIFY conflict")
+    void direct_originalA_vs_originalB(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("DIRECT", "Direct conflict — original(A) vs original(B) on same attribute",
+                "original(A) changes BrakeDisk.diameter 300→320 in M₁;\n"
+                + "║  original(B) changes BrakeDisk.diameter 300→350 in M₁.\n"
                 + "║  Same element, same feature, different values → MODIFY_MODIFY.",
                 "CONFLICT with 1 blocking MODIFY_MODIFY conflict on 'diameterInMM'.\n"
-                + "║  EMF Compare: 3 conflicts (brakesystem + derived CAD + derived safety).");
+                + "║  EMF Compare: 3 conflicts (brakesystem + consequential CAD + consequential safety).");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -460,7 +449,7 @@ public class ThreeModelBranchingMergeTest {
             vsum.dispose();
 
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
-            printScenarioResult("S6", result);
+            printScenarioResult("DIRECT", result);
 
             assertFalse(result.isSuccess(), "Merge should fail — direct user-vs-user conflict");
             assertFalse(result.getConflicts().isEmpty(), "Should have at least one conflict");
@@ -487,15 +476,16 @@ public class ThreeModelBranchingMergeTest {
     // ═══════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("S7: derived(replay(A)) overwrites user(B) across M₂ and M₃ → indirect conflict")
-    void scenario7_indirectConflict_acrossM2andM3(@TempDir Path tempDir) throws Exception {
-        printScenarioHeader("S7", "Cross-model indirect conflict via id rename cascade",
-                "user(A) renames BrakeDisk.id 'disk1'→'engineeringDisk' in M₁\n"
+    @DisplayName("CONSEQUENTIAL: bidirectional reactions create cycle in dependency graph → consequential conflict")
+    void consequential_bidirectionalCycle(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("CONSEQUENTIAL", "Consequential conflict — bidirectional id rename cycle",
+                "original(A) renames BrakeDisk.id 'disk1'→'engineeringDisk' in M₁\n"
                 + "║    → reaction derives Namespace.id (M₂) and SafetyEntry.componentId (M₃);\n"
-                + "║  user(B) directly sets Namespace.id='cadCustomId' in M₂ (user intent).\n"
-                + "║  Merge A→B: derived(A) Namespace.id overwrites user(B) in M₂.",
-                "SUCCESS with INDIRECT_CONFLICT warning(s) (2 warnings).\n"
-                + "║  EMF Compare: 5 hard conflicts (brakesystem + cad + safety).");
+                + "║  original(B) renames Namespace.id='cadCustomId' in M₂\n"
+                + "║    → reaction derives BrakeDisk.id in M₁.\n"
+                + "║  Bidirectional reactions create cycle in dependency graph.",
+                "INTERLEAVING_CONFLICT (2 blocking consequential conflicts).\n"
+                + "║  EMF Compare: 5 conflicts (brakesystem + cad + safety).");
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
 
         try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
@@ -531,21 +521,19 @@ public class ThreeModelBranchingMergeTest {
             // Merge A→B: replaying A's BrakeDisk.id change triggers IdChanged reaction
             // which sets Namespace.id = "engineeringDisk" (derived), overwriting B's "cadCustomId" (user)
             SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
-            printScenarioResult("S7", result);
+            printScenarioResult("CONSEQUENTIAL", result);
 
-            // The merge completes but should report indirect conflicts/warnings
-            assertTrue(result.isSuccess(), "Merge completes (changes applied)");
+            // Bidirectional reactions create a cycle in the dependency graph:
+            // A's consequential footprint (Namespace.id in M₂) overlaps B's original footprint,
+            // B's consequential footprint (BrakeDisk.id in M₁) overlaps A's original footprint.
+            // No valid interleaving exists → INTERLEAVING_CONFLICT.
+            assertFalse(result.isSuccess(), "Merge should fail — cycle in dependency graph");
+            assertFalse(result.getConflicts().isEmpty(), "Should have blocking conflicts");
 
-            // Should have INDIRECT_CONFLICT warnings: derived(replay(A)) overwrites user(B)
-            // A's BrakeDisk.id change → reaction sets Namespace.id (M₂) and SafetyEntry.componentId (M₃),
-            // overwriting B's user-authored Namespace.id = "cadCustomId"
-            assertFalse(result.getWarnings().isEmpty(),
-                    "Should have warnings for derived(replay(A)) overwriting user(B)");
-
-            boolean hasIndirectConflict = result.getWarnings().stream()
-                    .anyMatch(w -> w.getType() == MergeConflict.ConflictType.INDIRECT_CONFLICT);
-            assertTrue(hasIndirectConflict,
-                    "Should have INDIRECT_CONFLICT warning (derived(A) overwrites user(B) in M₂/M₃)");
+            boolean hasInterleavingConflict = result.getConflicts().stream()
+                    .anyMatch(c -> c.getType() == MergeConflict.ConflictType.INTERLEAVING_CONFLICT);
+            assertTrue(hasInterleavingConflict,
+                    "Should have INTERLEAVING_CONFLICT (cycle: A's consequential M₂ ↔ B's consequential M₁)");
         }
     }
 
@@ -951,10 +939,10 @@ public class ThreeModelBranchingMergeTest {
     // ═══════════════════════════════════════════════════════════════════
 
     @Test
-    @DisplayName("S13: interleaving resolves opposite indirect conflicts where bidirectional fails")
-    void scenario13_interleaving_resolvesOppositeIndirectConflicts(@TempDir Path tempDir) throws Exception {
-        printScenarioHeader("S13",
-                "Interleaving — resolves opposite indirect conflicts in two model areas",
+    @DisplayName("MULTI_COMMIT: interleaving resolves opposite consequential overlaps where bidirectional fails")
+    void multiCommit_interleavingResolvesOppositeConsequentialOverlaps(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("MULTI_COMMIT",
+                "Multi-commit interleaving — resolves opposite consequential overlaps in two model areas",
                 "Base: disk1 (d=300, t=25, thermalLoadRating=75) + pad1 (h=40, w=50, frictionArea=2000).\n"
                 + "║  Branch A: a_1 changes M1 diameter→320 (derives thermalLoadRating=80);\n"
                 + "║            a_2 directly sets M3 pad1.frictionArea=9999.\n"
@@ -1012,12 +1000,12 @@ public class ThreeModelBranchingMergeTest {
             SemanticMergeResult bidirResult = mergeBidirectional(
                     tempDir, "feature", "main", interactionProvider);
             assertFalse(bidirResult.isSuccess(),
-                    "Bidirectional merge should fail — both directions have INDIRECT_CONFLICT");
+                    "Bidirectional merge should fail — both directions have consequential overlaps");
 
             // ── Interleaving merge ──
             SemanticMergeResult result = mergeWithInterleaving(
                     tempDir, "feature", "main", interactionProvider);
-            printScenarioResult("S13", result);
+            printScenarioResult("MULTI_COMMIT", result);
 
             assertTrue(result.isSuccess(),
                     "Interleaving should succeed — ordering [a_1,b_1,b_2,a_2] avoids both conflicts");
