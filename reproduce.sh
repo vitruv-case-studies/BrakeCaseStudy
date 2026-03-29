@@ -49,10 +49,12 @@ echo " Vitruvius Replay-Based Merge — Evaluation Runner"
 echo "=================================================="
 echo ""
 
-# Build dependencies
+# Build Vitruv-Change from source to ensure a consistent local SNAPSHOT.
+# The remote SNAPSHOT (OSSRH) may lag behind; building locally guarantees correctness.
+# -ff overrides --fail-at-end from .mvn/maven.config to stop on first error.
 next_step "Building dependencies (Vitruv-Change, Vitruv)..."
-cd "$WORKSPACE/Vitruv-Change" && ./mvnw clean install -Dmaven.test.skip=true -q
-cd "$WORKSPACE/Vitruv" && ./mvnw clean install -Dmaven.test.skip=true -q
+cd "$WORKSPACE/Vitruv-Change" && ./mvnw clean install -Dmaven.test.skip=true -ff -q
+cd "$WORKSPACE/Vitruv" && ./mvnw clean install -Dmaven.test.skip=true -ff -q
 echo "      Dependencies built successfully."
 
 # Build BrakeCaseStudy (compile tests but don't run yet)
