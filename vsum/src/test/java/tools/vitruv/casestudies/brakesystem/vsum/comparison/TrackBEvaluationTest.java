@@ -105,23 +105,16 @@ public class TrackBEvaluationTest {
             long t1 = System.nanoTime();
             try {
                 var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
-                if (config.bidirectional()) {
-                    vitResult = new SemanticMergeCommand().executeBidirectional(
+                try {
+                    vitResult = new SemanticMergeCommand().executeWithInterleaving(
+                            scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
+                            ThreeModelScenarioSetup.allCPS(), interactionProvider, null);
+                } catch (Exception e) {
+                    // Retry with conflict resolution to get conflict info
+                    vitResult = new SemanticMergeCommand().executeWithInterleaving(
                             scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
                             ThreeModelScenarioSetup.allCPS(), interactionProvider,
                             ConflictResolutionProvider.chooseAllTheirs());
-                } else {
-                    try {
-                        vitResult = new SemanticMergeCommand().execute(
-                                scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
-                                ThreeModelScenarioSetup.allCPS(), interactionProvider);
-                    } catch (Exception e) {
-                        // Retry with conflict resolution to get conflict info
-                        vitResult = new SemanticMergeCommand().execute(
-                                scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
-                                ThreeModelScenarioSetup.allCPS(), interactionProvider,
-                                ConflictResolutionProvider.chooseAllTheirs());
-                    }
                 }
             } catch (Exception e) {
                 vitError = e.getClass().getSimpleName() + ": " + e.getMessage();
