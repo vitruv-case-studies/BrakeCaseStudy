@@ -99,5 +99,13 @@
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- SLF4J binding: route SLF4J calls (from EMFCompare etc.) to Log4j2 -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>2.25.3</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
