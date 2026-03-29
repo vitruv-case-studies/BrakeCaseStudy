@@ -377,15 +377,26 @@ public class ThreeModelScenarioSetup {
     // Scenario descriptions (for table output)
     // ═══════════════════════════════════════════════════════════════════
 
+    public static String scenarioLabel(int scenario) {
+        return switch (scenario) {
+            case 1 -> "CLEAN";
+            case 4 -> "RESOLVED_OVERLAP";
+            case 6 -> "DIRECT";
+            case 7 -> "CONSEQUENTIAL";
+            case 13 -> "MULTI_COMMIT";
+            default -> "S" + scenario;
+        };
+    }
+
     public static String scenarioDescription(int scenario) {
         return switch (scenario) {
             case 1 -> "Clean: A changes M1 diameter, B adds sensor";
             case 2 -> "Clean: A renames M2 namespace, B adds caliper";
             case 3 -> "Clean: A changes disk, B changes pad (diff M3 entries)";
-            case 4 -> "derived(A) vs user(B) in M2 (CAD Diameter)";
-            case 5 -> "user(A) vs derived(B) in M2 (CAD Diameter)";
+            case 4 -> "Consequential(A) vs original(B) in M2 (CAD Diameter)";
+            case 5 -> "Original(A) vs consequential(B) in M2 (CAD Diameter)";
             case 6 -> "Direct conflict: both change BrakeDisk.diameter";
-            case 7 -> "Indirect: derived(A) overwrites user(B) across M2/M3";
+            case 7 -> "Consequential conflict: A renames M1 id, B renames M2 id (bidirectional cycle)";
             case 13 -> "Multi-commit: interleaving resolves cross-area overlaps";
             default -> "Unknown";
         };
@@ -394,10 +405,10 @@ public class ThreeModelScenarioSetup {
     public static String scenarioCategory(int scenario) {
         return switch (scenario) {
             case 1, 2, 3 -> "Clean merge";
-            case 4 -> "Indirect conflict";
-            case 5 -> "User vs derived";
+            case 4 -> "Consequential overlap resolved";
+            case 5 -> "Original vs consequential";
             case 6 -> "Direct conflict";
-            case 7 -> "Cross-model indirect";
+            case 7 -> "Consequential conflict (cycle)";
             case 13 -> "Multi-commit interleaving";
             default -> "Unknown";
         };

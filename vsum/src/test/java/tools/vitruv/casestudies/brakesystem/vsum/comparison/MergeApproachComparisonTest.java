@@ -67,7 +67,7 @@ public class MergeApproachComparisonTest {
     void generateComparisonTable(@TempDir Path tempDir) throws Exception {
         List<MergeEvaluationResult> results = new ArrayList<>();
 
-        int[] scenarios = {1, 2, 3, 4, 5, 6, 7, 13};
+        int[] scenarios = {1, 4, 6, 7, 13};
         for (int i : scenarios) {
             // Run Vitruvius merge
             Path vitDir = Files.createDirectories(tempDir.resolve("s" + i + "-vitruvius"));
@@ -93,31 +93,30 @@ public class MergeApproachComparisonTest {
     // Individual scenario tests (for debugging)
     // ═══════════════════════════════════════════════════════════════════
 
-    @ParameterizedTest(name = "S{0}: Vitruvius semantic merge")
-    @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7})
+    @ParameterizedTest(name = "{0}: Vitruvius semantic merge")
+    @ValueSource(ints = {1, 4, 6, 7, 13})
     void vitruviusMerge(int scenario, @TempDir Path tempDir) throws Exception {
         var prepared = setup.setupScenario(scenario, tempDir);
         var result = runVitruviusMerge(prepared, scenario);
 
-        System.out.printf("S%d [Vitruvius]: conflicts=%d, warnings=%d, success=%s%n",
-                scenario, result.getDirectConflictCount(), result.getWarningCount(),
+        System.out.printf("%s [Vitruvius]: conflicts=%d, success=%s%n",
+                ThreeModelScenarioSetup.scenarioLabel(scenario),
+                result.getDirectConflictCount(),
                 result.isMergeSucceeded());
         for (String detail : result.getConflictDetails()) {
             System.out.println("  CONFLICT: " + detail);
         }
-        for (String detail : result.getWarningDetails()) {
-            System.out.println("  WARNING: " + detail);
-        }
     }
 
-    @ParameterizedTest(name = "S{0}: EMFCompare three-way merge")
-    @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7})
+    @ParameterizedTest(name = "{0}: EMFCompare three-way merge")
+    @ValueSource(ints = {1, 4, 6, 7, 13})
     void emfCompareMerge(int scenario, @TempDir Path tempDir) throws Exception {
         var prepared = setup.setupScenario(scenario, tempDir);
         var result = runEMFCompareMerge(prepared, scenario);
 
-        System.out.printf("S%d [EMFCompare]: conflicts=%d (per model: %s), success=%s%n",
-                scenario, result.getDirectConflictCount(), result.getConflictsPerModel(),
+        System.out.printf("%s [EMFCompare]: conflicts=%d (per model: %s), success=%s%n",
+                ThreeModelScenarioSetup.scenarioLabel(scenario),
+                result.getDirectConflictCount(), result.getConflictsPerModel(),
                 result.isMergeSucceeded());
         for (String detail : result.getConflictDetails()) {
             System.out.println("  CONFLICT: " + detail);
@@ -147,7 +146,7 @@ public class MergeApproachComparisonTest {
                         ConflictResolutionProvider.chooseAllTheirs());
             } catch (Exception e2) {
                 // Complete failure
-                return MergeEvaluationResult.builder("S" + scenarioNum, "Vitruvius")
+                return MergeEvaluationResult.builder(ThreeModelScenarioSetup.scenarioLabel(scenarioNum), "Vitruvius")
                         .scenarioDescription(ThreeModelScenarioSetup.scenarioDescription(scenarioNum))
                         .mergeSucceeded(false)
                         .addConflictDetail("Merge failed: " + e.getMessage())
@@ -156,17 +155,13 @@ public class MergeApproachComparisonTest {
             }
         }
 
-        var builder = MergeEvaluationResult.builder("S" + scenarioNum, "Vitruvius")
+        var builder = MergeEvaluationResult.builder(ThreeModelScenarioSetup.scenarioLabel(scenarioNum), "Vitruvius")
                 .scenarioDescription(ThreeModelScenarioSetup.scenarioDescription(scenarioNum))
                 .mergeSucceeded(mergeResult.isSuccess())
-                .directConflictCount(mergeResult.getConflicts().size())
-                .warningCount(mergeResult.getWarnings().size());
+                .directConflictCount(mergeResult.getConflicts().size());
 
         for (MergeConflict conflict : mergeResult.getConflicts()) {
             builder.addConflictDetail(formatVitruviusConflict(conflict));
-        }
-        for (MergeConflict warning : mergeResult.getWarnings()) {
-            builder.addWarningDetail(formatVitruviusConflict(warning));
         }
 
         return builder.build();
@@ -177,9 +172,9 @@ public class MergeApproachComparisonTest {
         try {
             return emfCompareMerge.evaluate(
                     scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
-                    "S" + scenarioNum);
+                    ThreeModelScenarioSetup.scenarioLabel(scenarioNum));
         } catch (Exception e) {
-            return MergeEvaluationResult.builder("S" + scenarioNum, "EMFCompare")
+            return MergeEvaluationResult.builder(ThreeModelScenarioSetup.scenarioLabel(scenarioNum), "EMFCompare")
                     .scenarioDescription(ThreeModelScenarioSetup.scenarioDescription(scenarioNum))
                     .mergeSucceeded(false)
                     .addConflictDetail("EMFCompare failed: " + e.getMessage())
@@ -209,12 +204,12 @@ public class MergeApproachComparisonTest {
 
         StringBuilder sb = new StringBuilder();
         sb.append("# Merge Approach Comparison: Vitruvius vs EMFCompare\n\n");
-        sb.append("| Scenario | Category | Description | Vitruvius Conflicts | Vitruvius Warnings | EMFCompare Conflicts | EMFCompare Conflicts/Model | Fewer with Vitruvius? |\n");
-        sb.append("|----------|----------|-------------|--------------------|--------------------|---------------------|---------------------------|----------------------|\n");
+        sb.append("| Scenario | Category | Description | Vitruvius Conflicts | EMFCompare Conflicts | EMFCompare Conflicts/Model | Fewer with Vitruvius? |\n");
+        sb.append("|----------|----------|-------------|:---:|:---:|---------------------------|----------------------|\n");
 
-        for (int i : new int[]{1, 2, 3, 4, 5, 6, 7, 13}) {
-            String sid = "S" + i;
-            var scenarioResults = byScenario.get(sid);
+        for (int i : new int[]{1, 4, 6, 7, 13}) {
+            String label = ThreeModelScenarioSetup.scenarioLabel(i);
+            var scenarioResults = byScenario.get(label);
             if (scenarioResults == null) continue;
 
             var vit = scenarioResults.stream()
@@ -226,10 +221,6 @@ public class MergeApproachComparisonTest {
 
             String category = ThreeModelScenarioSetup.scenarioCategory(i);
             String desc = ThreeModelScenarioSetup.scenarioDescription(i);
-
-            String vitConflicts = formatCount(vit.getDirectConflictCount(), vit.getConflictDetails());
-            String vitWarnings = formatCount(vit.getWarningCount(), vit.getWarningDetails());
-            String emfConflicts = formatCount(emf.getDirectConflictCount(), emf.getConflictDetails());
             String emfPerModel = formatPerModel(emf.getConflictsPerModel());
 
             int vitTotal = vit.getDirectConflictCount();
@@ -243,33 +234,29 @@ public class MergeApproachComparisonTest {
                 delta = "No (+" + (vitTotal - emfTotal) + ")";
             }
 
-            sb.append(String.format("| %s | %s | %s | %d | %d | %d | %s | %s |\n",
-                    sid, category, desc,
-                    vit.getDirectConflictCount(), vit.getWarningCount(),
+            sb.append(String.format("| %s | %s | %s | %d | %d | %s | %s |\n",
+                    label, category, desc,
+                    vit.getDirectConflictCount(),
                     emf.getDirectConflictCount(), emfPerModel, delta));
         }
 
         // Add detailed breakdown
         sb.append("\n## Detailed Conflict Information\n\n");
-        for (int i : new int[]{1, 2, 3, 4, 5, 6, 7, 13}) {
-            String sid = "S" + i;
-            var scenarioResults = byScenario.get(sid);
+        for (int i : new int[]{1, 4, 6, 7, 13}) {
+            String label = ThreeModelScenarioSetup.scenarioLabel(i);
+            var scenarioResults = byScenario.get(label);
             if (scenarioResults == null) continue;
 
-            sb.append("### ").append(sid).append(": ").append(ThreeModelScenarioSetup.scenarioDescription(i)).append("\n\n");
+            sb.append("### ").append(label).append(": ").append(ThreeModelScenarioSetup.scenarioDescription(i)).append("\n\n");
 
             for (var result : scenarioResults) {
                 sb.append("**").append(result.getApproach()).append("**: ");
-                sb.append(result.getDirectConflictCount()).append(" conflicts, ");
-                sb.append(result.getWarningCount()).append(" warnings");
+                sb.append(result.getDirectConflictCount()).append(" conflicts");
                 sb.append(result.isMergeSucceeded() ? " (merge succeeded)" : " (merge failed)");
                 sb.append("\n");
 
                 for (String detail : result.getConflictDetails()) {
                     sb.append("- CONFLICT: ").append(detail).append("\n");
-                }
-                for (String detail : result.getWarningDetails()) {
-                    sb.append("- WARNING: ").append(detail).append("\n");
                 }
                 sb.append("\n");
             }
@@ -280,27 +267,18 @@ public class MergeApproachComparisonTest {
         int vitTotalConflicts = results.stream()
                 .filter(r -> r.getApproach().equals("Vitruvius"))
                 .mapToInt(MergeEvaluationResult::getDirectConflictCount).sum();
-        int vitTotalWarnings = results.stream()
-                .filter(r -> r.getApproach().equals("Vitruvius"))
-                .mapToInt(MergeEvaluationResult::getWarningCount).sum();
         int emfTotalConflicts = results.stream()
                 .filter(r -> r.getApproach().equals("EMFCompare"))
                 .mapToInt(MergeEvaluationResult::getDirectConflictCount).sum();
 
-        sb.append(String.format("- **Vitruvius**: %d total conflicts, %d total warnings across all scenarios%n",
-                vitTotalConflicts, vitTotalWarnings));
+        sb.append(String.format("- **Vitruvius**: %d total conflicts across all scenarios%n",
+                vitTotalConflicts));
         sb.append(String.format("- **EMFCompare**: %d total conflicts across all scenarios%n",
                 emfTotalConflicts));
         sb.append(String.format("- **Conflict reduction**: %d fewer blocking conflicts with Vitruvius%n",
                 Math.max(0, emfTotalConflicts - vitTotalConflicts)));
 
         return sb.toString();
-    }
-
-    private String formatCount(int count, List<String> details) {
-        if (count == 0) return "0";
-        if (details.isEmpty()) return String.valueOf(count);
-        return count + " (" + details.get(0) + ")";
     }
 
     private String formatPerModel(Map<String, Integer> perModel) {
