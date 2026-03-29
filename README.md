@@ -4,14 +4,29 @@
 ## Getting Started
 
 The project comes with a maven wrapper, so you can run it without installing Maven.
-To build the project you can run the following command:
+
+### Dependencies
+
+This project depends on the following repositories, which must be built first (in order):
+
+1. **[Vitruv-Change](https://github.com/vitruv-tools/Vitruv-Change)** — Change metamodels, propagation interfaces
+2. **[Vitruv](https://github.com/AnneKoziolek/Vitruv)** (`anne-branching` branch) — Core framework with branching/merge engine
+3. **[Vitruv-Merge-Tests](https://github.com/AnneKoziolek/Vitruv-Merge-Tests)** — Shared comparison infrastructure (EMFCompare baseline)
+
+### Build
 
 ```bash
-./mvnw clean verify
+# Build dependencies (from the workspace root):
+cd /workspace/Vitruv-Change      && ./mvnw clean install -Dmaven.test.skip=true
+cd /workspace/Vitruv-Change      && ./mvnw install -pl propagation -am -Dmaven.test.skip=true -ff
+cd /workspace/Vitruv             && ./mvnw clean install -Dmaven.test.skip=true
+cd /workspace/Vitruv-Merge-Tests && ./mvnw clean install -Dmaven.test.skip=true
+
+# Build and verify:
+cd /workspace/BrakeCaseStudy && ./mvnw clean verify
 ```
 
-Verify that all tests are passing. The tests are located in the `vsum` folder.
-Now you can start to modify the project to your needs.
+The tests are located in the `vsum` folder.
 
 
 ## Documentation of the Case Study
@@ -75,9 +90,11 @@ This is a prototype integration that demonstrates end-to-end usage.
 
 ```bash
 # Build all dependencies (from the workspace root):
-cd /workspace/Vitruv-Change   && ./mvnw clean install -Dmaven.test.skip=true
-cd /workspace/Vitruv          && ./mvnw clean install -Dmaven.test.skip=true
-cd /workspace/BrakeCaseStudy  && ./mvnw clean install -Dmaven.test.skip=true
+cd /workspace/Vitruv-Change      && ./mvnw clean install -Dmaven.test.skip=true
+cd /workspace/Vitruv-Change      && ./mvnw install -pl propagation -am -Dmaven.test.skip=true -ff
+cd /workspace/Vitruv             && ./mvnw clean install -Dmaven.test.skip=true
+cd /workspace/Vitruv-Merge-Tests && ./mvnw clean install -Dmaven.test.skip=true
+cd /workspace/BrakeCaseStudy     && ./mvnw clean install -Dmaven.test.skip=true
 
 # Configure the merge driver for this repository:
 cd /workspace/BrakeCaseStudy
@@ -155,6 +172,84 @@ To reproduce the evaluation results reported in the paper:
 ./mvnw -pl vsum test -Dtest="MergePerformanceBenchmarkTest#e1_fullSuite" -Dsurefire.useFile=false
 ./mvnw -pl vsum test -Dtest="MergePerformanceBenchmarkTest#e2_fullSuite" -Dsurefire.useFile=false
 ```
+
+## RQ2: Parameterized Scenario Generator (TrackB)
+
+The `TrackBEvaluationTest` automatically generates 105 merge scenarios across five experimental families. Each family varies one parameter while holding others fixed, using five deterministic random seeds (42–46) for variance estimation.
+
+### Parameters
+
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `baseComponentCount` | Number of brake components in the base state | 2–10 |
+| `commitsPerBranch` | Commits per branch (always equal for A and B) | 1–25 |
+| `overlapFraction` | Fraction of base elements both branches can modify | 0.0–1.0 |
+| `reactionTriggerFraction` | Fraction of operations targeting Reaction-triggering attributes | 0.2–0.8 |
+
+### Five Experimental Families
+
+| Family | Varied Parameter | Values | Fixed Parameters | Scenarios |
+|--------|-----------------|--------|-----------------|-----------|
+| F1: History length | commits per branch | {1, 3, 5, 10, 25} | n=5, overlap=0.3, reaction=0.5 | 25 |
+| F2: Overlap density | overlap fraction | {0.0, 0.3, 0.6, 1.0} | n=5, k=5, reaction=0.5 | 20 |
+| F3: Reaction density | reaction trigger fraction | {0.2, 0.5, 0.8} | n=5, k=5, overlap=0.5 | 15 |
+| F4: Base state size | base components | {2, 5, 10} | k=5, overlap=0.3, reaction=0.5 | 15 |
+| F5: Interleaving | overlap × reaction | {0.3,0.6,1.0} × {0.5,0.8} | n=5, k=5, bidirectional=true | 30 |
+
+### Operation Distribution
+
+Each commit applies 1–3 randomly selected model operations (uniform: `1 + rng.nextInt(3)`).
+
+**Operation selection per action:**
+- **20% probability**: Additive operation (create a new component with a unique branch-local ID). Component type selected uniformly from {BrakeDisk, BrakePad, ABSSensor, BrakeCaliper}. Additions never conflict across branches because each branch assigns distinct IDs.
+- **80% probability**: Modify an existing component from the branch's focus set.
+  - With probability `reactionTriggerFraction`: select from **Reaction-triggering** operations (attributes that propagate M1→M2 and M1→M3):
+    - `CHANGE_DISK_DIAMETER`, `CHANGE_DISK_THICKNESS` (BrakeDisk)
+    - `CHANGE_PAD_HEIGHT`, `CHANGE_PAD_WIDTH` (BrakePad)
+  - With probability `1 - reactionTriggerFraction`: select from **non-triggering** operations (attributes that propagate M1→M2 only):
+    - `CHANGE_DISK_CENTERING_DIAMETER`, `CHANGE_DISK_RIM_HOLE_NUMBER` (BrakeDisk)
+    - `CHANGE_CALIPER_PISTON_DIAMETER` (BrakeCaliper)
+    - `CHANGE_SENSOR_LENGTH`, `CHANGE_SENSOR_PINS` (ABSSensor)
+
+The target element is selected uniformly from the branch's focus set.
+
+### Overlap Instantiation
+
+Overlap between branches is controlled by selecting overlapping focus sets from the base components:
+- `focusSize = ceil(n × (0.5 + overlapFraction / 2.0))`, capped at `n`
+- Branch A takes the first `focusSize` elements; Branch B takes the last `focusSize` elements
+- The intersection of these ranges determines which elements both branches can modify
+
+Example with n=5 components: overlap=0.0 → 1 shared element; overlap=0.3 → 3 shared; overlap=1.0 → all 5 shared.
+
+### Conflict Count Aggregation
+
+For each scenario, metrics are extracted from `SemanticMergeResult`:
+- **Conflict types**: MODIFY_MODIFY (direct), DELETE_MODIFY, MODIFY_DELETE, INTERLEAVING_CONFLICT (cycle in dependency graph)
+- **Aggregation**: For each parameter group (e.g., all scenarios with overlap=0.3), conflict counts are averaged across 5 seeds. Standard deviation uses Bessel's correction (`n-1` denominator). Reported as `mean ± stdev`.
+- **Blocking total**: Sum of all conflict types for both Vitruvius and EMF Compare.
+
+### Running
+
+```bash
+# Run all 105 generated scenarios:
+cd /workspace/BrakeCaseStudy && ./mvnw -pl vsum test -Dtest=TrackBEvaluationTest
+```
+
+The report is written to `vsum/target/trackb-evaluation-report.md`.
+
+### Source Files
+
+| File | Purpose |
+|------|---------|
+| `TrackBEvaluationTest.java` | Test class with 5 family configurations and 5 seeds |
+| `ScenarioGenerator.java` | Creates Git repos with parameterized branch histories |
+| `ScenarioConfig.java` | Configuration record (all parameters) |
+| `TrackBEvaluationMetrics.java` | Per-scenario metric extraction |
+| `TrackBReportGenerator.java` | Aggregation and markdown report generation |
+| `ModelAction.java` | Enum of all model operations with component type mappings |
+
+All source files are in `vsum/src/test/java/tools/vitruv/casestudies/brakesystem/vsum/comparison/`.
 
 Useful Links
 ------------
