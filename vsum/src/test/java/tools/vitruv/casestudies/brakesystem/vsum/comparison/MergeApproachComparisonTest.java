@@ -67,7 +67,8 @@ public class MergeApproachComparisonTest {
     void generateComparisonTable(@TempDir Path tempDir) throws Exception {
         List<MergeEvaluationResult> results = new ArrayList<>();
 
-        for (int i = 1; i <= 7; i++) {
+        int[] scenarios = {1, 2, 3, 4, 5, 6, 7, 13};
+        for (int i : scenarios) {
             // Run Vitruvius merge
             Path vitDir = Files.createDirectories(tempDir.resolve("s" + i + "-vitruvius"));
             var vitScenario = setup.setupScenario(i, vitDir);
@@ -211,7 +212,7 @@ public class MergeApproachComparisonTest {
         sb.append("| Scenario | Category | Description | Vitruvius Conflicts | Vitruvius Warnings | EMFCompare Conflicts | EMFCompare Conflicts/Model | Fewer with Vitruvius? |\n");
         sb.append("|----------|----------|-------------|--------------------|--------------------|---------------------|---------------------------|----------------------|\n");
 
-        for (int i = 1; i <= 7; i++) {
+        for (int i : new int[]{1, 2, 3, 4, 5, 6, 7, 13}) {
             String sid = "S" + i;
             var scenarioResults = byScenario.get(sid);
             if (scenarioResults == null) continue;
@@ -250,7 +251,7 @@ public class MergeApproachComparisonTest {
 
         // Add detailed breakdown
         sb.append("\n## Detailed Conflict Information\n\n");
-        for (int i = 1; i <= 7; i++) {
+        for (int i : new int[]{1, 2, 3, 4, 5, 6, 7, 13}) {
             String sid = "S" + i;
             var scenarioResults = byScenario.get(sid);
             if (scenarioResults == null) continue;

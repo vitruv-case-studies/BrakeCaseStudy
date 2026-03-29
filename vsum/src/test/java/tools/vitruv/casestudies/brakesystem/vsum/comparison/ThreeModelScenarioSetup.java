@@ -33,6 +33,7 @@ import brakesystem.Brakesystem;
 import brakesystem.BrakesystemFactory;
 import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
+import safety.SafetyAssessment;
 
 /**
  * Shared scenario setup for the three-model branching merge comparison tests.
@@ -78,6 +79,7 @@ public class ThreeModelScenarioSetup {
             case 5 -> setupScenario5(tempDir);
             case 6 -> setupScenario6(tempDir);
             case 7 -> setupScenario7(tempDir);
+            case 13 -> setupMultiCommitInterleaving(tempDir);
             default -> throw new IllegalArgumentException("Unknown scenario: " + scenarioNumber);
         };
     }
@@ -322,6 +324,55 @@ public class ThreeModelScenarioSetup {
         return new PreparedScenario(tempDir, "feature", "main");
     }
 
+    /**
+     * MULTI_COMMIT: Multi-commit interleaving resolves cross-area overlaps.
+     * Both directed merges fail, but interleaving [a1, b1, b2, a2] succeeds.
+     * Branch A: a1 changes diameter (derives thermalLoadRating), a2 overrides frictionArea.
+     * Branch B: b1 overrides thermalLoadRating, b2 changes padHeight (derives frictionArea).
+     */
+    public PreparedScenario setupMultiCommitInterleaving(Path tempDir) throws Exception {
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+            addBrakePad(vsum, "pad1", 40, 50, 10);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300 t=25, pad1 h=40 w=50").call();
+
+            // Branch A
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+
+            // a1: change diameter → derives thermalLoadRating
+            var capture = freshCapture(vsum);
+            changeBrakeDiskDiameter(vsum, "disk1", 320);
+            commitWithChangelog(git, capture, tempDir, "feature", "a1: diameter→320");
+
+            // a2: directly override frictionArea (user intent)
+            capture = freshCapture(vsum);
+            changeSafetyEntryFrictionArea(vsum, "pad1", 9999.0f);
+            commitWithChangelog(git, capture, tempDir, "feature", "a2: frictionArea→9999 (user)");
+
+            // Branch B
+            git.checkout().setName("main").call();
+            vsum.reload();
+
+            // b1: directly override thermalLoadRating (user intent)
+            capture = freshCapture(vsum);
+            changeSafetyEntryThermalLoadRating(vsum, "disk1", 100.0f);
+            commitWithChangelog(git, capture, tempDir, "main", "b1: thermalLoadRating→100 (user)");
+
+            // b2: change pad height → derives frictionArea
+            capture = freshCapture(vsum);
+            changeBrakePadHeight(vsum, "pad1", 60);
+            commitWithChangelog(git, capture, tempDir, "main", "b2: padHeight→60");
+
+            vsum.dispose();
+        }
+        return new PreparedScenario(tempDir, "feature", "main");
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // Scenario descriptions (for table output)
     // ═══════════════════════════════════════════════════════════════════
@@ -335,6 +386,7 @@ public class ThreeModelScenarioSetup {
             case 5 -> "user(A) vs derived(B) in M2 (CAD Diameter)";
             case 6 -> "Direct conflict: both change BrakeDisk.diameter";
             case 7 -> "Indirect: derived(A) overwrites user(B) across M2/M3";
+            case 13 -> "Multi-commit: interleaving resolves cross-area overlaps";
             default -> "Unknown";
         };
     }
@@ -346,6 +398,7 @@ public class ThreeModelScenarioSetup {
             case 5 -> "User vs derived";
             case 6 -> "Direct conflict";
             case 7 -> "Cross-model indirect";
+            case 13 -> "Multi-commit interleaving";
             default -> "Unknown";
         };
     }
@@ -504,6 +557,34 @@ public class ThreeModelScenarioSetup {
                 .map(p -> (NumericParameter) p)
                 .findFirst().orElseThrow();
         param.setValue(newValue);
+        view.commitChanges();
+    }
+
+    public static void changeSafetyEntryThermalLoadRating(VirtualModel vsum, String componentId, float newRating) {
+        var selector = vsum.createSelector(ViewTypeFactory.createIdentityMappingViewType("safety-edit"));
+        selector.getSelectableElements().stream()
+                .filter(e -> e instanceof SafetyAssessment)
+                .forEach(e -> selector.setSelected(e, true));
+        var view = selector.createView().withChangeRecordingTrait();
+        var assessment = view.getRootObjects(SafetyAssessment.class).iterator().next();
+        var entry = assessment.getSafetyEntries().stream()
+                .filter(e -> componentId.equals(e.getComponentId()))
+                .findFirst().orElseThrow();
+        entry.setThermalLoadRating(newRating);
+        view.commitChanges();
+    }
+
+    public static void changeSafetyEntryFrictionArea(VirtualModel vsum, String componentId, float newArea) {
+        var selector = vsum.createSelector(ViewTypeFactory.createIdentityMappingViewType("safety-edit"));
+        selector.getSelectableElements().stream()
+                .filter(e -> e instanceof SafetyAssessment)
+                .forEach(e -> selector.setSelected(e, true));
+        var view = selector.createView().withChangeRecordingTrait();
+        var assessment = view.getRootObjects(SafetyAssessment.class).iterator().next();
+        var entry = assessment.getSafetyEntries().stream()
+                .filter(e -> componentId.equals(e.getComponentId()))
+                .findFirst().orElseThrow();
+        entry.setFrictionArea(newArea);
         view.commitChanges();
     }
 
