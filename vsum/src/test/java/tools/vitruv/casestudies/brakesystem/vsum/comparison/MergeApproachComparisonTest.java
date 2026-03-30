@@ -86,15 +86,11 @@ public class MergeApproachComparisonTest {
         String table = formatComparisonTable(results);
         System.out.println("\n" + table);
 
-        // Save to timestamped output directory
+        // Save to timestamped output directory (outside target/ to survive clean builds)
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        Path outputDir = Path.of("target/evaluation-" + timestamp);
+        Path outputDir = Path.of("../output/evaluation-" + timestamp);
         Files.createDirectories(outputDir);
         Files.writeString(outputDir.resolve("merge-comparison-table-" + timestamp + ".md"), table);
-
-        // Also write to fixed name for easy access
-        Path targetDir = Path.of("target");
-        Files.writeString(targetDir.resolve("merge-comparison-table.md"), table);
     }
 
     // ═══════════════════════════════════════════════════════════════════

@@ -216,20 +216,15 @@ public class TrackBEvaluationTest {
         String csv = report.csv();
 
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        Path outputDir = Path.of("target/evaluation-" + timestamp);
+        Path outputDir = Path.of("../output/evaluation-" + timestamp);
         Files.createDirectories(outputDir);
         Files.writeString(outputDir.resolve("trackb-summary-" + timestamp + ".md"), markdown);
         Files.writeString(outputDir.resolve("trackb-evaluation-" + timestamp + ".csv"), csv);
 
-        // Also write to fixed names for easy access
-        Path targetDir = Path.of("target");
-        Files.writeString(targetDir.resolve("trackb-summary.md"), markdown);
-        Files.writeString(targetDir.resolve("trackb-evaluation.csv"), csv);
-
         System.out.println("\n" + markdown);
-        System.out.println("\nOutput written to " + outputDir);
-        System.out.println("  " + outputDir.resolve("trackb-summary-" + timestamp + ".md"));
-        System.out.println("  " + outputDir.resolve("trackb-evaluation-" + timestamp + ".csv"));
+        System.out.println("\nOutput written to " + outputDir.toAbsolutePath());
+        System.out.println("  trackb-summary-" + timestamp + ".md");
+        System.out.println("  trackb-evaluation-" + timestamp + ".csv");
     }
 
     // ═══════════════════════════════════════════════════════════════════

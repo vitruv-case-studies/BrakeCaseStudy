@@ -14,4 +14,7 @@ plugin.properties
 .DS_Store
 .mvn/
 
+# Evaluation output (timestamped, survives clean builds)
+output/
+
 
