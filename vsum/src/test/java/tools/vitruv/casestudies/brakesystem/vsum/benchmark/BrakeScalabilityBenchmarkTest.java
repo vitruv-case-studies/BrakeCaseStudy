@@ -386,7 +386,9 @@ public class BrakeScalabilityBenchmarkTest {
         // Save all results
         saveResults("full-benchmark", allResults, tempDir);
         System.out.println("\n=== Benchmark Complete ===");
-        System.out.println("Results saved to: output/brake-RQ3-scalability-*/");
+        System.out.println("Results will be written to: "
+                + Path.of(System.getProperty("evaluation.outputDir", "../output"))
+                        .resolve("brake-RQ3-scalability-*/").toAbsolutePath().normalize());
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -618,6 +620,6 @@ public class BrakeScalabilityBenchmarkTest {
         }
         Files.writeString(mdFile, md.toString());
 
-        System.out.println("Results saved: " + csvFile + ", " + mdFile);
+        System.out.println("Output written to " + outputDir.toAbsolutePath().normalize());
     }
 }

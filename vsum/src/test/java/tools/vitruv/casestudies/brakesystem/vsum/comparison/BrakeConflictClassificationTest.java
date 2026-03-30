@@ -92,6 +92,8 @@ public class BrakeConflictClassificationTest {
         Path outputDir = outputBase.resolve("brake-RQ1-conflicts-" + timestamp);
         Files.createDirectories(outputDir);
         Files.writeString(outputDir.resolve("brake-RQ1-conflicts-" + timestamp + ".md"), table);
+
+        System.out.println("\nOutput written to " + outputDir.toAbsolutePath().normalize());
     }
 
     // ═══════════════════════════════════════════════════════════════════

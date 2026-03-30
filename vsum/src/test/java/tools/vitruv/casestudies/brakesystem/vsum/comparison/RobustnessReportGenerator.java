@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Formats Track B evaluation results as markdown summary tables and CSV.
+ * Formats RQ2 robustness evaluation results as markdown summary tables and CSV.
  */
 public class RobustnessReportGenerator {
 
@@ -82,7 +82,7 @@ public class RobustnessReportGenerator {
      */
     public String markdownSummary() {
         var sb = new StringBuilder();
-        sb.append("# Track B: Depth Evaluation Results\n\n");
+        sb.append("# RQ2: Robustness of Conflict Reduction\n\n");
         sb.append(String.format("**Total scenarios:** %d%n%n", results.size()));
 
         // Overall summary

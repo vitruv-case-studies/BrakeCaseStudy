@@ -600,7 +600,7 @@ public class ThreeModelScenarioSetup {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // Additional model manipulation helpers (Track B evaluation)
+    // Additional model manipulation helpers (RQ2 robustness evaluation)
     // ═══════════════════════════════════════════════════════════════════
 
     public static void addBrakeHose(VirtualModel vsum, String id, int length, String threadSize1, String threadSize2) {

@@ -1,7 +1,7 @@
 package tools.vitruv.casestudies.brakesystem.vsum.comparison;
 
 /**
- * Immutable configuration record describing a generated merge scenario for Track B evaluation.
+ * Immutable configuration record describing a generated merge scenario for RQ2 robustness evaluation.
  * Each config fully determines a reproducible scenario via its seed.
  */
 public record ScenarioConfig(

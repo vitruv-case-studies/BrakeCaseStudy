@@ -44,7 +44,7 @@ import tools.vitruv.merge.comparison.EMFCompareThreeWayMerge;
 import tools.vitruv.merge.comparison.MergeEvaluationResult;
 
 /**
- * Track B evaluation: runs automatically generated merge scenarios across
+ * RQ2 robustness evaluation: runs automatically generated merge scenarios across
  * five families varying history length, overlap density, reaction-trigger density,
  * base state size, and bidirectional merge behavior.
  *
@@ -80,9 +80,9 @@ public class BrakeRobustnessEvaluationTest {
     @Order(1)
     void evaluateScenario(ScenarioConfig config, @TempDir Path tempDir) throws Exception {
         // Initialize trace for this scenario
-        MergeTracer.init("BrakeCaseStudy-TrackB", config.id());
+        MergeTracer.init("BrakeCaseStudy-RQ2", config.id());
         MergeTracer.trace("");
-        MergeTracer.boxStart("Track B: " + config.id());
+        MergeTracer.boxStart("RQ2 robustness: " + config.id());
         MergeTracer.boxLine("Family: " + config.family());
         MergeTracer.boxLine("Base components: " + config.baseComponentCount()
                 + " | Commits/branch: " + config.commitsPerBranchA()
@@ -172,7 +172,7 @@ public class BrakeRobustnessEvaluationTest {
 
         // Log per-scenario result to trace and console
         MergeTracer.trace("");
-        MergeTracer.resultStart("Track B Result: " + config.id());
+        MergeTracer.resultStart("RQ2 robustness Result: " + config.id());
         MergeTracer.resultLine("  Vitruvius: " + metrics.getVitruviusBlockingTotal() + " blocking, "
                 + metrics.getVitruviusWarningsTotal() + " warnings");
         MergeTracer.resultLine("  EMF Compare: " + metrics.getEmfCompareConflicts() + " conflicts");
@@ -209,7 +209,7 @@ public class BrakeRobustnessEvaluationTest {
 
     @Test
     @Order(Integer.MAX_VALUE)
-    @DisplayName("Generate Track B summary report")
+    @DisplayName("Generate RQ2 robustness summary report")
     void generateReport() throws Exception {
         if (allResults.isEmpty()) {
             System.out.println("No results to report (run evaluateScenario tests first).");
@@ -228,7 +228,7 @@ public class BrakeRobustnessEvaluationTest {
         Files.writeString(outputDir.resolve("brake-RQ2-robustness-" + timestamp + ".csv"), csv);
 
         System.out.println("\n" + markdown);
-        System.out.println("\nOutput written to " + outputDir.toAbsolutePath());
+        System.out.println("\nOutput written to " + outputDir.toAbsolutePath().normalize());
         System.out.println("  brake-RQ2-robustness-" + timestamp + ".md");
         System.out.println("  brake-RQ2-robustness-" + timestamp + ".csv");
     }

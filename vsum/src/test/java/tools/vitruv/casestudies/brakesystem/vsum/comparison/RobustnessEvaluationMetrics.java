@@ -9,7 +9,7 @@ import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
 import tools.vitruv.merge.comparison.MergeEvaluationResult;
 
 /**
- * Extended metrics DTO for Track B evaluation with per-type conflict/warning breakdown,
+ * Extended metrics DTO for RQ2 robustness evaluation with per-type conflict/warning breakdown,
  * timing, and EMFCompare comparison data.
  */
 public class RobustnessEvaluationMetrics {
