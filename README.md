@@ -198,9 +198,10 @@ To reproduce the evaluation results reported in the paper:
 # Comparison table: Vitruvius vs EMFCompare (S1-S7)
 ./mvnw -pl vsum test -Dtest=MergeApproachComparisonTest#generateComparisonTable
 
-# Performance benchmarks (run on a quiet machine for stable results)
-./mvnw -pl vsum test -Dtest="MergePerformanceBenchmarkTest#e1_fullSuite" -Dsurefire.useFile=false
-./mvnw -pl vsum test -Dtest="MergePerformanceBenchmarkTest#e2_fullSuite" -Dsurefire.useFile=false
+# Performance benchmarks — see RQ3 section below
+./mvnw -pl vsum test -Dtest="BrakeScalabilityBenchmarkTest#e1_fullSuite" -Dsurefire.useFile=false
+./mvnw -pl vsum test -Dtest="BrakeScalabilityBenchmarkTest#e2_fullSuite" -Dsurefire.useFile=false
+./mvnw -pl vsum test -Dtest="BrakeScalabilityBenchmarkTest#e6_rq1ScenarioTimings" -Dsurefire.useFile=false
 ```
 
 ## RQ2: Robustness Evaluation (BrakeRobustnessEvaluationTest)
@@ -320,11 +321,57 @@ The report is written to `vsum/target/trackb-evaluation-report.md`.
 | `BrakeRobustnessEvaluationTest.java` | Test class with 6 family configurations and 5 seeds |
 | `ScenarioGenerator.java` | Creates Git repos with parameterized branch histories |
 | `ScenarioConfig.java` | Configuration record (all parameters) |
-| `TrackBEvaluationMetrics.java` | Per-scenario metric extraction |
-| `TrackBReportGenerator.java` | Aggregation and markdown report generation |
+| `RobustnessEvaluationMetrics.java` | Per-scenario metric extraction |
+| `RobustnessReportGenerator.java` | Aggregation and markdown report generation |
 | `ModelAction.java` | Enum of all model operations with component type mappings |
 
 All source files are in `vsum/src/test/java/tools/vitruv/casestudies/brakesystem/vsum/comparison/`.
+
+## RQ3: Scalability Benchmarks (BrakeScalabilityBenchmarkTest)
+
+The `BrakeScalabilityBenchmarkTest` measures merge performance across six experiment configurations (E1–E6). Each uses 1 warmup run + 5 measured repetitions with deterministic seeds. Results report median timing and mean ± stdev.
+
+### Experiments
+
+| Experiment | What it measures | Parameters | In paper? |
+|------------|-----------------|------------|-----------|
+| **E1** | Model size scaling | Components ∈ {10, 50, 100, 250, 500, 750, 1000}, k=5 txns | Yes (Table 3) |
+| **E2** | History length scaling | Transactions ∈ {1, 5, 10, 25, 50}, n=50 components | Yes (Table 4) |
+| **E3** | Conflict density | Overlap ∈ {0.0, 0.1, 0.25, 0.5}, n=50, k=10 | No (omitted for space) |
+| **E4** | Reaction density | Low vs high reaction density, n=100, k=10 | No (omitted for space) |
+| **E5** | Bidirectional overhead | Directed vs bidirectional merge, n=50, k=10 | No (omitted for space) |
+| **E6** | RQ1 scenario timings | 5 hand-crafted scenarios (S1,S4,S6,S7,S13) with warmup | Yes (Time column in Table 1) |
+
+E1 and E2 use disjoint branches (overlap=0.0) to isolate scalability from conflict handling. E6 runs the same scenarios as RQ1 but with repeated measurements to get stable timing numbers for the paper's comparison table.
+
+### Running Individual Experiments
+
+```bash
+# Run all paper experiments (E1 + E2 + E6):
+cd /workspace/BrakeCaseStudy && ./mvnw -pl vsum test \
+    -Dtest="BrakeScalabilityBenchmarkTest#e1_fullSuite+e2_fullSuite+e6_rq1ScenarioTimings" \
+    -Devaluation.outputDir="../output" -Dsurefire.useFile=false
+
+# Run individual experiments:
+./mvnw -pl vsum test -Dtest="BrakeScalabilityBenchmarkTest#e1_fullSuite" -Dsurefire.useFile=false
+./mvnw -pl vsum test -Dtest="BrakeScalabilityBenchmarkTest#e2_fullSuite" -Dsurefire.useFile=false
+./mvnw -pl vsum test -Dtest="BrakeScalabilityBenchmarkTest#e3_conflictDensity" -Dsurefire.useFile=false
+./mvnw -pl vsum test -Dtest="BrakeScalabilityBenchmarkTest#e4_reactionDensity" -Dsurefire.useFile=false
+./mvnw -pl vsum test -Dtest="BrakeScalabilityBenchmarkTest#e5_bidirectionalOverhead" -Dsurefire.useFile=false
+./mvnw -pl vsum test -Dtest="BrakeScalabilityBenchmarkTest#e6_rq1ScenarioTimings" -Dsurefire.useFile=false
+```
+
+Output is written to `output/brake-RQ3-scalability-<timestamp>/` as CSV and markdown.
+
+### Source Files
+
+| File | Purpose |
+|------|---------|
+| `BrakeScalabilityBenchmarkTest.java` | Test class with E1–E6 experiment methods |
+| `ScalableModelGenerator.java` | Creates parameterized brake system instances |
+| `BenchmarkResult.java` | Result DTO with timing, memory, and conflict data |
+
+All source files are in `vsum/src/test/java/tools/vitruv/casestudies/brakesystem/vsum/benchmark/`.
 
 Useful Links
 ------------
