@@ -110,6 +110,9 @@ public class RobustnessReportGenerator {
         if (byFamily.containsKey("F5-Bidirectional")) {
             appendFamily5Table(sb, byFamily.get("F5-Bidirectional"));
         }
+        if (byFamily.containsKey("F6-ConseqOverlap")) {
+            appendFamily6Table(sb, byFamily.get("F6-ConseqOverlap"));
+        }
 
         return sb.toString();
     }
@@ -144,8 +147,16 @@ public class RobustnessReportGenerator {
                 .filter(m -> m.isVitruviusSuccess() && !m.isConsistencyVerified())
                 .toList();
 
+        long f6Total = results.stream().filter(m -> m.getConfig().family().startsWith("F6")).count();
+        long f6Success = results.stream()
+                .filter(m -> m.getConfig().family().startsWith("F6") && m.isVitruviusSuccess()).count();
+        long otherSuccess = totalSuccessful - f6Success;
+
         sb.append("## Post-Merge Consistency Verification\n\n");
-        sb.append(String.format("- **Successful merges:** %d / %d%n", totalSuccessful, results.size()));
+        sb.append(String.format("- **Successful merges:** %d / %d (Family 6: %d/%d; Families 1--5: %d/%d)%n",
+                totalSuccessful, results.size(),
+                f6Success, f6Total,
+                otherSuccess, results.size() - f6Total));
         sb.append(String.format("- **Consistency verified:** %d / %d%n", verified, totalSuccessful));
         if (failures.isEmpty()) {
             sb.append(String.format("- **Result:** All %d successful merges produced consistent three-model states%n",
@@ -236,6 +247,20 @@ public class RobustnessReportGenerator {
                     fmtAvgStd(group, RobustnessEvaluationMetrics::getConflictReduction),
                     avg(group, m -> (int) m.getVitruviusMergeTimeMs()),
                     avg(group, m -> (int) m.getEmfCompareMergeTimeMs())));
+        }
+        sb.append("\n");
+    }
+
+    private void appendFamily6Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
+        sb.append("## Family 6: Consequential Overlap Resolution\n\n");
+        sb.append("| Commits/Branch | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
+        sb.append("|:--------------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
+
+        Map<Integer, List<RobustnessEvaluationMetrics>> byK = metrics.stream()
+                .collect(Collectors.groupingBy(m -> m.getConfig().commitsPerBranchA()));
+
+        for (var entry : byK.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+            appendAggRow(sb, String.valueOf(entry.getKey()), entry.getValue());
         }
         sb.append("\n");
     }
