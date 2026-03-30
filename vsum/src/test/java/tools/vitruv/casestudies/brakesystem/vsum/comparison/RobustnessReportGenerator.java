@@ -218,8 +218,8 @@ public class RobustnessReportGenerator {
 
     private void appendFamily5Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 5: Bidirectional Merge\n\n");
-        sb.append("| Overlap | Reaction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Direction (FORWARD/REVERSED) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
-        sb.append("|:-------:|:--------:|:-----------------------:|:-----------------------:|:----------------------------:|:------------------:|:-----------------:|\n");
+        sb.append("| Overlap | Reaction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
+        sb.append("|:-------:|:--------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
 
         // Group by overlap x reaction
         Map<String, List<RobustnessEvaluationMetrics>> byGroup = metrics.stream()
@@ -229,13 +229,11 @@ public class RobustnessReportGenerator {
         for (var entry : byGroup.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             var group = entry.getValue();
             String[] parts = entry.getKey().split("\\|");
-            long fwd = group.stream().filter(m -> "FORWARD".equals(m.getMergeDirection())).count();
-            long rev = group.stream().filter(m -> "REVERSED".equals(m.getMergeDirection())).count();
-            sb.append(String.format("| %s | %s | %s | %s | %d / %d | %.0f | %.0f |\n",
+            sb.append(String.format("| %s | %s | %s | %s | %s | %.0f | %.0f |\n",
                     parts[0], parts[1],
                     fmtAvgStd(group, RobustnessEvaluationMetrics::getVitruviusBlockingTotal),
                     fmtAvgStd(group, RobustnessEvaluationMetrics::getEmfCompareConflicts),
-                    fwd, rev,
+                    fmtAvgStd(group, RobustnessEvaluationMetrics::getConflictReduction),
                     avg(group, m -> (int) m.getVitruviusMergeTimeMs()),
                     avg(group, m -> (int) m.getEmfCompareMergeTimeMs())));
         }
