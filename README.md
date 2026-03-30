@@ -52,6 +52,21 @@ vsum
 ----
 This folder contains the VSUM, integration tests, and the merge approach comparison framework.
 
+### Configuration
+
+The following system properties configure merge behavior when running tests:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `merge.sequential` | `false` | When `true`, enforces strict intra-branch commit ordering. When `false`, intra-branch dependencies are computed from footprint overlaps. |
+| `merge.trace.disabled` | `false` | When `true`, suppresses MergeTracer output (console + file). Recommended for performance benchmarks. |
+| `evaluation.outputDir` | `../output` | Base directory for timestamped evaluation output. |
+
+Example:
+```bash
+./mvnw -pl vsum test -Dtest=BrakeScalabilityBenchmarkTest -Dmerge.trace.disabled=true
+```
+
 ### Branching Merge Tests
 
 The `vsum` module contains tests for the semantic three-way merge across three models (Brakesystem, CAD, Safety). Five representative scenarios exercise different conflict categories:
