@@ -2,6 +2,8 @@ package tools.vitruv.casestudies.brakesystem.vsum.comparison;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -209,14 +211,21 @@ public class TrackBEvaluationTest {
         String markdown = report.markdownSummary();
         String csv = report.csv();
 
-        Path outputDir = Path.of("target");
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+        Path outputDir = Path.of("target/evaluation-" + timestamp);
         Files.createDirectories(outputDir);
-        Files.writeString(outputDir.resolve("trackb-summary.md"), markdown);
-        Files.writeString(outputDir.resolve("trackb-evaluation.csv"), csv);
+        Files.writeString(outputDir.resolve("trackb-summary-" + timestamp + ".md"), markdown);
+        Files.writeString(outputDir.resolve("trackb-evaluation-" + timestamp + ".csv"), csv);
+
+        // Also write to fixed names for easy access
+        Path targetDir = Path.of("target");
+        Files.writeString(targetDir.resolve("trackb-summary.md"), markdown);
+        Files.writeString(targetDir.resolve("trackb-evaluation.csv"), csv);
 
         System.out.println("\n" + markdown);
-        System.out.println("\nCSV written to target/trackb-evaluation.csv");
-        System.out.println("Summary written to target/trackb-summary.md");
+        System.out.println("\nOutput written to " + outputDir);
+        System.out.println("  " + outputDir.resolve("trackb-summary-" + timestamp + ".md"));
+        System.out.println("  " + outputDir.resolve("trackb-evaluation-" + timestamp + ".csv"));
     }
 
     // ═══════════════════════════════════════════════════════════════════

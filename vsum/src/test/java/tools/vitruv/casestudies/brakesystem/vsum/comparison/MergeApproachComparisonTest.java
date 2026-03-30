@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -83,10 +85,15 @@ public class MergeApproachComparisonTest {
         String table = formatComparisonTable(results);
         System.out.println("\n" + table);
 
-        // Save to file
-        Path outputDir = Path.of("target");
+        // Save to timestamped output directory
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+        Path outputDir = Path.of("target/evaluation-" + timestamp);
         Files.createDirectories(outputDir);
-        Files.writeString(outputDir.resolve("merge-comparison-table.md"), table);
+        Files.writeString(outputDir.resolve("merge-comparison-table-" + timestamp + ".md"), table);
+
+        // Also write to fixed name for easy access
+        Path targetDir = Path.of("target");
+        Files.writeString(targetDir.resolve("merge-comparison-table.md"), table);
     }
 
     // ═══════════════════════════════════════════════════════════════════
