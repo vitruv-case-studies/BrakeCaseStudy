@@ -211,6 +211,105 @@ public class ScenarioGenerator {
     }
 
     /**
+     * Generates a scenario where both branches modify different reaction-triggering
+     * attributes of the same elements (e.g., diameter vs thickness of the same BrakeDisk).
+     * This creates overlapping consequential footprints (both write thermalLoadRating)
+     * without direct conflicts, so our merge succeeds while EMF Compare reports conflicts.
+     */
+    public ThreeModelScenarioSetup.PreparedScenario generateConsequentialOverlap(
+            ScenarioConfig config, Path tempDir) throws Exception {
+        Random rng = new Random(config.seed());
+        actionCounter = 0;
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+
+            // 1. Create base state — only BrakeDisk and BrakePad (types with paired attributes)
+            addBrakesystem(vsum, tempDir);
+            Map<String, Class<?>> basePool = createPairedBaseComponents(vsum, config.baseComponentCount(), rng);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: " + config.baseComponentCount() + " paired components").call();
+
+            List<String> allIds = new ArrayList<>(basePool.keySet());
+
+            // 2. Branch A: modify attribute A of each target (diameter for disks, height for pads)
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+
+            List<String> targets = selectTargets(allIds, config.overlapFraction(), rng);
+            for (int c = 0; c < config.commitsPerBranchA(); c++) {
+                var capture = freshCapture(vsum);
+                String targetId = targets.get(c % targets.size());
+                Class<?> type = basePool.get(targetId);
+                ModelAction actionA = firstAttributeFor(type);
+                executeAction(vsum, actionA, targetId, rng);
+                commitWithChangelog(git, capture, tempDir, "feature", "feature-commit-" + (c + 1));
+            }
+
+            // 3. Switch to main, reload
+            git.checkout().setName("main").call();
+            vsum.reload();
+
+            // 4. Branch B: modify attribute B of the same targets (thickness for disks, width for pads)
+            for (int c = 0; c < config.commitsPerBranchB(); c++) {
+                var capture = freshCapture(vsum);
+                String targetId = targets.get(c % targets.size());
+                Class<?> type = basePool.get(targetId);
+                ModelAction actionB = secondAttributeFor(type);
+                executeAction(vsum, actionB, targetId, rng);
+                commitWithChangelog(git, capture, tempDir, "main", "main-commit-" + (c + 1));
+            }
+
+            vsum.dispose();
+        }
+
+        return new ThreeModelScenarioSetup.PreparedScenario(tempDir, "feature", "main");
+    }
+
+    /**
+     * Creates base components using only types that have paired reaction-triggering
+     * attributes (BrakeDisk and BrakePad), alternating between the two.
+     */
+    private Map<String, Class<?>> createPairedBaseComponents(InternalVirtualModel vsum, int count, Random rng) {
+        Class<?>[] pairedTypes = { BrakeDisk.class, BrakePad.class };
+        Map<String, Class<?>> pool = new LinkedHashMap<>();
+        for (int i = 0; i < count; i++) {
+            Class<?> type = pairedTypes[i % pairedTypes.length];
+            String id = typePrefix(type) + (i + 1);
+            createComponent(vsum, type, id, rng);
+            pool.put(id, type);
+        }
+        return pool;
+    }
+
+    /**
+     * Selects a subset of target element IDs that both branches will modify.
+     * Uses overlapFraction to control how many base elements are targeted.
+     */
+    private List<String> selectTargets(List<String> allIds, double overlapFraction, Random rng) {
+        int count = Math.max(1, (int) Math.ceil(allIds.size() * (0.3 + overlapFraction * 0.7)));
+        count = Math.min(count, allIds.size());
+        List<String> shuffled = new ArrayList<>(allIds);
+        java.util.Collections.shuffle(shuffled, rng);
+        return shuffled.subList(0, count);
+    }
+
+    /** Returns the first reaction-triggering attribute for a paired type. */
+    private static ModelAction firstAttributeFor(Class<?> type) {
+        if (type == BrakeDisk.class) return ModelAction.CHANGE_DISK_DIAMETER;
+        if (type == BrakePad.class) return ModelAction.CHANGE_PAD_HEIGHT;
+        throw new IllegalArgumentException("No paired attribute for " + type.getSimpleName());
+    }
+
+    /** Returns the second reaction-triggering attribute for a paired type. */
+    private static ModelAction secondAttributeFor(Class<?> type) {
+        if (type == BrakeDisk.class) return ModelAction.CHANGE_DISK_THICKNESS;
+        if (type == BrakePad.class) return ModelAction.CHANGE_PAD_WIDTH;
+        throw new IllegalArgumentException("No paired attribute for " + type.getSimpleName());
+    }
+
+    /**
      * Executes a specific model action with random values.
      * Uses a monotonic counter to ensure values always change from the previous value.
      */

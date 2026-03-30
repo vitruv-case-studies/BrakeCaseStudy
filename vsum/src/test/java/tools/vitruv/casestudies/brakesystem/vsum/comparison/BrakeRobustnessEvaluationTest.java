@@ -101,7 +101,10 @@ public class BrakeRobustnessEvaluationTest {
             // 1. Generate scenario for Vitruvius (timed)
             Path vitDir = Files.createDirectories(tempDir.resolve("vitruvius"));
             long t0 = System.nanoTime();
-            var scenario = generator.generate(config, vitDir);
+            boolean isConsequentialOverlap = config.family().startsWith("F6");
+            var scenario = isConsequentialOverlap
+                    ? generator.generateConsequentialOverlap(config, vitDir)
+                    : generator.generate(config, vitDir);
             setupMs = (System.nanoTime() - t0) / 1_000_000;
 
             // 2. Run Vitruvius merge (timed)
@@ -129,7 +132,9 @@ public class BrakeRobustnessEvaluationTest {
 
             // 3. Run EMFCompare on a fresh copy (timed)
             Path emfDir = Files.createDirectories(tempDir.resolve("emfcompare"));
-            var emfScenario = generator.generate(config, emfDir);
+            var emfScenario = isConsequentialOverlap
+                    ? generator.generateConsequentialOverlap(config, emfDir)
+                    : generator.generate(config, emfDir);
             long t2 = System.nanoTime();
             try {
                 emfResult = emfCompareMerge.evaluate(
@@ -322,6 +327,7 @@ public class BrakeRobustnessEvaluationTest {
         configs.addAll(family3_reactionTriggerDensity());
         configs.addAll(family4_baseStateSize());
         configs.addAll(family5_bidirectional());
+        configs.addAll(family6_consequentialOverlap());
         return configs.stream();
     }
 
@@ -392,6 +398,23 @@ public class BrakeRobustnessEvaluationTest {
                 for (long seed : SEEDS) {
                     configs.add(ScenarioConfig.of(seed, 5, 5, overlap, rt, true, "F5-Bidirectional"));
                 }
+            }
+        }
+        return configs;
+    }
+
+    /**
+     * Family 6: Consequential Overlap Resolution (25 scenarios).
+     * Both branches modify different reaction-triggering attributes of the same elements
+     * (e.g., diameter vs thickness of the same BrakeDisk), creating overlapping consequential
+     * footprints (both update thermalLoadRating in M3) without direct conflicts.
+     * Our merge resolves this via interleaving; EMF Compare reports false-positive conflicts.
+     */
+    static List<ScenarioConfig> family6_consequentialOverlap() {
+        List<ScenarioConfig> configs = new ArrayList<>();
+        for (int k : new int[]{1, 3, 5, 10, 25}) {
+            for (long seed : SEEDS) {
+                configs.add(ScenarioConfig.of(seed, 4, k, 1.0, 1.0, false, "F6-ConseqOverlap"));
             }
         }
         return configs;
