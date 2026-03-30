@@ -15,6 +15,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE="$(dirname "$SCRIPT_DIR")"
+OUTPUT_DIR="$SCRIPT_DIR/output"
 
 RUN_PERFORMANCE=false
 RUN_TRACK_B=false
@@ -80,6 +81,7 @@ echo ""
 echo "--- Brake RQ1: Conflict Classification (Vitruvius vs EMFCompare) ---"
 cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
     -Dtest=BrakeConflictClassificationTest#generateComparisonTable \
+    -Devaluation.outputDir="$OUTPUT_DIR" \
     -Dsurefire.useFile=false
 
 # Run MobSTr comparison
@@ -89,6 +91,7 @@ echo ""
 echo "--- MobSTr RQ1: Conflict Classification (Vitruvius vs EMFCompare) ---"
 cd "$WORKSPACE/mobstr-vsum" && ./mvnw -pl vsum test \
     -Dtest=MobSTrConflictClassificationTest \
+    -Devaluation.outputDir="$OUTPUT_DIR" \
     -Dsurefire.useFile=false
 
 # RQ2: Robustness evaluation (105 scenarios) — only with --all
@@ -100,6 +103,7 @@ if $RUN_TRACK_B; then
     echo "--- Brake RQ2: Robustness of Reduction (105 generated scenarios) ---"
     cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
         -Dtest=BrakeRobustnessEvaluationTest \
+        -Devaluation.outputDir="$OUTPUT_DIR" \
         -Dsurefire.useFile=false
 fi
 
@@ -112,6 +116,7 @@ if $RUN_PERFORMANCE; then
     echo "--- Brake RQ3: Scalability (E1: model size, E2: history length) ---"
     cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
         -Dtest="BrakeScalabilityBenchmarkTest#e1_fullSuite+e2_fullSuite" \
+        -Devaluation.outputDir="$OUTPUT_DIR" \
         -Dsurefire.useFile=false
 fi
 
@@ -119,13 +124,14 @@ echo ""
 echo "=================================================="
 echo " Evaluation complete."
 echo ""
-echo " Output locations (timestamped, in output/ directories):"
-echo "   Brake RQ1:  BrakeCaseStudy/output/brake-RQ1-conflicts-*/"
-echo "   MobSTr RQ1: mobstr-vsum/output/mobstr-RQ1-conflicts-*/"
+echo " All results written to: $OUTPUT_DIR"
+echo ""
+echo "   Brake RQ1:  output/brake-RQ1-conflicts-*/"
+echo "   MobSTr RQ1: output/mobstr-RQ1-conflicts-*/"
 if $RUN_TRACK_B; then
-    echo "   Brake RQ2:  BrakeCaseStudy/output/brake-RQ2-robustness-*/"
+    echo "   Brake RQ2:  output/brake-RQ2-robustness-*/"
 fi
 if $RUN_PERFORMANCE; then
-    echo "   Brake RQ3:  BrakeCaseStudy/output/brake-RQ3-scalability-*/"
+    echo "   Brake RQ3:  output/brake-RQ3-scalability-*/"
 fi
 echo "=================================================="

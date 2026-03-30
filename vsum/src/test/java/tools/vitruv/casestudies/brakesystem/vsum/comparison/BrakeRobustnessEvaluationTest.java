@@ -216,7 +216,8 @@ public class BrakeRobustnessEvaluationTest {
         String csv = report.csv();
 
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        Path outputDir = Path.of("../output/brake-RQ2-robustness-" + timestamp);
+        Path outputBase = Path.of(System.getProperty("evaluation.outputDir", "../output"));
+        Path outputDir = outputBase.resolve("brake-RQ2-robustness-" + timestamp);
         Files.createDirectories(outputDir);
         Files.writeString(outputDir.resolve("brake-RQ2-robustness-" + timestamp + ".md"), markdown);
         Files.writeString(outputDir.resolve("brake-RQ2-robustness-" + timestamp + ".csv"), csv);

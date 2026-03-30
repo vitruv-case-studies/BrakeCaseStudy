@@ -88,7 +88,8 @@ public class BrakeConflictClassificationTest {
 
         // Save to timestamped output directory (outside target/ to survive clean builds)
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        Path outputDir = Path.of("../output/brake-RQ1-conflicts-" + timestamp);
+        Path outputBase = Path.of(System.getProperty("evaluation.outputDir", "../output"));
+        Path outputDir = outputBase.resolve("brake-RQ1-conflicts-" + timestamp);
         Files.createDirectories(outputDir);
         Files.writeString(outputDir.resolve("brake-RQ1-conflicts-" + timestamp + ".md"), table);
     }

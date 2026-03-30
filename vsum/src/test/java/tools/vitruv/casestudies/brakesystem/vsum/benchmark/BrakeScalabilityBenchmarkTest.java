@@ -573,7 +573,8 @@ public class BrakeScalabilityBenchmarkTest {
             throws IOException {
         String timestamp = java.time.LocalDateTime.now().format(
                 java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        Path outputDir = Path.of("../output/brake-RQ3-scalability-" + timestamp);
+        Path outputBase = Path.of(System.getProperty("evaluation.outputDir", "../output"));
+        Path outputDir = outputBase.resolve("brake-RQ3-scalability-" + timestamp);
         Files.createDirectories(outputDir);
 
         // CSV
