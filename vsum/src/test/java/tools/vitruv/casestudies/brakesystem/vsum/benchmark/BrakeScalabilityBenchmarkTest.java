@@ -23,6 +23,7 @@ import tools.vitruv.casestudies.brakesystem.vsum.benchmark.ScalableModelGenerato
 import tools.vitruv.casestudies.brakesystem.vsum.comparison.ThreeModelScenarioSetup;
 import tools.vitruv.change.testutils.TestUserInteraction;
 import tools.vitruv.framework.vsum.branch.merge.ConflictResolutionProvider;
+import tools.vitruv.framework.vsum.branch.merge.IntraBranchDependencyMode;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
 
@@ -410,10 +411,13 @@ public class BrakeScalabilityBenchmarkTest {
 
         SemanticMergeResult mergeResult;
         try {
-            mergeResult = new SemanticMergeCommand().execute(
+            var intraBranchMode = Boolean.getBoolean("merge.sequential")
+                    ? IntraBranchDependencyMode.SEQUENTIAL
+                    : IntraBranchDependencyMode.CALCULATED;
+            mergeResult = new SemanticMergeCommand().executeWithInterleaving(
                     scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
                     ThreeModelScenarioSetup.allCPS(), interactionProvider,
-                    ConflictResolutionProvider.chooseAllTheirs());
+                    ConflictResolutionProvider.chooseAllTheirs(), intraBranchMode);
         } catch (Exception e) {
             // Merge failed — record the failure
             long mergeEnd = System.nanoTime();
@@ -458,10 +462,13 @@ public class BrakeScalabilityBenchmarkTest {
 
         long mergeStart = System.nanoTime();
 
-        SemanticMergeResult mergeResult = new SemanticMergeCommand().executeBidirectional(
+        var intraBranchMode = Boolean.getBoolean("merge.sequential")
+                ? IntraBranchDependencyMode.SEQUENTIAL
+                : IntraBranchDependencyMode.CALCULATED;
+        SemanticMergeResult mergeResult = new SemanticMergeCommand().executeWithInterleaving(
                 scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
                 ThreeModelScenarioSetup.allCPS(), interactionProvider,
-                ConflictResolutionProvider.chooseAllTheirs());
+                ConflictResolutionProvider.chooseAllTheirs(), intraBranchMode);
 
         long mergeEnd = System.nanoTime();
         long memAfter = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
