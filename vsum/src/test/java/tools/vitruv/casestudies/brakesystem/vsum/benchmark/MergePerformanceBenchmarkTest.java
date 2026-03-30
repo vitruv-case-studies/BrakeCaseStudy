@@ -257,6 +257,91 @@ public class MergePerformanceBenchmarkTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // E6: Hand-crafted RQ1 scenarios (interleaving, conflicts, cycles)
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("E6: RQ1 scenario timings (interleaving, conflicts, graph construction)")
+    void e6_rq1ScenarioTimings(@TempDir Path tempDir) throws Exception {
+        int[] scenarios = {1, 4, 6, 7, 13};
+        List<BenchmarkResult> results = new ArrayList<>();
+        var setup = new ThreeModelScenarioSetup();
+
+        for (int scenarioNum : scenarios) {
+            // First, run once without resolution to determine conflict count
+            int conflictCount = 0;
+            {
+                Path probeDir = Files.createDirectories(
+                        tempDir.resolve("e6_s" + scenarioNum + "_probe"));
+                var prepared = setup.setupScenario(scenarioNum, probeDir);
+                var ip = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+                try {
+                    var probeResult = new SemanticMergeCommand().executeWithInterleaving(
+                            prepared.repoPath(), prepared.sourceBranch(),
+                            prepared.targetBranch(),
+                            ThreeModelScenarioSetup.allCPS(), ip, null);
+                    conflictCount = probeResult.getConflicts().size();
+                } catch (Exception e) {
+                    // Direct conflict scenarios throw when no resolution is provided.
+                    // Retry with resolution to get the conflict list.
+                    try {
+                        var probeResult = new SemanticMergeCommand().executeWithInterleaving(
+                                prepared.repoPath(), prepared.sourceBranch(),
+                                prepared.targetBranch(),
+                                ThreeModelScenarioSetup.allCPS(), ip,
+                                ConflictResolutionProvider.chooseAllTheirs());
+                        conflictCount = probeResult.getConflicts().size();
+                    } catch (Exception e2) {
+                        conflictCount = -1; // unknown
+                    }
+                }
+            }
+
+            // Now run timed repetitions (with resolution so all scenarios complete)
+            List<BenchmarkResult> runs = new ArrayList<>();
+            final int detectedConflicts = conflictCount;
+            for (int rep = 0; rep < WARMUP_RUNS + REPETITIONS; rep++) {
+                Path runDir = Files.createDirectories(
+                        tempDir.resolve("e6_s" + scenarioNum + "_r" + rep));
+                var prepared = setup.setupScenario(scenarioNum, runDir);
+                var interactionProvider = new TestUserInteraction.ResultProvider(
+                        new TestUserInteraction());
+
+                long mergeStart = System.nanoTime();
+                SemanticMergeResult mergeResult;
+                boolean succeeded;
+                try {
+                    mergeResult = new SemanticMergeCommand().executeWithInterleaving(
+                            prepared.repoPath(), prepared.sourceBranch(),
+                            prepared.targetBranch(),
+                            ThreeModelScenarioSetup.allCPS(), interactionProvider,
+                            ConflictResolutionProvider.chooseAllTheirs());
+                    succeeded = mergeResult.isSuccess();
+                } catch (Exception e) {
+                    mergeResult = null;
+                    succeeded = false;
+                }
+                long mergeEnd = System.nanoTime();
+
+                String label = ThreeModelScenarioSetup.scenarioLabel(scenarioNum);
+                var benchmarkResult = new BenchmarkResult(label, 0, 0, 0.0, false)
+                        .totalMergeTime(mergeEnd - mergeStart)
+                        .mergeSucceeded(succeeded)
+                        .directConflicts(detectedConflicts);
+
+                if (rep >= WARMUP_RUNS) {
+                    runs.add(benchmarkResult);
+                }
+            }
+            results.add(aggregateResults(runs,
+                    ThreeModelScenarioSetup.scenarioLabel(scenarioNum)));
+        }
+
+        printResults("E6: RQ1 Scenario Timings", results);
+        saveResults("e6-rq1-scenario-timings", results, tempDir);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // Full benchmark suite
     // ═══════════════════════════════════════════════════════════════════
 
