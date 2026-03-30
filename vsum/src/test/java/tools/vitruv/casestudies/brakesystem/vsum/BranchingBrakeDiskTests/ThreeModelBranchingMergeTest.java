@@ -39,6 +39,8 @@ import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult.MergeDirection;
 import tools.vitruv.framework.vsum.internal.InternalVirtualModel;
 
+import tools.vitruv.casestudies.brakesystem.vsum.BrakeConsistencyValidator;
+
 import brakesystem.BrakeDisk;
 import brakesystem.BrakePad;
 import brakesystem.Brakesystem;
@@ -144,6 +146,14 @@ public class ThreeModelBranchingMergeTest {
             // thermalLoadRating = 320 * 25 * 0.01 = 80.0
             assertEquals(80.0f, diskEntry.getThermalLoadRating(), 0.01f,
                     "Thermal load should reflect merged diameter");
+
+            // Cross-model consistency validation
+            var structViolations = BrakeConsistencyValidator.validateStructure(merged);
+            assertTrue(structViolations.isEmpty(),
+                    "Structural consistency violations: " + structViolations);
+            var formulaViolations = BrakeConsistencyValidator.validateFormulas(merged);
+            assertTrue(formulaViolations.isEmpty(),
+                    "Formula consistency violations: " + formulaViolations);
 
             merged.dispose();
         }
@@ -335,6 +345,33 @@ public class ThreeModelBranchingMergeTest {
             printScenarioResult("RESOLVED_OVERLAP", result);
 
             assertTrue(result.isSuccess(), "Merge should succeed — acyclic dependency, interleaving resolves");
+
+            // Verify merged state
+            InternalVirtualModel merged = loadThreeModelVsum(result.getMergedStateFolder());
+
+            // (ii) Original changes preserved: A's diameter=320 in M₁
+            var bs = getBrakesystemRoot(merged);
+            var disk = (BrakeDisk) bs.getBrakeComponents().stream()
+                    .filter(c -> c.getId().equals("disk1")).findFirst().orElseThrow();
+            assertEquals(320, disk.getDiameterInMM(), "A's original diameter should be preserved");
+
+            // (iii) Consequential: safety thermalLoadRating derived from merged diameter
+            var safety = getSafetyRoot(merged);
+            assertNotNull(safety, "SafetyAssessment should exist");
+            var diskEntry = findSafetyEntry(safety, "disk1");
+            assertNotNull(diskEntry, "SafetyEntry for disk1 should exist");
+            assertEquals(80.0f, diskEntry.getThermalLoadRating(), 0.01f,
+                    "thermalLoadRating = 320 * 25 * 0.01 = 80.0");
+
+            // (iv) Cross-model consistency
+            var structViolations = BrakeConsistencyValidator.validateStructure(merged);
+            assertTrue(structViolations.isEmpty(),
+                    "Structural consistency violations: " + structViolations);
+            var formulaViolations = BrakeConsistencyValidator.validateFormulas(merged);
+            assertTrue(formulaViolations.isEmpty(),
+                    "Formula consistency violations: " + formulaViolations);
+
+            merged.dispose();
         }
     }
 
@@ -1017,6 +1054,36 @@ public class ThreeModelBranchingMergeTest {
                     .anyMatch(w -> w.getType() == MergeConflict.ConflictType.INDIRECT_CONFLICT);
             assertFalse(hasIndirectConflict,
                     "The chosen ordering should have no INDIRECT_CONFLICT warnings");
+
+            // Verify merged state
+            InternalVirtualModel merged = loadThreeModelVsum(result.getMergedStateFolder());
+
+            // (ii) Original changes from both branches preserved
+            var bs = getBrakesystemRoot(merged);
+            var disk = (BrakeDisk) bs.getBrakeComponents().stream()
+                    .filter(c -> c.getId().equals("disk1")).findFirst().orElseThrow();
+            assertEquals(320, disk.getDiameterInMM(), "a_1: diameter should be 320");
+
+            var pad = (BrakePad) bs.getBrakeComponents().stream()
+                    .filter(c -> c.getId().equals("pad1")).findFirst().orElseThrow();
+            assertEquals(60, pad.getHeightInMM(), "b_2: pad height should be 60");
+
+            // (ii) User overrides of safety values preserved
+            var safety = getSafetyRoot(merged);
+            assertNotNull(safety, "SafetyAssessment should exist");
+            var diskEntry = findSafetyEntry(safety, "disk1");
+            assertEquals(100.0f, diskEntry.getThermalLoadRating(), 0.01f,
+                    "b_1: user override thermalLoadRating=100 should be preserved");
+            var padEntry = findSafetyEntry(safety, "pad1");
+            assertEquals(9999.0f, padEntry.getFrictionArea(), 0.01f,
+                    "a_2: user override frictionArea=9999 should be preserved");
+
+            // (iv) Structural cross-model consistency (skip formulas — user overrides)
+            var structViolations = BrakeConsistencyValidator.validateStructure(merged);
+            assertTrue(structViolations.isEmpty(),
+                    "Structural consistency violations: " + structViolations);
+
+            merged.dispose();
         }
     }
 
