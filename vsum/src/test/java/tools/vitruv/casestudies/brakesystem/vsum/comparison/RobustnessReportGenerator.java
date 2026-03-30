@@ -119,22 +119,22 @@ public class RobustnessReportGenerator {
 
     private void appendOverallSummary(StringBuilder sb) {
         sb.append("## Overall Summary\n\n");
-        sb.append("| Family | Scenarios | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
-        sb.append("|--------|:---------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
+        sb.append("| Family | Scenarios | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time ms (avg ± σ) | EMF Time ms (avg ± σ) |\n");
+        sb.append("|--------|:---------:|:-----------------------:|:-----------------------:|:-------------------:|:---------------------:|:--------------------:|\n");
 
         Map<String, List<RobustnessEvaluationMetrics>> byFamily = results.stream()
                 .collect(Collectors.groupingBy(m -> m.getConfig().family()));
 
         for (var entry : byFamily.entrySet()) {
             var metrics = entry.getValue();
-            sb.append(String.format("| %s | %d | %s | %s | %s | %.0f | %.0f |\n",
+            sb.append(String.format("| %s | %d | %s | %s | %s | %s | %s |\n",
                     entry.getKey(),
                     metrics.size(),
                     fmtAvgStd(metrics, RobustnessEvaluationMetrics::getVitruviusBlockingTotal),
                     fmtAvgStd(metrics, RobustnessEvaluationMetrics::getEmfCompareConflicts),
                     fmtAvgStd(metrics, RobustnessEvaluationMetrics::getConflictReduction),
-                    avg(metrics, m -> (int) m.getVitruviusMergeTimeMs()),
-                    avg(metrics, m -> (int) m.getEmfCompareMergeTimeMs())));
+                    fmtAvgStd(metrics, m -> (int) m.getVitruviusMergeTimeMs()),
+                    fmtAvgStd(metrics, m -> (int) m.getEmfCompareMergeTimeMs())));
         }
         sb.append("\n");
     }
@@ -173,8 +173,8 @@ public class RobustnessReportGenerator {
 
     private void appendFamily1Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 1: History Length Scaling\n\n");
-        sb.append("| Commits/Branch | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
-        sb.append("|:--------------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
+        sb.append("| Commits/Branch | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time ms (avg ± σ) | EMF Time ms (avg ± σ) |\n");
+        sb.append("|:--------------:|:-----------------------:|:-----------------------:|:-------------------:|:---------------------:|:--------------------:|\n");
 
         Map<Integer, List<RobustnessEvaluationMetrics>> byK = metrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getConfig().commitsPerBranchA()));
@@ -187,8 +187,8 @@ public class RobustnessReportGenerator {
 
     private void appendFamily2Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 2: Overlap Density\n\n");
-        sb.append("| Overlap Fraction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
-        sb.append("|:----------------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
+        sb.append("| Overlap Fraction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time ms (avg ± σ) | EMF Time ms (avg ± σ) |\n");
+        sb.append("|:----------------:|:-----------------------:|:-----------------------:|:-------------------:|:---------------------:|:--------------------:|\n");
 
         Map<String, List<RobustnessEvaluationMetrics>> byOverlap = metrics.stream()
                 .collect(Collectors.groupingBy(m -> String.format("%.1f", m.getConfig().overlapFraction())));
@@ -201,8 +201,8 @@ public class RobustnessReportGenerator {
 
     private void appendFamily3Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 3: Reaction-Trigger Density\n\n");
-        sb.append("| Reaction Fraction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
-        sb.append("|:-----------------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
+        sb.append("| Reaction Fraction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time ms (avg ± σ) | EMF Time ms (avg ± σ) |\n");
+        sb.append("|:-----------------:|:-----------------------:|:-----------------------:|:-------------------:|:---------------------:|:--------------------:|\n");
 
         Map<String, List<RobustnessEvaluationMetrics>> byRT = metrics.stream()
                 .collect(Collectors.groupingBy(m -> String.format("%.1f", m.getConfig().reactionTriggerFraction())));
@@ -215,8 +215,8 @@ public class RobustnessReportGenerator {
 
     private void appendFamily4Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 4: Base State Size\n\n");
-        sb.append("| Components | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
-        sb.append("|:----------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
+        sb.append("| Components | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time ms (avg ± σ) | EMF Time ms (avg ± σ) |\n");
+        sb.append("|:----------:|:-----------------------:|:-----------------------:|:-------------------:|:---------------------:|:--------------------:|\n");
 
         Map<Integer, List<RobustnessEvaluationMetrics>> bySize = metrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getConfig().baseComponentCount()));
@@ -229,8 +229,8 @@ public class RobustnessReportGenerator {
 
     private void appendFamily5Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 5: Bidirectional Merge\n\n");
-        sb.append("| Overlap | Reaction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
-        sb.append("|:-------:|:--------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
+        sb.append("| Overlap | Reaction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time ms (avg ± σ) | EMF Time ms (avg ± σ) |\n");
+        sb.append("|:-------:|:--------:|:-----------------------:|:-----------------------:|:-------------------:|:---------------------:|:--------------------:|\n");
 
         // Group by overlap x reaction
         Map<String, List<RobustnessEvaluationMetrics>> byGroup = metrics.stream()
@@ -240,21 +240,21 @@ public class RobustnessReportGenerator {
         for (var entry : byGroup.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             var group = entry.getValue();
             String[] parts = entry.getKey().split("\\|");
-            sb.append(String.format("| %s | %s | %s | %s | %s | %.0f | %.0f |\n",
+            sb.append(String.format("| %s | %s | %s | %s | %s | %s | %s |\n",
                     parts[0], parts[1],
                     fmtAvgStd(group, RobustnessEvaluationMetrics::getVitruviusBlockingTotal),
                     fmtAvgStd(group, RobustnessEvaluationMetrics::getEmfCompareConflicts),
                     fmtAvgStd(group, RobustnessEvaluationMetrics::getConflictReduction),
-                    avg(group, m -> (int) m.getVitruviusMergeTimeMs()),
-                    avg(group, m -> (int) m.getEmfCompareMergeTimeMs())));
+                    fmtAvgStd(group, m -> (int) m.getVitruviusMergeTimeMs()),
+                    fmtAvgStd(group, m -> (int) m.getEmfCompareMergeTimeMs())));
         }
         sb.append("\n");
     }
 
     private void appendFamily6Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 6: Consequential Overlap Resolution\n\n");
-        sb.append("| Commits/Branch | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
-        sb.append("|:--------------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
+        sb.append("| Commits/Branch | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time ms (avg ± σ) | EMF Time ms (avg ± σ) |\n");
+        sb.append("|:--------------:|:-----------------------:|:-----------------------:|:-------------------:|:---------------------:|:--------------------:|\n");
 
         Map<Integer, List<RobustnessEvaluationMetrics>> byK = metrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getConfig().commitsPerBranchA()));
@@ -266,13 +266,13 @@ public class RobustnessReportGenerator {
     }
 
     private void appendAggRow(StringBuilder sb, String label, List<RobustnessEvaluationMetrics> group) {
-        sb.append(String.format("| %s | %s | %s | %s | %.0f | %.0f |\n",
+        sb.append(String.format("| %s | %s | %s | %s | %s | %s |\n",
                 label,
                 fmtAvgStd(group, RobustnessEvaluationMetrics::getVitruviusBlockingTotal),
                 fmtAvgStd(group, RobustnessEvaluationMetrics::getEmfCompareConflicts),
                 fmtAvgStd(group, RobustnessEvaluationMetrics::getConflictReduction),
-                avg(group, m -> (int) m.getVitruviusMergeTimeMs()),
-                avg(group, m -> (int) m.getEmfCompareMergeTimeMs())));
+                fmtAvgStd(group, m -> (int) m.getVitruviusMergeTimeMs()),
+                fmtAvgStd(group, m -> (int) m.getEmfCompareMergeTimeMs())));
     }
 
     @FunctionalInterface
