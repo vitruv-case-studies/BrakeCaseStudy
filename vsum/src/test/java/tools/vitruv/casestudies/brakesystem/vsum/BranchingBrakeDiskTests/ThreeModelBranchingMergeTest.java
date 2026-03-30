@@ -518,9 +518,8 @@ public class ThreeModelBranchingMergeTest {
 
             vsum.dispose();
 
-            // Merge A→B: replaying A's BrakeDisk.id change triggers IdChanged reaction
-            // which sets Namespace.id = "engineeringDisk" (derived), overwriting B's "cadCustomId" (user)
-            SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            // Interleaving merge: A's and B's reactions create a bidirectional cycle
+            SemanticMergeResult result = mergeWithInterleaving(tempDir, "feature", "main", interactionProvider);
             printScenarioResult("CONSEQUENTIAL", result);
 
             // Bidirectional reactions create a cycle in the dependency graph:
