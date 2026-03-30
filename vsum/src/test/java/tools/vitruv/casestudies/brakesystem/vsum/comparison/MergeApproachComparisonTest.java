@@ -28,6 +28,7 @@ import safety.SafetyPackage;
 import tools.vitruv.change.testutils.TestUserInteraction;
 import tools.vitruv.framework.vsum.branch.merge.ConflictResolutionProvider;
 import tools.vitruv.framework.vsum.branch.merge.MergeConflict;
+import tools.vitruv.framework.vsum.branch.merge.IntraBranchDependencyMode;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
 import tools.vitruv.merge.comparison.EMFCompareThreeWayMerge;
@@ -137,20 +138,23 @@ public class MergeApproachComparisonTest {
     private MergeEvaluationResult runVitruviusMerge(
             ThreeModelScenarioSetup.PreparedScenario scenario, int scenarioNum) throws Exception {
         var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+        var intraBranchMode = Boolean.getBoolean("merge.sequential")
+                ? IntraBranchDependencyMode.SEQUENTIAL
+                : IntraBranchDependencyMode.CALCULATED;
 
         SemanticMergeResult mergeResult;
         try {
             // Try without conflict resolution first (interleaving merge)
             mergeResult = new SemanticMergeCommand().executeWithInterleaving(
                     scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
-                    ThreeModelScenarioSetup.allCPS(), interactionProvider, null);
+                    ThreeModelScenarioSetup.allCPS(), interactionProvider, null, intraBranchMode);
         } catch (Exception e) {
             // If merge fails with an exception, try with resolution to get conflict info
             try {
                 mergeResult = new SemanticMergeCommand().executeWithInterleaving(
                         scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
                         ThreeModelScenarioSetup.allCPS(), interactionProvider,
-                        ConflictResolutionProvider.chooseAllTheirs());
+                        ConflictResolutionProvider.chooseAllTheirs(), intraBranchMode);
             } catch (Exception e2) {
                 // Complete failure
                 return MergeEvaluationResult.builder(ThreeModelScenarioSetup.scenarioLabel(scenarioNum), "Vitruvius")

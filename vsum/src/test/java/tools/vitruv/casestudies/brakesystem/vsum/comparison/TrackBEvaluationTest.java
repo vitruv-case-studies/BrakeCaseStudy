@@ -36,6 +36,7 @@ import tools.vitruv.framework.vsum.VirtualModel;
 import tools.vitruv.framework.vsum.branch.merge.ConflictResolutionProvider;
 import tools.vitruv.framework.vsum.branch.merge.GitStateLoader;
 import tools.vitruv.framework.vsum.branch.merge.MergeTracer;
+import tools.vitruv.framework.vsum.branch.merge.IntraBranchDependencyMode;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
 import tools.vitruv.framework.vsum.internal.InternalVirtualModel;
@@ -104,19 +105,22 @@ public class TrackBEvaluationTest {
             setupMs = (System.nanoTime() - t0) / 1_000_000;
 
             // 2. Run Vitruvius merge (timed)
+            var intraBranchMode = Boolean.getBoolean("merge.sequential")
+                    ? IntraBranchDependencyMode.SEQUENTIAL
+                    : IntraBranchDependencyMode.CALCULATED;
             long t1 = System.nanoTime();
             try {
                 var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
                 try {
                     vitResult = new SemanticMergeCommand().executeWithInterleaving(
                             scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
-                            ThreeModelScenarioSetup.allCPS(), interactionProvider, null);
+                            ThreeModelScenarioSetup.allCPS(), interactionProvider, null, intraBranchMode);
                 } catch (Throwable e) {
                     // Retry with conflict resolution to get conflict info
                     vitResult = new SemanticMergeCommand().executeWithInterleaving(
                             scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
                             ThreeModelScenarioSetup.allCPS(), interactionProvider,
-                            ConflictResolutionProvider.chooseAllTheirs());
+                            ConflictResolutionProvider.chooseAllTheirs(), intraBranchMode);
                 }
             } catch (Throwable e) {
                 vitError = e.getClass().getSimpleName() + ": " + e.getMessage();

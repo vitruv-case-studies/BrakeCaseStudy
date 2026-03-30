@@ -33,6 +33,7 @@ import tools.vitruv.framework.vsum.branch.merge.ConflictResolutionProvider;
 import tools.vitruv.framework.vsum.branch.merge.MergeConflict;
 import tools.vitruv.framework.vsum.branch.merge.MergeTracer;
 import tools.vitruv.framework.vsum.branch.merge.SemanticChangeLog;
+import tools.vitruv.framework.vsum.branch.merge.IntraBranchDependencyMode;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeCommand;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
 import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult.MergeDirection;
@@ -1492,8 +1493,11 @@ public class ThreeModelBranchingMergeTest {
 
     private SemanticMergeResult mergeWithInterleaving(Path tempDir, String branchA, String branchB,
                                                        TestUserInteraction.ResultProvider interactionProvider) throws Exception {
+        var mode = Boolean.getBoolean("merge.sequential")
+                ? IntraBranchDependencyMode.SEQUENTIAL
+                : IntraBranchDependencyMode.CALCULATED;
         return new SemanticMergeCommand().executeWithInterleaving(
-                tempDir, branchA, branchB, allCPS(), interactionProvider, null);
+                tempDir, branchA, branchB, allCPS(), interactionProvider, null, mode);
     }
 
     private ChangeLogCapture freshCapture(InternalVirtualModel vsum) {
