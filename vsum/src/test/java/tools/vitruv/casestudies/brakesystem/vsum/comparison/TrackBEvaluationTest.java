@@ -109,14 +109,14 @@ public class TrackBEvaluationTest {
                     vitResult = new SemanticMergeCommand().executeWithInterleaving(
                             scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
                             ThreeModelScenarioSetup.allCPS(), interactionProvider, null);
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     // Retry with conflict resolution to get conflict info
                     vitResult = new SemanticMergeCommand().executeWithInterleaving(
                             scenario.repoPath(), scenario.sourceBranch(), scenario.targetBranch(),
                             ThreeModelScenarioSetup.allCPS(), interactionProvider,
                             ConflictResolutionProvider.chooseAllTheirs());
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 vitError = e.getClass().getSimpleName() + ": " + e.getMessage();
             }
             vitMs = (System.nanoTime() - t1) / 1_000_000;
