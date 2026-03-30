@@ -51,11 +51,11 @@ import tools.vitruv.merge.comparison.MergeEvaluationResult;
  * <p>Produces markdown summary tables and CSV for plotting in {@code target/}.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class TrackBEvaluationTest {
+public class BrakeRobustnessEvaluationTest {
 
     private static final List<String> MODEL_FILES = List.of(
             "brakesystem.model", "example.cad", "safety.safety");
-    private static final Map<String, TrackBEvaluationMetrics> allResults = new ConcurrentHashMap<>();
+    private static final Map<String, RobustnessEvaluationMetrics> allResults = new ConcurrentHashMap<>();
     private static final long[] SEEDS = {42L, 43L, 44L, 45L, 46L};
 
     private final ScenarioGenerator generator = new ScenarioGenerator();
@@ -148,11 +148,11 @@ public class TrackBEvaluationTest {
         }
 
         // 4. Collect metrics (always, even on failure)
-        TrackBEvaluationMetrics metrics;
+        RobustnessEvaluationMetrics metrics;
         if (vitError != null) {
-            metrics = TrackBEvaluationMetrics.forError(config, vitError, emfResult, setupMs, vitMs, emfMs);
+            metrics = RobustnessEvaluationMetrics.forError(config, vitError, emfResult, setupMs, vitMs, emfMs);
         } else {
-            metrics = TrackBEvaluationMetrics.from(config, vitResult, emfResult, setupMs, vitMs, emfMs);
+            metrics = RobustnessEvaluationMetrics.from(config, vitResult, emfResult, setupMs, vitMs, emfMs);
         }
 
         // 5. Post-merge consistency check
@@ -211,20 +211,20 @@ public class TrackBEvaluationTest {
             return;
         }
 
-        var report = new TrackBReportGenerator(allResults.values());
+        var report = new RobustnessReportGenerator(allResults.values());
         String markdown = report.markdownSummary();
         String csv = report.csv();
 
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        Path outputDir = Path.of("../output/evaluation-" + timestamp);
+        Path outputDir = Path.of("../output/brake-RQ2-robustness-" + timestamp);
         Files.createDirectories(outputDir);
-        Files.writeString(outputDir.resolve("trackb-summary-" + timestamp + ".md"), markdown);
-        Files.writeString(outputDir.resolve("trackb-evaluation-" + timestamp + ".csv"), csv);
+        Files.writeString(outputDir.resolve("brake-RQ2-robustness-" + timestamp + ".md"), markdown);
+        Files.writeString(outputDir.resolve("brake-RQ2-robustness-" + timestamp + ".csv"), csv);
 
         System.out.println("\n" + markdown);
         System.out.println("\nOutput written to " + outputDir.toAbsolutePath());
-        System.out.println("  trackb-summary-" + timestamp + ".md");
-        System.out.println("  trackb-evaluation-" + timestamp + ".csv");
+        System.out.println("  brake-RQ2-robustness-" + timestamp + ".md");
+        System.out.println("  brake-RQ2-robustness-" + timestamp + ".csv");
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -235,7 +235,7 @@ public class TrackBEvaluationTest {
      * Verifies that the merged VSUM state is consistent: all three model resources
      * exist, no unresolved proxies remain, and component count is positive.
      */
-    private TrackBEvaluationMetrics verifyConsistency(TrackBEvaluationMetrics metrics, Path mergedStateFolder) {
+    private RobustnessEvaluationMetrics verifyConsistency(RobustnessEvaluationMetrics metrics, Path mergedStateFolder) {
         InternalVirtualModel merged = null;
         try {
             var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());

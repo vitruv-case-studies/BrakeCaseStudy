@@ -46,7 +46,7 @@ import tools.vitruv.framework.vsum.branch.merge.SemanticMergeResult;
  *   <li>E5: Bidirectional overhead (directed vs bidirectional)</li>
  * </ul>
  */
-public class MergePerformanceBenchmarkTest {
+public class BrakeScalabilityBenchmarkTest {
 
     private static final int REPETITIONS = 5;
     private static final int WARMUP_RUNS = 1;
@@ -386,7 +386,7 @@ public class MergePerformanceBenchmarkTest {
         // Save all results
         saveResults("full-benchmark", allResults, tempDir);
         System.out.println("\n=== Benchmark Complete ===");
-        System.out.println("Results saved to: " + Path.of(System.getProperty("user.dir")).resolve("target/benchmark-results"));
+        System.out.println("Results saved to: output/brake-RQ3-scalability-*/");
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -571,7 +571,9 @@ public class MergePerformanceBenchmarkTest {
 
     private void saveResults(String experimentName, List<BenchmarkResult> results, Path baseDir)
             throws IOException {
-        Path outputDir = Path.of(System.getProperty("user.dir")).resolve("target/benchmark-results");
+        String timestamp = java.time.LocalDateTime.now().format(
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+        Path outputDir = Path.of("../output/brake-RQ3-scalability-" + timestamp);
         Files.createDirectories(outputDir);
 
         // CSV

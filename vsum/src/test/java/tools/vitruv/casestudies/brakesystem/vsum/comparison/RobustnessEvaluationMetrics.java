@@ -12,7 +12,7 @@ import tools.vitruv.merge.comparison.MergeEvaluationResult;
  * Extended metrics DTO for Track B evaluation with per-type conflict/warning breakdown,
  * timing, and EMFCompare comparison data.
  */
-public class TrackBEvaluationMetrics {
+public class RobustnessEvaluationMetrics {
 
     private final ScenarioConfig config;
 
@@ -49,7 +49,7 @@ public class TrackBEvaluationMetrics {
     private final long vitruviusMergeTimeMs;
     private final long emfCompareMergeTimeMs;
 
-    private TrackBEvaluationMetrics(Builder b) {
+    private RobustnessEvaluationMetrics(Builder b) {
         this.config = b.config;
         this.modifyModifyConflicts = b.modifyModifyConflicts;
         this.deleteModifyConflicts = b.deleteModifyConflicts;
@@ -76,7 +76,7 @@ public class TrackBEvaluationMetrics {
     /**
      * Builds metrics from a SemanticMergeResult and EMFCompare result.
      */
-    public static TrackBEvaluationMetrics from(ScenarioConfig config,
+    public static RobustnessEvaluationMetrics from(ScenarioConfig config,
             SemanticMergeResult vitResult, MergeEvaluationResult emfResult,
             long setupMs, long vitMs, long emfMs) {
         var b = new Builder(config);
@@ -123,7 +123,7 @@ public class TrackBEvaluationMetrics {
     /**
      * Builds metrics for a failed Vitruvius merge.
      */
-    public static TrackBEvaluationMetrics forError(ScenarioConfig config,
+    public static RobustnessEvaluationMetrics forError(ScenarioConfig config,
             String error, MergeEvaluationResult emfResult,
             long setupMs, long vitMs, long emfMs) {
         var b = new Builder(config);
@@ -169,7 +169,7 @@ public class TrackBEvaluationMetrics {
     /**
      * Returns a copy of this metrics with consistency verification results set.
      */
-    public TrackBEvaluationMetrics withConsistencyResult(boolean verified, String error) {
+    public RobustnessEvaluationMetrics withConsistencyResult(boolean verified, String error) {
         var b = new Builder(this.config);
         b.modifyModifyConflicts = this.modifyModifyConflicts;
         b.deleteModifyConflicts = this.deleteModifyConflicts;
@@ -206,6 +206,6 @@ public class TrackBEvaluationMetrics {
         long setupTimeMs, vitruviusMergeTimeMs, emfCompareMergeTimeMs;
 
         Builder(ScenarioConfig config) { this.config = config; }
-        TrackBEvaluationMetrics build() { return new TrackBEvaluationMetrics(this); }
+        RobustnessEvaluationMetrics build() { return new RobustnessEvaluationMetrics(this); }
     }
 }

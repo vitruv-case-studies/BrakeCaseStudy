@@ -9,11 +9,11 @@ import java.util.stream.Collectors;
 /**
  * Formats Track B evaluation results as markdown summary tables and CSV.
  */
-public class TrackBReportGenerator {
+public class RobustnessReportGenerator {
 
-    private final List<TrackBEvaluationMetrics> results;
+    private final List<RobustnessEvaluationMetrics> results;
 
-    public TrackBReportGenerator(Collection<TrackBEvaluationMetrics> results) {
+    public RobustnessReportGenerator(Collection<RobustnessEvaluationMetrics> results) {
         this.results = List.copyOf(results);
     }
 
@@ -60,18 +60,18 @@ public class TrackBReportGenerator {
                 + "emf_conflicts_avg,emf_conflicts_stddev,"
                 + "conflict_reduction_avg,conflict_reduction_stddev\n");
 
-        Map<String, List<TrackBEvaluationMetrics>> byFamily = results.stream()
+        Map<String, List<RobustnessEvaluationMetrics>> byFamily = results.stream()
                 .collect(Collectors.groupingBy(m -> m.getConfig().family()));
         for (var entry : byFamily.entrySet()) {
             var metrics = entry.getValue();
             sb.append(String.format("%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f%n",
                     entry.getKey(), metrics.size(),
-                    avg(metrics, TrackBEvaluationMetrics::getVitruviusBlockingTotal),
-                    stddev(metrics, TrackBEvaluationMetrics::getVitruviusBlockingTotal),
-                    avg(metrics, TrackBEvaluationMetrics::getEmfCompareConflicts),
-                    stddev(metrics, TrackBEvaluationMetrics::getEmfCompareConflicts),
-                    avg(metrics, TrackBEvaluationMetrics::getConflictReduction),
-                    stddev(metrics, TrackBEvaluationMetrics::getConflictReduction)));
+                    avg(metrics, RobustnessEvaluationMetrics::getVitruviusBlockingTotal),
+                    stddev(metrics, RobustnessEvaluationMetrics::getVitruviusBlockingTotal),
+                    avg(metrics, RobustnessEvaluationMetrics::getEmfCompareConflicts),
+                    stddev(metrics, RobustnessEvaluationMetrics::getEmfCompareConflicts),
+                    avg(metrics, RobustnessEvaluationMetrics::getConflictReduction),
+                    stddev(metrics, RobustnessEvaluationMetrics::getConflictReduction)));
         }
 
         return sb.toString();
@@ -92,7 +92,7 @@ public class TrackBReportGenerator {
         appendConsistencySummary(sb);
 
         // Per-family tables
-        Map<String, List<TrackBEvaluationMetrics>> byFamily = results.stream()
+        Map<String, List<RobustnessEvaluationMetrics>> byFamily = results.stream()
                 .collect(Collectors.groupingBy(m -> m.getConfig().family()));
 
         if (byFamily.containsKey("F1-HistoryLength")) {
@@ -119,7 +119,7 @@ public class TrackBReportGenerator {
         sb.append("| Family | Scenarios | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
         sb.append("|--------|:---------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
 
-        Map<String, List<TrackBEvaluationMetrics>> byFamily = results.stream()
+        Map<String, List<RobustnessEvaluationMetrics>> byFamily = results.stream()
                 .collect(Collectors.groupingBy(m -> m.getConfig().family()));
 
         for (var entry : byFamily.entrySet()) {
@@ -127,9 +127,9 @@ public class TrackBReportGenerator {
             sb.append(String.format("| %s | %d | %s | %s | %s | %.0f | %.0f |\n",
                     entry.getKey(),
                     metrics.size(),
-                    fmtAvgStd(metrics, TrackBEvaluationMetrics::getVitruviusBlockingTotal),
-                    fmtAvgStd(metrics, TrackBEvaluationMetrics::getEmfCompareConflicts),
-                    fmtAvgStd(metrics, TrackBEvaluationMetrics::getConflictReduction),
+                    fmtAvgStd(metrics, RobustnessEvaluationMetrics::getVitruviusBlockingTotal),
+                    fmtAvgStd(metrics, RobustnessEvaluationMetrics::getEmfCompareConflicts),
+                    fmtAvgStd(metrics, RobustnessEvaluationMetrics::getConflictReduction),
                     avg(metrics, m -> (int) m.getVitruviusMergeTimeMs()),
                     avg(metrics, m -> (int) m.getEmfCompareMergeTimeMs())));
         }
@@ -137,10 +137,10 @@ public class TrackBReportGenerator {
     }
 
     private void appendConsistencySummary(StringBuilder sb) {
-        long totalSuccessful = results.stream().filter(TrackBEvaluationMetrics::isVitruviusSuccess).count();
-        long verified = results.stream().filter(TrackBEvaluationMetrics::isConsistencyVerified).count();
+        long totalSuccessful = results.stream().filter(RobustnessEvaluationMetrics::isVitruviusSuccess).count();
+        long verified = results.stream().filter(RobustnessEvaluationMetrics::isConsistencyVerified).count();
         long notVerified = totalSuccessful - verified;
-        List<TrackBEvaluationMetrics> failures = results.stream()
+        List<RobustnessEvaluationMetrics> failures = results.stream()
                 .filter(m -> m.isVitruviusSuccess() && !m.isConsistencyVerified())
                 .toList();
 
@@ -160,12 +160,12 @@ public class TrackBReportGenerator {
         sb.append("\n");
     }
 
-    private void appendFamily1Table(StringBuilder sb, List<TrackBEvaluationMetrics> metrics) {
+    private void appendFamily1Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 1: History Length Scaling\n\n");
         sb.append("| Commits/Branch | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
         sb.append("|:--------------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
 
-        Map<Integer, List<TrackBEvaluationMetrics>> byK = metrics.stream()
+        Map<Integer, List<RobustnessEvaluationMetrics>> byK = metrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getConfig().commitsPerBranchA()));
 
         for (var entry : byK.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
@@ -174,12 +174,12 @@ public class TrackBReportGenerator {
         sb.append("\n");
     }
 
-    private void appendFamily2Table(StringBuilder sb, List<TrackBEvaluationMetrics> metrics) {
+    private void appendFamily2Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 2: Overlap Density\n\n");
         sb.append("| Overlap Fraction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
         sb.append("|:----------------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
 
-        Map<String, List<TrackBEvaluationMetrics>> byOverlap = metrics.stream()
+        Map<String, List<RobustnessEvaluationMetrics>> byOverlap = metrics.stream()
                 .collect(Collectors.groupingBy(m -> String.format("%.1f", m.getConfig().overlapFraction())));
 
         for (var entry : byOverlap.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
@@ -188,12 +188,12 @@ public class TrackBReportGenerator {
         sb.append("\n");
     }
 
-    private void appendFamily3Table(StringBuilder sb, List<TrackBEvaluationMetrics> metrics) {
+    private void appendFamily3Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 3: Reaction-Trigger Density\n\n");
         sb.append("| Reaction Fraction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
         sb.append("|:-----------------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
 
-        Map<String, List<TrackBEvaluationMetrics>> byRT = metrics.stream()
+        Map<String, List<RobustnessEvaluationMetrics>> byRT = metrics.stream()
                 .collect(Collectors.groupingBy(m -> String.format("%.1f", m.getConfig().reactionTriggerFraction())));
 
         for (var entry : byRT.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
@@ -202,12 +202,12 @@ public class TrackBReportGenerator {
         sb.append("\n");
     }
 
-    private void appendFamily4Table(StringBuilder sb, List<TrackBEvaluationMetrics> metrics) {
+    private void appendFamily4Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 4: Base State Size\n\n");
         sb.append("| Components | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Reduction (avg ± σ) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
         sb.append("|:----------:|:-----------------------:|:-----------------------:|:-------------------:|:------------------:|:-----------------:|\n");
 
-        Map<Integer, List<TrackBEvaluationMetrics>> bySize = metrics.stream()
+        Map<Integer, List<RobustnessEvaluationMetrics>> bySize = metrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getConfig().baseComponentCount()));
 
         for (var entry : bySize.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
@@ -216,13 +216,13 @@ public class TrackBReportGenerator {
         sb.append("\n");
     }
 
-    private void appendFamily5Table(StringBuilder sb, List<TrackBEvaluationMetrics> metrics) {
+    private void appendFamily5Table(StringBuilder sb, List<RobustnessEvaluationMetrics> metrics) {
         sb.append("## Family 5: Bidirectional Merge\n\n");
         sb.append("| Overlap | Reaction | Vit. Conflicts (avg ± σ) | EMF Conflicts (avg ± σ) | Direction (FORWARD/REVERSED) | Vit. Time (avg ms) | EMF Time (avg ms) |\n");
         sb.append("|:-------:|:--------:|:-----------------------:|:-----------------------:|:----------------------------:|:------------------:|:-----------------:|\n");
 
         // Group by overlap x reaction
-        Map<String, List<TrackBEvaluationMetrics>> byGroup = metrics.stream()
+        Map<String, List<RobustnessEvaluationMetrics>> byGroup = metrics.stream()
                 .collect(Collectors.groupingBy(m -> String.format("%.1f|%.1f",
                         m.getConfig().overlapFraction(), m.getConfig().reactionTriggerFraction())));
 
@@ -233,8 +233,8 @@ public class TrackBReportGenerator {
             long rev = group.stream().filter(m -> "REVERSED".equals(m.getMergeDirection())).count();
             sb.append(String.format("| %s | %s | %s | %s | %d / %d | %.0f | %.0f |\n",
                     parts[0], parts[1],
-                    fmtAvgStd(group, TrackBEvaluationMetrics::getVitruviusBlockingTotal),
-                    fmtAvgStd(group, TrackBEvaluationMetrics::getEmfCompareConflicts),
+                    fmtAvgStd(group, RobustnessEvaluationMetrics::getVitruviusBlockingTotal),
+                    fmtAvgStd(group, RobustnessEvaluationMetrics::getEmfCompareConflicts),
                     fwd, rev,
                     avg(group, m -> (int) m.getVitruviusMergeTimeMs()),
                     avg(group, m -> (int) m.getEmfCompareMergeTimeMs())));
@@ -242,26 +242,26 @@ public class TrackBReportGenerator {
         sb.append("\n");
     }
 
-    private void appendAggRow(StringBuilder sb, String label, List<TrackBEvaluationMetrics> group) {
+    private void appendAggRow(StringBuilder sb, String label, List<RobustnessEvaluationMetrics> group) {
         sb.append(String.format("| %s | %s | %s | %s | %.0f | %.0f |\n",
                 label,
-                fmtAvgStd(group, TrackBEvaluationMetrics::getVitruviusBlockingTotal),
-                fmtAvgStd(group, TrackBEvaluationMetrics::getEmfCompareConflicts),
-                fmtAvgStd(group, TrackBEvaluationMetrics::getConflictReduction),
+                fmtAvgStd(group, RobustnessEvaluationMetrics::getVitruviusBlockingTotal),
+                fmtAvgStd(group, RobustnessEvaluationMetrics::getEmfCompareConflicts),
+                fmtAvgStd(group, RobustnessEvaluationMetrics::getConflictReduction),
                 avg(group, m -> (int) m.getVitruviusMergeTimeMs()),
                 avg(group, m -> (int) m.getEmfCompareMergeTimeMs())));
     }
 
     @FunctionalInterface
     private interface IntMetric {
-        int get(TrackBEvaluationMetrics m);
+        int get(RobustnessEvaluationMetrics m);
     }
 
-    private static double avg(List<TrackBEvaluationMetrics> metrics, IntMetric extractor) {
+    private static double avg(List<RobustnessEvaluationMetrics> metrics, IntMetric extractor) {
         return metrics.stream().mapToInt(extractor::get).average().orElse(0.0);
     }
 
-    private static double stddev(List<TrackBEvaluationMetrics> metrics, IntMetric extractor) {
+    private static double stddev(List<RobustnessEvaluationMetrics> metrics, IntMetric extractor) {
         if (metrics.size() < 2) return 0.0;
         double mean = avg(metrics, extractor);
         double sumSq = metrics.stream()
@@ -273,7 +273,7 @@ public class TrackBReportGenerator {
         return Math.sqrt(sumSq / (metrics.size() - 1));
     }
 
-    private static String fmtAvgStd(List<TrackBEvaluationMetrics> metrics, IntMetric extractor) {
+    private static String fmtAvgStd(List<RobustnessEvaluationMetrics> metrics, IntMetric extractor) {
         return String.format("%.1f ± %.1f", avg(metrics, extractor), stddev(metrics, extractor));
     }
 }

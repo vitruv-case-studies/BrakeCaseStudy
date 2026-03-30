@@ -44,7 +44,7 @@ import tools.vitruv.merge.comparison.MergeEvaluationResult;
  * (consequential) changes. EMFCompare treats all changes equally, reporting
  * more conflicts — including false positives on derived model changes.
  */
-public class MergeApproachComparisonTest {
+public class BrakeConflictClassificationTest {
 
     private static final List<String> MODEL_FILES = List.of(
             "brakesystem.model", "example.cad", "safety.safety");
@@ -88,9 +88,9 @@ public class MergeApproachComparisonTest {
 
         // Save to timestamped output directory (outside target/ to survive clean builds)
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-        Path outputDir = Path.of("../output/evaluation-" + timestamp);
+        Path outputDir = Path.of("../output/brake-RQ1-conflicts-" + timestamp);
         Files.createDirectories(outputDir);
-        Files.writeString(outputDir.resolve("merge-comparison-table-" + timestamp + ".md"), table);
+        Files.writeString(outputDir.resolve("brake-RQ1-conflicts-" + timestamp + ".md"), table);
     }
 
     // ═══════════════════════════════════════════════════════════════════

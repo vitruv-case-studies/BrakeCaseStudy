@@ -77,47 +77,41 @@ echo "      MobSTr case study built successfully."
 next_step "Running BrakeCaseStudy comparison (Table 1a: Vitruvius vs EMFCompare)..."
 echo ""
 
-echo "--- BrakeCaseStudy Scenario Comparison (Vitruvius vs EMFCompare) ---"
+echo "--- Brake RQ1: Conflict Classification (Vitruvius vs EMFCompare) ---"
 cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
-    -Dtest=MergeApproachComparisonTest#generateComparisonTable \
-    -Dsurefire.useFile=false
-
-echo ""
-echo "--- Bidirectional Merge Scenarios (S8-S9) ---"
-cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
-    -Dtest=ThreeModelBranchingMergeTest#s8_bidirectionalMerge_reverseResolvesIndirectConflict,ThreeModelBranchingMergeTest#s9_bidirectionalMerge_bothDirectionsConflict \
+    -Dtest=BrakeConflictClassificationTest#generateComparisonTable \
     -Dsurefire.useFile=false
 
 # Run MobSTr comparison
-next_step "Running MobSTr comparison (Table 1b: Vitruvius vs EMFCompare)..."
+next_step "Running MobSTr comparison (RQ1: Vitruvius vs EMFCompare)..."
 echo ""
 
-echo "--- MobSTr Scenario Comparison (Vitruvius vs EMFCompare) ---"
+echo "--- MobSTr RQ1: Conflict Classification (Vitruvius vs EMFCompare) ---"
 cd "$WORKSPACE/mobstr-vsum" && ./mvnw -pl vsum test \
-    -Dtest=MobSTrComparisonTest \
+    -Dtest=MobSTrConflictClassificationTest \
     -Dsurefire.useFile=false
 
-# Track B evaluation (105 scenarios) — only with --all
+# RQ2: Robustness evaluation (105 scenarios) — only with --all
 if $RUN_TRACK_B; then
     echo ""
-    next_step "Running Track B evaluation (105 scenarios)..."
+    next_step "Running RQ2: Robustness evaluation (105 scenarios)..."
     echo ""
 
-    echo "--- Track B Evaluation (105 scenarios) ---"
+    echo "--- Brake RQ2: Robustness of Reduction (105 generated scenarios) ---"
     cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
-        -Dtest=TrackBEvaluationTest \
+        -Dtest=BrakeRobustnessEvaluationTest \
         -Dsurefire.useFile=false
 fi
 
-# Performance benchmarks — with --performance or --all
+# RQ3: Scalability benchmarks — with --performance or --all
 if $RUN_PERFORMANCE; then
     echo ""
-    next_step "Running performance benchmarks (E1-E5)..."
+    next_step "Running RQ3: Scalability benchmarks..."
     echo ""
 
-    echo "--- Performance Benchmarks (E1: model size, E2: history length — 5 reps + warmup) ---"
+    echo "--- Brake RQ3: Scalability (E1: model size, E2: history length) ---"
     cd "$WORKSPACE/BrakeCaseStudy" && ./mvnw -pl vsum test \
-        -Dtest="MergePerformanceBenchmarkTest#e1_fullSuite+e2_fullSuite" \
+        -Dtest="BrakeScalabilityBenchmarkTest#e1_fullSuite+e2_fullSuite" \
         -Dsurefire.useFile=false
 fi
 
@@ -125,13 +119,13 @@ echo ""
 echo "=================================================="
 echo " Evaluation complete."
 echo ""
-echo " Output locations:"
-echo "   BrakeCaseStudy comparison: BrakeCaseStudy/vsum/target/merge-comparison-table.md"
-echo "   MobSTr comparison:        mobstr-vsum/vsum/target/merge-comparison-table.md"
+echo " Output locations (timestamped, in output/ directories):"
+echo "   Brake RQ1:  BrakeCaseStudy/output/brake-RQ1-conflicts-*/"
+echo "   MobSTr RQ1: mobstr-vsum/output/mobstr-RQ1-conflicts-*/"
 if $RUN_TRACK_B; then
-    echo "   Track B results:           BrakeCaseStudy/vsum/target/trackb-summary.md"
+    echo "   Brake RQ2:  BrakeCaseStudy/output/brake-RQ2-robustness-*/"
 fi
 if $RUN_PERFORMANCE; then
-    echo "   Performance benchmarks:    BrakeCaseStudy/vsum/target/benchmark-results/"
+    echo "   Brake RQ3:  BrakeCaseStudy/output/brake-RQ3-scalability-*/"
 fi
 echo "=================================================="
