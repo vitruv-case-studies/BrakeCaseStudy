@@ -5,6 +5,7 @@ import edu.kit.ipd.sdq.metamodels.cad.Unit;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
 
 
 import "http://www.example.org/brakesystem" as brakesystem
@@ -85,13 +86,10 @@ routine updateSpecificationType(brakesystem::BrakeComponent comp) {
     match {
         val namespace = retrieve cad::Namespace corresponding to comp
     }
-    create {
-        val stringParameter = new cad::StringParameter
-    }
     update {
         var pSpecificationType = namespace.parameters.findFirst[p | p.name == "Specification Type"] as StringParameter
         if (pSpecificationType === null) {
-            pSpecificationType = stringParameter
+            pSpecificationType = CadFactory.eINSTANCE.createStringParameter()
             pSpecificationType.name = "Specification Type"
             namespace.parameters.add(pSpecificationType)
         }
@@ -103,13 +101,10 @@ routine updateOEMNumber(brakesystem::BrakeComponent comp) {
     match {
         val namespace = retrieve cad::Namespace corresponding to comp
     }
-    create {
-        val stringParameter = new cad::StringParameter
-    }
     update {
         var pOEM_Number = namespace.parameters.findFirst[p | p.name == "OEM Number"] as StringParameter
         if (pOEM_Number === null) {
-            pOEM_Number = stringParameter
+            pOEM_Number = CadFactory.eINSTANCE.createStringParameter()
             pOEM_Number.name = "OEM Number"
             namespace.parameters.add(pOEM_Number)
         }
@@ -121,13 +116,10 @@ routine updateFittingPosition(brakesystem::BrakeComponent comp) {
     match {
         val namespace = retrieve cad::Namespace corresponding to comp
     }
-    create {
-        val stringParameter = new cad::StringParameter
-    }
     update {
         var pFittingPosition = namespace.parameters.findFirst[p | p.name == "Fitting Position"] as StringParameter
         if (pFittingPosition === null) {
-            pFittingPosition = stringParameter
+            pFittingPosition = CadFactory.eINSTANCE.createStringParameter()
             pFittingPosition.name = "Fitting Position"
             namespace.parameters.add(pFittingPosition)
         }
@@ -192,13 +184,10 @@ routine updateDiameter(brakesystem::BrakeDisk disk) {
     match {
         val namespace = retrieve cad::Namespace corresponding to disk
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }   
     update {
         var pDiameter = namespace.parameters.findFirst[p | p.name == "Diameter"] as NumericParameter
         if (pDiameter === null) {
-            pDiameter = numericParameter
+            pDiameter = CadFactory.eINSTANCE.createNumericParameter()
             pDiameter.name = "Diameter"
             pDiameter.unit = Unit.MM
             namespace.parameters.add(pDiameter)
@@ -211,13 +200,10 @@ routine updateCenteringDiameter(brakesystem::BrakeDisk disk) {
     match {
         val namespace = retrieve cad::Namespace corresponding to disk
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pCenteringDiameter = namespace.parameters.findFirst[p | p.name == "Centering Diameter"] as NumericParameter
         if (pCenteringDiameter === null) {
-            pCenteringDiameter = numericParameter
+            pCenteringDiameter = CadFactory.eINSTANCE.createNumericParameter()
             pCenteringDiameter.name = "Centering Diameter"
             pCenteringDiameter.unit = Unit.MM
             namespace.parameters.add(pCenteringDiameter)
@@ -230,13 +216,10 @@ routine updateRimHoleNumber(brakesystem::BrakeDisk disk) {
     match {
         val namespace = retrieve cad::Namespace corresponding to disk
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pRimHoleNumber = namespace.parameters.findFirst[p | p.name == "Rim Hole Number"] as NumericParameter
         if (pRimHoleNumber === null) {
-            pRimHoleNumber = numericParameter
+            pRimHoleNumber = CadFactory.eINSTANCE.createNumericParameter()
             pRimHoleNumber.name = "Rim Hole Number"
             pRimHoleNumber.unit = Unit.COUNT
             namespace.parameters.add(pRimHoleNumber)
@@ -249,13 +232,10 @@ routine updateHoleArrangementNumber(brakesystem::BrakeDisk disk) {
     match {
         val namespace = retrieve cad::Namespace corresponding to disk
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pHoleArrangementNumber = namespace.parameters.findFirst[p | p.name == "Hole Arrangement Number"] as NumericParameter
         if (pHoleArrangementNumber === null) {
-            pHoleArrangementNumber = numericParameter
+            pHoleArrangementNumber = CadFactory.eINSTANCE.createNumericParameter()
             pHoleArrangementNumber.name = "Hole Arrangement Number"
             namespace.parameters.add(pHoleArrangementNumber)
         }
@@ -267,13 +247,10 @@ routine updateBoltHoleCircle(brakesystem::BrakeDisk disk) {
     match {
         val namespace = retrieve cad::Namespace corresponding to disk
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pBoltHoleCircle = namespace.parameters.findFirst[p | p.name == "Bolt Hole Circle"] as NumericParameter
         if (pBoltHoleCircle === null) {
-            pBoltHoleCircle = numericParameter
+            pBoltHoleCircle = CadFactory.eINSTANCE.createNumericParameter()
             pBoltHoleCircle.name = "Bolt Hole Circle"
             pBoltHoleCircle.unit = Unit.MM
             namespace.parameters.add(pBoltHoleCircle)
@@ -286,13 +263,10 @@ routine updateBrakeDiskThickness(brakesystem::BrakeDisk disk) {
     match {
         val namespace = retrieve cad::Namespace corresponding to disk
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pBrakeDiskThickness = namespace.parameters.findFirst[p | p.name == "Brake Disk Thickness"] as NumericParameter
         if (pBrakeDiskThickness === null) {
-            pBrakeDiskThickness = numericParameter
+            pBrakeDiskThickness = CadFactory.eINSTANCE.createNumericParameter()
             pBrakeDiskThickness.name = "Brake Disk Thickness"
             pBrakeDiskThickness.unit = Unit.MM
             namespace.parameters.add(pBrakeDiskThickness)
@@ -305,13 +279,10 @@ routine updateMinimumThickness(brakesystem::BrakeDisk disk) {
     match {
         val namespace = retrieve cad::Namespace corresponding to disk
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pMinimumThickness = namespace.parameters.findFirst[p | p.name == "Minimum Thickness"] as NumericParameter
         if (pMinimumThickness === null) {
-            pMinimumThickness = numericParameter
+            pMinimumThickness = CadFactory.eINSTANCE.createNumericParameter()
             pMinimumThickness.name = "Minimum Thickness"
             pMinimumThickness.unit = Unit.MM
             namespace.parameters.add(pMinimumThickness)
@@ -324,13 +295,10 @@ routine updateVentilated(brakesystem::BrakeDisk disk) {
     match {
         val namespace = retrieve cad::Namespace corresponding to disk
     }
-    create {
-        val booleanParameter = new cad::BooleanParameter
-    }
     update {
         var pVentilated = namespace.parameters.findFirst[p | p.name == "Ventilated"] as BooleanParameter
         if (pVentilated === null) {
-            pVentilated = booleanParameter
+            pVentilated = CadFactory.eINSTANCE.createBooleanParameter()
             pVentilated.name = "Ventilated"
             namespace.parameters.add(pVentilated)
         }
@@ -386,13 +354,10 @@ routine updatePistonDiameter(brakesystem::BrakeCaliper caliper) {
     match {
         val namespace = retrieve cad::Namespace corresponding to caliper
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pPistonDiameter = namespace.parameters.findFirst[p | p.name == "Piston Diameter"] as NumericParameter
         if (pPistonDiameter === null) {
-            pPistonDiameter = numericParameter
+            pPistonDiameter = CadFactory.eINSTANCE.createNumericParameter()
             pPistonDiameter.name = "Piston Diameter"
             pPistonDiameter.unit = Unit.MM
             namespace.parameters.add(pPistonDiameter)
@@ -405,13 +370,10 @@ routine updateBrakeDiskThicknessCaliper(brakesystem::BrakeCaliper caliper) {
     match {
         val namespace = retrieve cad::Namespace corresponding to caliper
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pBrakeDiskThickness = namespace.parameters.findFirst[p | p.name == "Brake Disk Thickness"] as NumericParameter
         if (pBrakeDiskThickness === null) {
-            pBrakeDiskThickness = numericParameter
+            pBrakeDiskThickness = CadFactory.eINSTANCE.createNumericParameter()
             pBrakeDiskThickness.name = "Brake Disk Thickness"
             pBrakeDiskThickness.unit = Unit.MM
             namespace.parameters.add(pBrakeDiskThickness)
@@ -452,13 +414,10 @@ routine updateWearWarning(brakesystem::BrakePad pad) {
     match {
         val namespace = retrieve cad::Namespace corresponding to pad
     }
-    create {
-        val booleanParameter = new cad::BooleanParameter
-    }
     update {
         var pWearWarning = namespace.parameters.findFirst[p | p.name == "Wear Warning"] as BooleanParameter
         if (pWearWarning === null) {
-            pWearWarning = booleanParameter
+            pWearWarning = CadFactory.eINSTANCE.createBooleanParameter()
             pWearWarning.name = "Wear Warning"
             namespace.parameters.add(pWearWarning)
         }
@@ -470,13 +429,10 @@ routine updateHeight(brakesystem::BrakePad pad) {
     match {
         val namespace = retrieve cad::Namespace corresponding to pad
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pHeight = namespace.parameters.findFirst[p | p.name == "Height"] as NumericParameter
         if (pHeight === null) {
-            pHeight = numericParameter
+            pHeight = CadFactory.eINSTANCE.createNumericParameter()
             pHeight.name = "Height"
             pHeight.unit = Unit.MM
             namespace.parameters.add(pHeight)
@@ -489,13 +445,10 @@ routine updateWidth(brakesystem::BrakePad pad) {
     match {
         val namespace = retrieve cad::Namespace corresponding to pad
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pWidth = namespace.parameters.findFirst[p | p.name == "Width"] as NumericParameter
         if (pWidth === null) {
-            pWidth = numericParameter
+            pWidth = CadFactory.eINSTANCE.createNumericParameter()
             pWidth.name = "Width"
             pWidth.unit = Unit.MM
             namespace.parameters.add(pWidth)
@@ -508,13 +461,10 @@ routine updateThickness(brakesystem::BrakePad pad) {
     match {
         val namespace = retrieve cad::Namespace corresponding to pad
     }
-    create {
-        val numericParameter = new cad::NumericParameter
-    }
     update {
         var pThickness = namespace.parameters.findFirst[p | p.name == "Thickness"] as NumericParameter
         if (pThickness === null) {
-            pThickness = numericParameter
+            pThickness = CadFactory.eINSTANCE.createNumericParameter()
             pThickness.name = "Thickness"
             pThickness.unit = Unit.MM
             namespace.parameters.add(pThickness)
@@ -549,13 +499,10 @@ routine updateThreadSize1(brakesystem::BrakeHose hose) {
     match {
         val namespace = retrieve cad::Namespace corresponding to hose
     }
-    create {
-        val stringParameter = new cad::StringParameter
-    }
     update {
         var pThreadSize1 = namespace.parameters.findFirst[p | p.name == "Thread 1"] as StringParameter
         if (pThreadSize1 === null) {
-            pThreadSize1 = stringParameter
+            pThreadSize1 = CadFactory.eINSTANCE.createStringParameter()
             pThreadSize1.name = "Thread 1"
             namespace.parameters.add(pThreadSize1)
         }
@@ -567,13 +514,10 @@ routine updateThreadSize2(brakesystem::BrakeHose hose) {
     match {
         val namespace = retrieve cad::Namespace corresponding to hose
     }
-    create {
-        val stringParameter = new cad::StringParameter
-    }
     update {
         var pThreadSize2 = namespace.parameters.findFirst[p | p.name == "Thread 2"] as StringParameter
         if (pThreadSize2 === null) {
-            pThreadSize2 = stringParameter
+            pThreadSize2 = CadFactory.eINSTANCE.createStringParameter()
             pThreadSize2.name = "Thread 2"
             namespace.parameters.add(pThreadSize2)
         }
@@ -585,13 +529,10 @@ routine updateLengthHose(brakesystem::BrakeHose hose) {
     match {
         val namespace = retrieve cad::Namespace corresponding to hose
     }
-    create {
-        val numericParameter = new cad::NumericParameter 
-    }
     update {
         var pLength = namespace.parameters.findFirst[p | p.name == "Length"] as NumericParameter
         if (pLength === null) {
-            pLength = numericParameter
+            pLength = CadFactory.eINSTANCE.createNumericParameter()
             pLength.name = "Length"
             pLength.unit = Unit.MM
             namespace.parameters.add(pLength)
@@ -631,13 +572,10 @@ routine updateSensorType(brakesystem::ABSSensor sensor) {
     match {
         val namespace = retrieve cad::Namespace corresponding to sensor
     }
-    create {
-        val stringParameter = new cad::StringParameter
-    }
     update {
         var pSensorType = namespace.parameters.findFirst[p | p.name == "Sensor Type"] as StringParameter
         if (pSensorType === null) {
-            pSensorType = stringParameter
+            pSensorType = CadFactory.eINSTANCE.createStringParameter()
             pSensorType.name = "Sensor Type"
             namespace.parameters.add(pSensorType)
         }
@@ -649,19 +587,15 @@ routine updateFittingDepth(brakesystem::ABSSensor sensor) {
     match {
         val namespace = retrieve cad::Namespace corresponding to sensor
     }
-    create {
-        val numericParameter = new cad::NumericParameter 
-    }
     update {
         var pFittingDepth = namespace.parameters.findFirst[p | p.name == "Fitting Depth"] as NumericParameter
         if (pFittingDepth === null) {
-            pFittingDepth = numericParameter
+            pFittingDepth = CadFactory.eINSTANCE.createNumericParameter()
             pFittingDepth.name = "Fitting Depth"
             pFittingDepth.unit = Unit.MM
             namespace.parameters.add(pFittingDepth)
-        } 
+        }
         pFittingDepth.setValue(sensor.fittingDepth)
-        
     }
 }
 
@@ -669,13 +603,10 @@ routine updateNumberOfPins(brakesystem::ABSSensor sensor) {
     match {
         val namespace = retrieve cad::Namespace corresponding to sensor
     }
-    create {
-        val numericParameter = new cad::NumericParameter 
-    }
     update {
         var pNumberOfPins = namespace.parameters.findFirst[p | p.name == "Number of Pins"] as NumericParameter
         if (pNumberOfPins === null) {
-            pNumberOfPins = numericParameter
+            pNumberOfPins = CadFactory.eINSTANCE.createNumericParameter()
             pNumberOfPins.name = "Number of Pins"
             pNumberOfPins.unit = Unit.COUNT
             namespace.parameters.add(pNumberOfPins)
@@ -688,13 +619,10 @@ routine updateLength(brakesystem::ABSSensor sensor) {
     match {
         val namespace = retrieve cad::Namespace corresponding to sensor
     }
-    create {
-        val numericParameter = new cad::NumericParameter 
-    }
     update {
         var pLength = namespace.parameters.findFirst[p | p.name == "Length"] as NumericParameter
         if (pLength === null) {
-            pLength = numericParameter
+            pLength = CadFactory.eINSTANCE.createNumericParameter()
             pLength.name = "Length"
             pLength.unit = Unit.MM
             namespace.parameters.add(pLength)
