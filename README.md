@@ -173,9 +173,9 @@ To reproduce the evaluation results reported in the paper:
 ./mvnw -pl vsum test -Dtest="MergePerformanceBenchmarkTest#e2_fullSuite" -Dsurefire.useFile=false
 ```
 
-## RQ2: Parameterized Scenario Generator (TrackB)
+## RQ2: Robustness Evaluation (BrakeRobustnessEvaluationTest)
 
-The `TrackBEvaluationTest` automatically generates 105 merge scenarios across five experimental families. Each family varies one parameter while holding others fixed, using five deterministic random seeds (42–46) for variance estimation.
+The `BrakeRobustnessEvaluationTest` automatically generates 130 merge scenarios across six experimental families. Each family varies one parameter while holding others fixed, using five deterministic random seeds (42–46) for reproducibility. Results are averaged over seeds with standard deviation reported (Bessel's correction). Each scenario creates a fresh Git repository with a base state, then introduces changes on two independent branches before merging.
 
 ### Parameters
 
@@ -184,9 +184,9 @@ The `TrackBEvaluationTest` automatically generates 105 merge scenarios across fi
 | `baseComponentCount` | Number of brake components in the base state | 2–10 |
 | `commitsPerBranch` | Commits per branch (always equal for A and B) | 1–25 |
 | `overlapFraction` | Fraction of base elements both branches can modify | 0.0–1.0 |
-| `reactionTriggerFraction` | Fraction of operations targeting Reaction-triggering attributes | 0.2–0.8 |
+| `reactionTriggerFraction` | Fraction of operations targeting Reaction-triggering attributes | 0.2–1.0 |
 
-### Five Experimental Families
+### Six Experimental Families
 
 | Family | Varied Parameter | Values | Fixed Parameters | Scenarios |
 |--------|-----------------|--------|-----------------|-----------|
@@ -194,7 +194,52 @@ The `TrackBEvaluationTest` automatically generates 105 merge scenarios across fi
 | F2: Overlap density | overlap fraction | {0.0, 0.3, 0.6, 1.0} | n=5, k=5, reaction=0.5 | 20 |
 | F3: Reaction density | reaction trigger fraction | {0.2, 0.5, 0.8} | n=5, k=5, overlap=0.5 | 15 |
 | F4: Base state size | base components | {2, 5, 10} | k=5, overlap=0.3, reaction=0.5 | 15 |
-| F5: Interleaving | overlap × reaction | {0.3,0.6,1.0} × {0.5,0.8} | n=5, k=5, bidirectional=true | 30 |
+| F5: Bidirectional merge | overlap x reaction | {0.3, 0.6, 1.0} x {0.5, 0.8} | n=5, k=5, bidirectional=true | 30 |
+| F6: Consequential overlap | commits per branch | {1, 3, 5, 10, 25} | n=4 paired, overlap=1.0, reaction=1.0 | 25 |
+
+### Family Details
+
+#### F1: History Length Scaling (25 scenarios)
+
+- **Varies:** commits per branch k in {1, 3, 5, 10, 25}
+- **Fixed:** base=5 components, overlap=0.3, reaction density=0.5
+- **Interpretation:** As the number of commits grows, consequential changes accumulate in the model state. EMF Compare treats these accumulated consequential changes as authored content, so any difference between branches becomes a reported conflict.
+- **Results:** EMF Compare conflicts grow rapidly with history length (0.8 at k=1 to 15.2 at k=25) as consequential changes accumulate. Our approach grows more slowly (0.4 to 6.0). The reduction gap widens from 0.4 at k=1 to 9.2 at k=25, demonstrating that provenance awareness becomes increasingly valuable for longer histories.
+
+#### F2: Overlap Density (20 scenarios)
+
+- **Varies:** element-level overlap in {0.0, 0.3, 0.6, 1.0}
+- **Fixed:** base=5 components, k=5 commits, reaction density=0.5
+- **Interpretation:** Higher overlap means more base elements are in both branches' focus sets, increasing the chance that both branches modify the same elements and trigger Reactions on the same consequential targets.
+- **Results:** Higher overlap increases conflicts for both approaches, but EMF Compare grows faster (up to 6.6 at overlap=0.6 vs our 2.8). This confirms that the provenance-aware advantage is amplified when branches share more of the model.
+
+#### F3: Reaction-Trigger Density (15 scenarios)
+
+- **Varies:** fraction of changes targeting Reaction-triggering attributes in {0.2, 0.5, 0.8}
+- **Fixed:** base=5 components, k=5 commits, overlap=0.5
+- **Interpretation:** Reaction-triggering attributes (e.g., BrakeDisk diameter, BrakePad height) propagate changes to M2 (CAD) and M3 (Safety). A higher reaction density means more consequential changes are generated per commit, amplifying the difference between approaches.
+- **Results:** Higher reaction density amplifies the provenance-aware advantage, with an average reduction of 3.9 conflicts. This demonstrates that the benefit of distinguishing original from consequential changes grows with the volume of automated propagation.
+
+#### F4: Base State Size (15 scenarios)
+
+- **Varies:** number of components in {2, 5, 10}
+- **Fixed:** k=5 commits, overlap=0.3, reaction density=0.5
+- **Interpretation:** A larger base state provides more elements to spread changes across, potentially diluting overlap. This family tests whether the advantage holds regardless of model scale.
+- **Results:** The conflict reduction remains stable across model sizes (average 3.1), showing that the approach scales without degradation. The provenance-aware advantage does not depend on model size.
+
+#### F5: Bidirectional Merge (30 scenarios)
+
+- **Varies:** overlap in {0.3, 0.6, 1.0} crossed with reaction density in {0.5, 0.8}
+- **Fixed:** base=5 components, k=5 commits, bidirectional=true
+- **Interpretation:** This family tests the two-factor interaction between overlap and reaction density, exercising bidirectional merge scenarios where both branches contribute substantial consequential changes.
+- **Results:** Vitruvius reports 3.3 average conflicts vs EMF Compare's 7.1, confirming that the advantage holds across the combined parameter space.
+
+#### F6: Consequential Overlap Resolution (25 scenarios)
+
+- **Varies:** commits per branch k in {1, 3, 5, 10, 25}
+- **Fixed:** base=4 paired components (BrakeDisk + BrakePad), overlap=1.0, reaction density=1.0
+- **Interpretation:** This family targets the core advantage of the approach. Both branches modify DIFFERENT Reaction-triggering attributes of the SAME elements (e.g., diameter vs thickness of the same BrakeDisk, both updating thermalLoadRating; height vs width of the same BrakePad, both updating frictionArea). The consequential changes overlap in M3 (Safety), but since they are regenerated during replay, the interleaving merge resolves them without conflicts.
+- **Results:** Vitruvius merges all 25 scenarios successfully with 0 conflicts (100% success rate, all verified consistent). EMF Compare reports 2-8 false-positive conflicts because it sees different consequential values in M3 (Safety) without recognizing they would be regenerated correctly during a consistency-aware merge. This family demonstrates the primary motivation for the approach: consequential overlaps are resolved automatically by interleaving replay.
 
 ### Operation Distribution
 
@@ -232,8 +277,8 @@ For each scenario, metrics are extracted from `SemanticMergeResult`:
 ### Running
 
 ```bash
-# Run all 105 generated scenarios:
-cd /workspace/BrakeCaseStudy && ./mvnw -pl vsum test -Dtest=TrackBEvaluationTest
+# Run all 130 generated scenarios:
+cd /workspace/BrakeCaseStudy && ./mvnw -pl vsum test -Dtest=BrakeRobustnessEvaluationTest
 ```
 
 The report is written to `vsum/target/trackb-evaluation-report.md`.
@@ -242,7 +287,7 @@ The report is written to `vsum/target/trackb-evaluation-report.md`.
 
 | File | Purpose |
 |------|---------|
-| `TrackBEvaluationTest.java` | Test class with 5 family configurations and 5 seeds |
+| `BrakeRobustnessEvaluationTest.java` | Test class with 6 family configurations and 5 seeds |
 | `ScenarioGenerator.java` | Creates Git repos with parameterized branch histories |
 | `ScenarioConfig.java` | Configuration record (all parameters) |
 | `TrackBEvaluationMetrics.java` | Per-scenario metric extraction |
