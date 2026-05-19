@@ -36,3 +36,1126 @@ routine createAndRegisterRoot(brakesystem::Brakesystem repo) {
     }
 }
 
+// Reactions for Brake component Parameter Changes
+
+
+reaction SpecificationTypeChanged {
+    after attribute replaced at brakesystem::BrakeComponent[specificationType]
+    call updateSpecificationType(affectedEObject)
+}
+
+reaction OEMNumberChanged {
+    after attribute replaced at brakesystem::BrakeComponent[OEM_number]
+    call updateOEMNumber(affectedEObject)
+}
+
+reaction FittingPositionChanged {
+    after attribute replaced at brakesystem::BrakeComponent[fittingPosition]
+    call updateFittingPosition(affectedEObject)
+}
+
+reaction IdChanged {
+    after attribute replaced at brakesystem::BrakeComponent[id]
+    call updateId(affectedEObject)
+}
+
+
+// Routines for Brake component parameter changes
+
+routine updateSpecificationType(brakesystem::BrakeComponent comp) {
+    match {
+        val block = retrieve simulink::Block corresponding to comp
+    }
+     create {
+        val parameter = new simulink::Parameter
+    }
+    
+    update {
+        var pSpecificationType = block.parameters.findFirst[p | p.name == "Specification Type"]
+        if (pSpecificationType === null) {
+            pSpecificationType = parameter
+            pSpecificationType.name = "Specification Type"
+            pSpecificationType.type = "string"
+            block.parameters.add(pSpecificationType)
+        }
+        pSpecificationType.value = comp.specificationType
+    }
+}
+
+routine updateOEMNumber(brakesystem::BrakeComponent comp) {
+    match {
+        val block = retrieve simulink::Block corresponding to comp
+    }
+    create {
+        val parameter = new simulink::Parameter
+    }
+    update {
+        var pOEM_Number = block.parameters.findFirst[p | p.name == "OEM Number"]
+        if (pOEM_Number === null) {
+            pOEM_Number = parameter
+            pOEM_Number.name = "OEM Number"
+            pOEM_Number.type = "string"
+            block.parameters.add(pOEM_Number)
+        }
+        pOEM_Number.value = comp.OEM_number
+    }
+}
+
+
+routine updateFittingPosition(brakesystem::BrakeComponent comp) {
+    match {
+        val block = retrieve simulink::Block corresponding to comp
+    }
+    create {
+        val parameter = new simulink::Parameter
+    }
+    update {
+        var pFittingPosition = block.parameters.findFirst[p | p.name == "Fitting Position"]
+        if (pFittingPosition === null) {
+            pFittingPosition = parameter
+            pFittingPosition.name = "Fitting Position"
+            pFittingPosition.type = "string"
+            block.parameters.add(pFittingPosition)
+        }
+        pFittingPosition.value = comp.fittingPosition
+    }
+}
+
+routine updateId(brakesystem::BrakeComponent comp) {
+    match {
+        val block = retrieve simulink::Block corresponding to comp
+    }
+    update {
+        block.name = comp.id
+    }
+}
+
+
+
+
+
+
+
+//Reaction or inserting a Brake Disk
+
+reaction BrakeDiskInserted {
+    after element brakesystem::BrakeDisk inserted in brakesystem::Brakesystem[BrakeComponents]
+    call {
+         createAndRegisterBrakeDisk(newValue)
+         addBrakeDiskSpecificParameters(newValue)
+        }
+}
+
+
+// Routine for creating a Simulink block and register it
+routine createAndRegisterBrakeDisk(brakesystem::BrakeDisk disk) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to disk.eContainer()
+        require absence of simulink::Block corresponding to disk
+    }
+
+create {
+       // Create the Simulink block
+        val diskBlock = new simulink::Block
+    }
+    update {
+        diskBlock.name = disk.id
+        // Add the block to the Simulink model
+        mSimulink.contains += diskBlock
+        // create correspondence for retrival
+        addCorrespondenceBetween(disk, diskBlock)
+    }
+
+  }
+
+
+// Routine for Add Brake Disk-Specific parameters
+routine addBrakeDiskSpecificParameters(brakesystem::BrakeDisk disk) {
+    match {
+        // Retrieve the block corresponding to this Brake Disk
+        val diskBlock = retrieve Simulink::Block corresponding to disk
+    }
+    create {
+        // Add parameters specific to BrakeDisk
+        val pSpecificationType = new simulink::Parameter
+        val pOEM_Number = new simulink::Parameter
+        val pFittingPosition = new simulink::Parameter
+        val pDiameter = new simulink::Parameter
+        val pCenteringDiameter = new simulink::Parameter
+        val pRimHoleNumber = new simulink::Parameter
+        val pHoleArrangementNumber = new simulink::Parameter
+        val pBoltHoleCircle = new simulink::Parameter
+        val pBrakeDiskThickness = new simulink::Parameter
+        val pMinimumThickness = new simulink::Parameter
+        val pVentilated = new simulink::Parameter
+    }
+  update {
+   
+       // Assign parameter to the block 
+      
+        
+        // Common BrakeComponent parameters
+        diskBlock.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.type = "string"
+        pSpecificationType.value = disk.specificationType
+        
+        diskBlock.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.type = "string"
+        pOEM_Number.value = disk.OEM_number
+        
+        diskBlock.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.type = "string"
+        pFittingPosition.value = disk.fittingPosition
+        
+        // BrakeDisk-specific parameters
+        diskBlock.parameters.add(pDiameter)
+        pDiameter.name = "Diameter"
+        pDiameter.type = "int32"
+        pDiameter.value = disk.diameterInMM.toString()
+        
+        diskBlock.parameters.add(pCenteringDiameter)
+        pCenteringDiameter.name = "Centering Diameter"
+        pCenteringDiameter.type = "int32"
+        pCenteringDiameter.value = disk.centeringDiameterInMM.toString()
+        
+        diskBlock.parameters.add(pRimHoleNumber)
+        pRimHoleNumber.name = "Rim Hole Number"
+        pRimHoleNumber.type = "int32"
+        pRimHoleNumber.value = disk.rimHoleNumber.toString()
+        
+        diskBlock.parameters.add(pHoleArrangementNumber)
+        pHoleArrangementNumber.name = "Hole Arrangement Number"
+        pHoleArrangementNumber.type = "int32"
+        pHoleArrangementNumber.value = disk.holeArrangementNumber.toString()
+        
+        diskBlock.parameters.add(pBoltHoleCircle)
+        pBoltHoleCircle.name = "Bolt Hole Circle"
+        pBoltHoleCircle.type = "int32"
+        pBoltHoleCircle.value = disk.boltHoleCircleInMM.toString()
+        
+        diskBlock.parameters.add(pBrakeDiskThickness)
+        pBrakeDiskThickness.name = "Brake Disk Thickness"
+        pBrakeDiskThickness.type = "int32"
+        pBrakeDiskThickness.value = disk.brakeDiskThicknessInMM.toString()
+        
+        diskBlock.parameters.add(pMinimumThickness)
+        pMinimumThickness.name = "Minimum Thickness"
+        pMinimumThickness.type = "int32"
+        pMinimumThickness.value = disk.minimumThicknessInMM.toString()
+        
+        diskBlock.parameters.add(pVentilated)
+        pVentilated.name = "Ventilated"
+        pVentilated.type = "boolean"
+        pVentilated.value = disk.ventilated.toString()
+        
+       
+        
+    }
+}
+        
+// Reactions for Brake Disk Parameter Changes
+
+
+reaction DiameterChanged {
+    after attribute replaced at brakesystem::BrakeDisk[diameterInMM]
+    call updateDiameter(affectedEObject)
+}
+
+reaction CenteringDiameterChanged {
+    after attribute replaced at brakesystem::BrakeDisk[centeringDiameterInMM]
+    call updateCenteringDiameter(affectedEObject)
+}
+
+reaction RimHoleNumberChanged {
+    after attribute replaced at brakesystem::BrakeDisk[rimHoleNumber]
+    call updateRimHoleNumber(affectedEObject)
+}
+
+reaction HoleArrangementNumberChanged {
+    after attribute replaced at brakesystem::BrakeDisk[holeArrangementNumber]
+    call updateHoleArrangementNumber(affectedEObject)
+}
+
+reaction BoltHoleCircleChanged {
+    after attribute replaced at brakesystem::BrakeDisk[boltHoleCircleInMM]
+    call updateBoltHoleCircle(affectedEObject)
+}
+
+reaction BrakeDiskThicknessChanged {
+    after attribute replaced at brakesystem::BrakeDisk[brakeDiskThicknessInMM]
+    call updateBrakeDiskThickness(affectedEObject)
+}
+
+reaction MinimumThicknessChanged {
+    after attribute replaced at brakesystem::BrakeDisk[minimumThicknessInMM]
+    call updateMinimumThickness(affectedEObject)
+}
+
+reaction VentilatedChanged {
+    after attribute replaced at brakesystem::BrakeDisk[ventilated]
+    call updateVentilated(affectedEObject)
+}
+
+// Routines for parameter changes
+
+routine updateDiameter(brakesystem::BrakeDisk disk) {
+    match {
+        val diskBlock = retrieve simulink::Block corresponding to disk
+    }
+    
+    update {
+        var pDiameter = diskBlock.parameters.findFirst[p | p.name == "Diameter"]
+        if (pDiameter === null) {
+            pDiameter = new simulink::Parameter
+            pDiameter.name = "Diameter"
+            pDiameter.type = "int32"
+            diskBlock.parameters.add(pDiameter)
+        }
+        pDiameter.value = disk.diameterInMM.toString()
+    }
+}
+
+routine updateCenteringDiameter(brakesystem::BrakeDisk disk) {
+    match {
+        val diskBlock = retrieve simulink::Block corresponding to disk
+    }
+    update {
+        var pCenteringDiameter = diskBlock.parameters.findFirst[p | p.name == "Centering Diameter"]
+        if (pCenteringDiameter === null) {
+            pCenteringDiameter = new simulink::Parameter
+            pCenteringDiameter.name = "Centering Diameter"
+            pCenteringDiameter.type = "int32"
+            diskBlock.parameters.add(pCenteringDiameter)
+        }
+        pCenteringDiameter.value = disk.centeringDiameterInMM.toString()
+    }
+}
+
+routine updateRimHoleNumber(brakesystem::BrakeDisk disk) {
+    match {
+        val diskBlock = retrieve simulink::Block corresponding to disk
+    }
+    
+    update {
+        var pRimHoleNumber = dikBlock.parameters.findFirst[p | p.name == "Rim Hole Number"]
+        if (pRimHoleNumber === null) {
+            pRimHoleNumber = new simulink::Parameter
+            pRimHoleNumber.name = "Rim Hole Number"
+            pRimHoleNumber.type = "int32"
+            diskBlock.parameters.add(pRimHoleNumber)
+        }
+        pRimHoleNumber.value = disk.rimHoleNumber.toString()
+    }
+}
+
+routine updateHoleArrangementNumber(brakesystem::BrakeDisk disk) {
+    match {
+        val diskBlock = retrieve simulink::Block corresponding to disk
+    }
+    
+    update {
+        var pHoleArrangementNumber = diskBlock.parameters.findFirst[p | p.name == "Hole Arrangement Number"]
+        if (pHoleArrangementNumber === null) {
+            pHoleArrangementNumber = new simulink::Parameter
+            pHoleArrangementNumber.name = "Hole Arrangement Number"
+            pHoleArrangementNumber.type = "int32"
+            diskBlock.parameters.add(pHoleArrangementNumber)
+        }
+        pHoleArrangementNumber.value = disk.holeArrangementNumber.toString()
+    }
+}
+
+routine updateBoltHoleCircle(brakesystem::BrakeDisk disk) {
+    match {
+        val diskBlock = retrieve simulink::Block corresponding to disk
+    }
+    update {
+        var pBoltHoleCircle = diskBlock.parameters.findFirst[p | p.name == "Bolt Hole Circle"]
+        if (pBoltHoleCircle === null) {
+            pBoltHoleCircle = new simulink::Parameter
+            pBoltHoleCircle.name = "Bolt Hole Circle"
+            pBoltHoleCircle.type = "int32"
+            diskBlock.parameters.add(pBoltHoleCircle)
+        }
+        pBoltHoleCircle.value = disk.boltHoleCircleInMM.toString()
+    }
+}
+
+routine updateBrakeDiskThickness(brakesystem::BrakeDisk disk) {
+    match {
+        val diskBlock = retrieve simulink::Block corresponding to disk
+    }
+   
+    update {
+        var pBrakeDiskThickness = diskBlock.parameters.findFirst[p | p.name == "Brake Disk Thickness"]
+        if (pBrakeDiskThickness === null) {
+            pBrakeDiskThickness = new simulink::Parameter
+            pBrakeDiskThickness.name = "Brake Disk Thickness"
+            pBrakeDiskThickness.type = "int32"
+            diskBlock.parameters.add(pBrakeDiskThickness)
+        }
+        pBrakeDiskThickness.value = disk.brakeDiskThicknessInMM.toString()
+    }
+}
+
+routine updateMinimumThickness(brakesystem::BrakeDisk disk) {
+    match {
+        val diskBlock = retrieve simulink::Block corresponding to disk
+    }
+    
+    update {
+        var pMinimumThickness = diskBlock.parameters.findFirst[p | p.name == "Minimum Thickness"]
+        if (pMinimumThickness === null) {
+            pMinimumThickness = new simulink::Parameter
+            pMinimumThickness.name = "Minimum Thickness"
+            pMinimumThickness.type = "int32"
+            diskBlock.parameters.add(pMinimumThickness)
+        }
+        pMinimumThickness.value = disk.minimumThicknessInMM.toString()
+    }
+}
+
+routine updateVentilated(brakesystem::BrakeDisk disk) {
+    match {
+        val diskBlock = retrieve simulink::Block corresponding to disk
+    }
+    
+    update {
+        var pVentilated = diskBlock.parameters.findFirst[p | p.name == "Ventilated"]
+        if (pVentilated === null) {
+            pVentilated = new simulink::Parameter
+            pVentilated.name = "Ventilated"
+            pVentilated.type = "boolean"
+            diskBlock.parameters.add(pVentilated)
+        }
+        pVentilated.value = disk.ventilated.toString()
+    }
+}
+
+
+\\ Reactions for inserting Brake Caliper
+
+reaction BrakeCaliperInserted {
+    after element brakesystem::BrakeCaliper inserted in brakesystem::Brakesystem[BrakeComponents]
+    call {
+         createAndRegisterBrakeCaliper(newValue)
+         addBrakeCaliperSpecificParameters(newValue)
+        }
+}
+
+
+// Routine for creating a Simulink subsystem and register it
+
+
+routine createAndRegisterBrakeCaliper(brakesystem::BrakeCaliper caliper) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to caliper.eContainer()
+        require absence of simulink::SubSystem corresponding to caliper
+    }
+
+create {
+       // Create the Simulink susbsystem
+
+        val subsystem = new simulink::SubSystem
+    }
+    update {
+        susbsystem.name = caliper.id
+        // Add the susbsystem to the Simulink model
+        mSimulink.contains += subsystem
+        // create correspondence for retrival
+        addCorrespondenceBetween(caliper, subsystem)
+    }
+
+ }
+
+
+
+
+
+// Routine for Add Brake Caliper-Specific parameters
+routine addBrakeCaliperSpecificParameters(brakesystem::BrakeCaliper caliper) {
+    match {
+        // Retrieve the susbsystem corresponding to this Brake Caliper
+        val subsystem = retrieve Simulink::SubSystem corresponding to caliper
+    }
+    create {
+        // Add parameters specific to BrakeCaliper
+        
+        val pSpecificationType = new simulink::Parameter
+        val pOEM_Number = new simulink::Parameter
+        val pFittingPosition = new simulink::Parameter
+        val pPistonDiameter = new simulink::Parameter
+        val pBrakeDiskThickness =  new Simulink::Parameter
+       
+    }
+  update {
+   
+       // Assign parameter to the subsystem 
+      
+        
+        // Common BrakeComponent parameters
+        subsystem.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.type = "string"
+        pSpecificationType.value = caliper.specificationType
+        
+        subsystem.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.type = "string"
+        pOEM_Number.value = caliper.OEM_number
+        
+        subsystem.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.type = "string"
+        pFittingPosition.value = caliper.fittingPosition
+        
+        // Brake Caliper-specific parameters
+
+        subsystem.parameters.add(pPistonDiameter)
+        pPistonDiameter.name = "Piston Diameter"
+        pPisoDiameter.type = "int32"
+        pPistonDiameter.value = caliper.pistonDiameterInMM.toString()
+        
+        susbsystem.parameters.add(pBrakeDiskThickness)
+        pBrakeDiskThickness.name = "Brake Disk Thickness"
+        pBrakeDiskThickness.type = "int32"
+        pBrakeDiskThickness.value = caliper.brakeDiskThickness.toString()
+        
+        
+        
+    }
+}
+
+
+// Reactions for Brake Caliper Parameter Changes
+
+reaction PistonDiameterChanged {
+    after attribute replaced at brakesystem::BrakeCaliper[pistonDiameterInMM]
+    call updatePistonDiameter(affectedEObject)
+}
+
+reaction BrakeDiskThicknessChangedCaliper {
+    after attribute replaced at brakesystem::BrakeCaliper[brakeDiskThickness]
+    call updateBrakeDiskThicknessCaliper(affectedEObject)
+}
+
+
+// Routines for Brake Caliper parameter Changes
+
+
+routine updatePistonDiameter(brakesystem::BrakeCaliper caliper) {
+    match {
+        val subsystem = retrieve simulink::SubSystem corresponding to caliper
+    }
+    
+    update {
+        var pPistonDiameter = subsystem.parameters.findFirst[p | p.name == "Piston Diameter"]
+        if (pPistonDiameter === null) {
+            pPistonDiameter = new simulink::Parameter
+            pPistonDiameter.name = "Piston Diameter"
+            pPistonDiameter.type = "int32"
+            subsystem.parameters.add(pPistonDiameter)
+        }
+        pPistonDiameter.value = caliper.pistonDiameterInMM.toString()
+    }
+}
+
+
+
+
+routine updateBrakeDiskThicknessCaliper(brakesystem::BrakeCaliper caliper) {
+    match {
+        val subsystem = retrieve simulink::SubSystem corresponding to caliper
+    }
+  
+    update {
+        var pBrakeDiskThickness = subsystem.parameters.findFirst[p | p.name == "Brake Disk Thickness"]
+        if (pBrakeDiskThickness === null) {
+            pBrakeDiskThickness = new simulink::Parameter
+            pBrakeDiskThickness.name = "Brake Disk Thickness"
+            pBrakeDiskThickness.type = "int32"
+            subsystem.parameters.add(pBrakeDiskThickness)
+        }
+        pBrakeDiskThickness.value = caliper.brakeDiskThickness.toString()
+    }
+}
+
+
+// Reactions for Brake Pad
+
+
+reaction BrakePadInserted {
+    after element brakesystem::BrakePad inserted in brakesystem::Brakesystem[BrakeComponents]
+    call {
+         createAndRegisterBrakePad(newValue)
+         addBrakePadSpecificParameters(newValue)
+        }
+}
+
+
+// Routine for creating a Simulink block and register it
+
+
+routine createAndRegisterBrakePad(brakesystem::BrakePad pad) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to pad.eContainer()
+        require absence of simulink::Block corresponding to pad
+    }
+
+create {
+       // Create the Simulink block
+
+        val padBlock = new simulink::Block
+    }
+    update {
+        padBlock.name = pad.id
+        // Add the susbsystem to the Simulink model
+        mSimulink.contains += padBlock
+        // create correspondence for retrival
+        addCorrespondenceBetween(pad, padBlock)
+    }
+
+ }
+
+
+// Routine for Add Brake Pad-Specific parameters
+routine addBrakePadSpecificParameters(brakesystem::BrakePad pad) {
+    match {
+        // Retrieve the block corresponding to this Brake Pad
+        val padBlock = retrieve Simulink::Block corresponding to pad
+    }
+    create {
+        // Add parameters specific to BrakePad
+        val pSpecificationType = new simulink::Parameter
+        val pOEM_Number = new simulink::Parameter
+        val pFittingPosition = new simulink::Parameter
+        val pHeight = new simulink::Parameter
+        val pWidth = new simulink::Parameter
+        val pThickness = new simulink::Parameter
+        val pWearWarning = new simulink::Parameter
+    }
+    }
+  update {
+   
+       // Assign parameter to the block 
+      
+        
+        // Common BrakeComponent parameters
+        padBlock.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.type = "string"
+        pSpecificationType.value = pad.specificationType
+        
+        padBlock.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.type = "string"
+        pOEM_Number.value = pad.OEM_number
+
+        padBlock.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.type = "string"
+        pFittingPosition.value = pad.fittingPosition
+
+
+        // BrakePad-specific parameters
+ 
+        padBlock.parameters.add(pHeight)
+        pHeight.name = "Height"
+        pHeight.type = "int32"
+        pHeight.value = pad.heightInMM.toString()
+        
+        padBlock.parameters.add(pWidth)
+        pWidth.name = "Width"
+        pWidth.type = "int32"
+        pWidth.value = pad.widthInMM.toString()
+        
+        padBlock.parameters.add(pThickness)
+        pThickness.name = "Thickness"
+        pThickness.type = "int32"
+        pThickness.value = pad.thicknessInMM.toString()
+        
+        padBlock.parameters.add(pWearWarning)
+        pWearWarning.name = "Wear Warning"
+        pWearWarning.type = "int32"
+        pWearWarning.value = pad.wearWarning.toString()
+        
+ }
+}
+
+
+
+// Reactions for Brake Pad Parameter Changes
+
+
+reaction HeightChanged {
+    after attribute replaced at brakesystem::BrakePad[heightInMM]
+    call updateHeight(affectedEObject)
+}
+
+reaction WidthChanged {
+    after attribute replaced at brakesystem::BrakePad[widthInMM]
+    call updateWidth(affectedEObject)
+}
+
+reaction ThicknessChanged {
+    after attribute replaced at brakesystem::BrakePad[thicknessInMM]
+    call updateThickness(affectedEObject)
+}
+
+reaction WearWarningChanged {
+    after attribute replaced at brakesystem::BrakePad[wearWarning]
+    call updateWearWarning(affectedEObject)
+}
+
+// Routines for Brake Pad Parameter Changes
+
+routine updateHeight(brakesystem::BrakePad pad) {
+    match {
+        val padBlock = retrieve simulink::Block corresponding to pad
+    }
+    
+    update {
+        var pHeight = padBlock.parameters.findFirst[p | p.name == "Height"]
+        if (pHeight === null) {
+            pHeight = new simulink::Parameter
+            pHeight.name = "Height"
+            pHeight.type = "int32"
+            padBlock.parameters.add(pHeight)
+        }
+        pHeight.value = pad.heightInMM.toString()
+    }
+}
+
+
+routine updateWidth(brakesystem::BrakePad pad) {
+    match {
+        val padBlock = retrieve simulink::Block corresponding to pad
+    }
+    
+    update {
+        var pWidth = padBlock.parameters.findFirst[p | p.name == "Width"]
+        if (pWidth === null) {
+            pWidth = new simulink::Parameter
+            pWidth.name = "Width"
+            pWidth.type = "int32"
+            padBlock.parameters.add(pWidth)
+        }
+        pWidth.value = pad.widthInMM.toString()
+    }
+}
+
+
+routine updateThickness(brakesystem::BrakePad pad) {
+    match {
+        val padBlock = retrieve simulink::Block corresponding to pad
+    }
+    
+    update {
+        var pThickness = padBlock.parameters.findFirst[p | p.name == "Thickness"]
+        if (pThickness === null) {
+            pThickness = new simulink::Parameter
+            pThickness.name = "Thickness"
+            pThickness.type = "int32"
+            padBlock.parameters.add(pThickness)
+        }
+        pThickness.value = pad.thicknessInMM.toString()
+    }
+}
+
+
+routine updateWearWarning(brakesystem::BrakePad pad) {
+    match {
+        val padBlock = retrieve simulink::Block corresponding to pad
+    }
+    
+    update {
+        var pWearWarning = padBlock.parameters.findFirst[p | p.name == "Wear Warning"]
+        if (pWearWarning === null) {
+            pWearWarning = new simulink::Parameter
+            pWearWarning.name = "Wear Warning"
+            pWearWarning.type = "int32"
+            padBlock.parameters.add(pWearWarning)
+        }
+        pWearWarning.value = pad.wearWarning.toString()
+    }
+}
+
+
+
+// Reactions for Brake Hose
+
+
+reaction BrakeHoseInserted {
+    after element brakesystem::BrakeHose inserted in brakesystem::Brakesystem[BrakeComponents]
+    call {
+         createAndRegisterBrakeHose(newValue)
+         addBrakeHoseSpecificParameters(newValue)
+        }
+}
+
+
+// Routine for creating a Simulink block and register it
+
+
+routine createAndRegisterBrakeHose(brakesystem::BrakeHose hose) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to hose.eContainer()
+        require absence of simulink::Block corresponding to hose
+    }
+
+create {
+       // Create the Simulink block
+
+        val hoseBlock = new simulink::Block
+    }
+    update {
+        hoseBlock.name = hose.id
+        // Add the susbsystem to the Simulink model
+        mSimulink.contains += hoseBlock
+        // create correspondence for retrival
+        addCorrespondenceBetween(hose, hoseBlock)
+    }
+
+ }
+
+
+// Routine for Add Brake Hose-Specific parameters
+
+
+routine addBrakeHoseSpecificParameters(brakesystem::BrakeHose hose) {
+    match {
+        // Retrieve the block corresponding to this Brake Hose
+        val hoseBlock = retrieve Simulink::Block corresponding to hose
+    }
+    create {
+        // Add parameters specific to BrakeHose
+        val pSpecificationType = new simulink::Parameter
+        val pOEM_Number = new simulink::Parameter
+        val pFittingPosition = new simulink::Parameter
+        val pThreadSize1 = new simulink::Parameter
+        val pThreadSize2 = new simulink::Parameter
+        val pLength = new simulink::Parameter
+    }
+    }
+  update {
+   
+       // Assign parameter to the block 
+      
+        
+        // Common BrakeComponent parameters
+        hoseBlock.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.type = "string"
+        pSpecificationType.value = hose.specificationType
+        
+        hoseBlock.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.type = "string"
+        pOEM_Number.value = hose.OEM_number
+
+        hoeBlock.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.type = "string"
+        pFittingPosition.value = hose.fittingPosition
+
+
+        // BrakeHose-specific parameters
+ 
+        hoseBlock.parameters.add(pThreadSize1)
+        pThreadSize1.name = "Thread 1"
+        pThreadSize1.type = "string"
+        pThreadSize1.value = hose.threadSize1
+        
+        hoseBlock.parameters.add(pThreadSize2)
+        pThreadSize2.name = "Thread 2"
+        pThreadSize2.type = "string"
+        pThreadSize2.value = hose.threadSize2
+        
+        hoseBlock.parameters.add(pLength)
+        pLength.name = "Length"
+        pLength.type = "int32"
+        pLength.value = hose.lengthInMM.toString()
+        
+ }
+}
+
+
+// Reactions for Brake Hose Parameter Changes
+
+
+reaction ThreadSize1Changed {
+    after attribute replaced at brakesystem::BrakeHose[threadSize1]
+    call updateThreadSize1(affectedEObject)
+}
+
+reaction ThreadSize2Changed {
+    after attribute replaced at brakesystem::BrakeHose[threadSize2]
+    call updateThreadSize2(affectedEObject)
+}
+
+reaction LengthChangedHose {
+    after attribute replaced at brakesystem::BrakeHose[lengthInMM]
+    call updateLengthHose(affectedEObject)
+}
+
+// Routines for Brake Hose Parameter Changes
+
+routine updateThreadSize1(brakesystem::BrakeHose hose) {
+    match {
+        val hoseBlock = retrieve simulink::Block corresponding to hose
+    }
+    
+    update {
+        var pThreadSize1 = hoseBlock.parameters.findFirst[p | p.name == "Thread 1"]
+        if (pThreadSize1 === null) {
+            pThreadSize1 = new simulink::Parameter
+            pThreadSize1.name = "Thread 1"
+            pThreadSize1.type = "string"
+            hoseBlock.parameters.add(pThreadSize1)
+        }
+        pThreadSize1.value = hose.threadSize1
+    }
+}
+
+
+routine updateThreadSize2(brakesystem::BrakeHose hose) {
+    match {
+        val hoseBlock = retrieve simulink::Block corresponding to hose
+    }
+   
+    update {
+        var pThreadSize2 = hoseBlock.parameters.findFirst[p | p.name == "Thread 2"]
+        if (pThreadSize2 === null) {
+            pThreadSize2 = new simulink::Parameter
+            pThreadSize2.name = "Thread 2"
+            pThreadSize2.type = "string"
+            hoseBlock.parameters.add(pThreadSize2)
+        }
+        pThreadSize2.value = hose.threadSize2
+    }
+}
+
+routine updateLengthHose(brakesystem::BrakeHose hose) {
+    match {
+        val hoseBlock = retrieve simulink::Block corresponding to hose
+    }
+
+ update {
+        var pLength = hoseBlock.parameters.findFirst[p | p.name == "Length"]
+        if (pLength === null) {
+            pLength = new simulink::Parameter
+            pLength.name = "Length"
+            pLength.type = "int32"
+            hoseBlock.parameters.add(pLength)
+        }
+        pLength.value = hose.lengthInMM.toString()
+    }
+}
+
+
+// Reactions for ABSSensor
+
+
+reaction ABSSensorInserted {
+    after element brakesystem::ABSSensor inserted in brakesystem::Brakesystem[BrakeComponents]
+    call {
+         createAndRegisterABSSensor(newValue)
+         addABSSensorSpecificParameters(newValue)
+        }
+}
+
+
+// Routine for creating a Simulink block and register it
+
+
+routine createAndRegisterBrakeHose(brakesystem::BrakeHose hose) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to sensor.eContainer()
+        require absence of simulink::Block corresponding to sensor
+    }
+
+create {
+       // Create the Simulink block
+
+        val sensorBlock = new simulink::Block
+    }
+    update {
+        sensorBlock.name = sensor.id
+        // Add the susbsystem to the Simulink model
+        mSimulink.contains += sensorBlock
+        // create correspondence for retrival
+        addCorrespondenceBetween(sensor, sensorBlock)
+    }
+
+ }
+
+
+// Routine for Add ABSSensor-Specific parameters
+
+
+routine addABSSensorSpecificParameters(brakesystem::ABSSensor sensor) {
+    match {
+        // Retrieve the block corresponding to this Brake Hose
+        val sensorBlock = retrieve Simulink::Block corresponding to sensor
+    }
+    create {
+        // Add parameters specific to ABSSensor
+        val pSpecificationType = new simulink::Parameter
+        val pOEM_Number = new simulink::Parameter
+        val pFittingPosition = new simulink::Parameter
+        val pSensorType = new simulink::Parameter
+       val pFittingDepth = new simulink::Parameter
+       val pNumberOfPins = new simulink::Parameter
+       val pLength = new simulink::Parameter
+    }
+    }
+  update {
+   
+       // Assign parameter to the block 
+      
+        
+        // Common BrakeComponent parameters
+        sensorBlock.parameters.add(pSpecificationType)
+        pSpecificationType.name = "Specification Type"
+        pSpecificationType.type = "string"
+        pSpecificationType.value = sensor.specificationType
+        
+        sensorBlock.parameters.add(pOEM_Number)
+        pOEM_Number.name = "OEM Number"
+        pOEM_Number.type = "string"
+        pOEM_Number.value = sensor.OEM_number
+
+        sensorBlock.parameters.add(pFittingPosition)
+        pFittingPosition.name = "Fitting Position"
+        pFittingPosition.type = "string"
+        pFittingPosition.value = sensor.fittingPosition
+
+
+        // ABSSensor-specific parameters
+ 
+        sensorBlock.parameters.add(pSensorType)
+        pSensorType.name = "Sensor Type"
+        pSensorType.type = "string"
+        pSensorType.value = sensor.sensorType
+        
+        sensorBlock.parameters.add(pFittingDepth)
+        pFittingDepth.name = "Fitting Depth"
+        pFittingDepth.type = "int32"
+        pFittingDepth.value = sensor.fittingDepth.toString()
+        
+       sensoBlock.parameters.add(pNumberOfPins)
+       pNumberOfPins.name = "Number of Pins"
+       pNumberOfPins.type = "int32"
+       pNumberOfPins.value = sensor.numberOfPins.toString(
+
+
+        sensorBlock.parameters.add(pLength)
+        pLength.name = "Length"
+        pLength.type = "int32"
+        pLength.value = sensor.lengthInMM.toString()
+        
+ }
+}
+
+
+
+
+// Reactions for ABSSensor Parameter Changes
+
+
+
+reaction SensorTypeChanged {
+after attribute replaced at brakesystem::ABSSensor[sensorType]
+call updateSensorType(affectedEObject)
+}
+reaction FittingDepthChanged {
+after attribute replaced at brakesystem::ABSSensor[fittingDepth]
+call updateFittingDepth(affectedEObject)
+}
+reaction NumberOfPinsChanged {
+after attribute replaced at brakesystem::ABSSensor[numberOfPins]
+call updateNumberOfPins(affectedEObject)
+}
+reaction LengthChanged {
+after attribute replaced at brakesystem::ABSSensor[lengthInMM]
+call updateLength(affectedEObject)
+}
+
+
+// Routines for ABSSensor Parameter Changes
+
+
+
+routine updateSensorType(brakesystem::ABSSensor sensor) {
+match {
+val sensorBlock = retrieve simulink::Block corresponding to sensor
+}
+
+update {
+var pSensorType = sensorBlock.parameters.findFirst[p | p.name == "Sensor Type"]
+if (pSensorType === null) {
+pSensorType = new simulink::Parameter
+pSensorType.name = "Sensor Type"
+pSensorType.type = "string"
+block.parameters.add(pSensorType)
+}
+pSensorType.value = sensor.sensorType
+}
+}
+
+
+routine updateFittingDepth(brakesystem::ABSSensor sensor) {
+match {
+val sensorBlock = retrieve simulink::Block corresponding to sensor
+}
+update {
+var pFittingDepth = sensorBlock.parameters.findFirst[p | p.name == "Fitting Depth"]
+if (pFittingDepth === null) {
+pFittingDepth = new simulink::Parameter
+pFittingDepth.name = "Fitting Depth"
+pFittingDepth.type = "int32"
+block.parameters.add(pFittingDepth)
+}
+pFittingDepth.value = sensor.fittingDepth.toString()
+}
+}
+
+
+routine updateNumberOfPins(brakesystem::ABSSensor sensor) {
+match {
+val sensorBlock = retrieve simulink::Block corresponding to sensor
+}
+
+update {
+var pNumberOfPins = sensorBlock.parameters.findFirst[p | p.name == "Number of Pins"]
+if (pNumberOfPins === null) {
+pNumberOfPins = new simulink::Parameter
+pNumberOfPins.name = "Number of Pins"
+pNumberOfPins.type = "int32"
+block.parameters.add(pNumberOfPins)
+}
+pNumberOfPins.value = sensor.numberOfPins.toString()
+}
+}
+
+
+routine updateLength(brakesystem::ABSSensor sensor) {
+match {
+val sensorBlock = retrieve simulink::Block corresponding to sensor
+}
+
+update {
+var pLength = sensorBlock.parameters.findFirst[p | p.name == "Length"]
+if (pLength === null) {
+pLength = new simulink::Parameter
+pLength.name = "Length"
+pLength.type = "int32"
+block.parameters.add(pLength)
+}
+pLength.value = sensor.lengthInMM.toString()
+}
+}
+
