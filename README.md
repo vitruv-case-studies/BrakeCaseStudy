@@ -1,6 +1,8 @@
 # Vitruvius Brake Case Study 
 - based on the Methodologist Template (see [here](https://github.com/vitruv-tools/Methodologist-Template/tree/main))
 
+> **README status: TO BE REVIEWED.** Updated for the MODELS 2026 author rebuttal (2026-05-29); awaiting Anne's review.
+
 ## Getting Started
 
 The project comes with a maven wrapper, so you can run it without installing Maven.
@@ -85,6 +87,22 @@ Each successful-merge scenario verifies a per-scenario oracle: (i) expected merg
 # Run all branching merge tests:
 ./mvnw -pl vsum test -Dtest=ThreeModelBranchingMergeTest
 ```
+
+### Tests cited in the paper
+
+Reviewers can jump directly to the test method backing each paper claim. All line numbers are in `vsum/src/test/java/tools/vitruv/casestudies/brakesystem/vsum/BranchingBrakeDiskTests/ThreeModelBranchingMergeTest.java`.
+
+| Paper / rebuttal anchor | Test method | Line |
+|---|---|---|
+| RQ1 CLEAN | `clean_originalA_changesM1_consequentialM2M3` | 88 |
+| RQ1 RESOLVED_OVERLAP | `resolvedOverlap_consequentialA_vs_originalB` | 304 |
+| RQ1 DIRECT | `direct_originalA_vs_originalB` | 452 |
+| RQ1 CONSEQUENTIAL | `consequential_bidirectionalCycle` | 518 |
+| RQ1 MULTI_COMMIT (4-transaction interleaving, ordering `[a₁, b₁, b₂, a₂]`) | `multiCommit_interleavingResolvesOppositeConsequentialOverlaps` | 980 |
+| Guard failure during interleaving (cited in rebuttal Guard-failures block) | `scenario12_interleaving_guardFailureCausesInterleavingConflict` | 864 |
+| Delete/modify scenarios (cited in rebuttal R2Q1 delete/modify framing) | D1 `deletionD1_sourceDeletesTargetModifies` (line 1100), D2 `deletionD2_sourceModifiesTargetDeletes` (1153), D3 `deletionD3_deleteConflictResolvedTheirs` (1211), D4 `deletionD4_deleteConflictResolvedOurs` (1262), D5 `deletionD5_replayOnDeletedElement_noCrash` (1314) | 1100–1314 |
+
+RQ2 (130-scenario generator) is in `BrakeRobustnessEvaluationTest.java` under `vsum/src/test/java/tools/vitruv/casestudies/brakesystem/vsum/comparison/`. RQ3 (scalability benchmark) is in `BrakeScalabilityBenchmarkTest.java` under `vsum/src/test/java/tools/vitruv/casestudies/brakesystem/vsum/benchmark/`. See the dedicated sections below.
 
 ### Cross-Model Consistency Validator
 
