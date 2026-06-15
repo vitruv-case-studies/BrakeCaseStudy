@@ -1356,6 +1356,75 @@ public class ThreeModelBranchingMergeTest {
         }
     }
 
+    // D6: Both branches delete the same element (disk1).
+    //     Semantically convergent — both sides agree the element should be gone,
+    //     analogous to both branches setting an attribute to the same value (no
+    //     MODIFY_MODIFY there). UuidConflictDetector has a convergent-deletion
+    //     carve-out: a UUID deleted on BOTH branches is not reported as a
+    //     DELETE_MODIFY/MODIFY_DELETE conflict, even though the deletion itself
+    //     counts as a "modification" in extractModifiedUuids. The merge therefore
+    //     succeeds with the element removed on both sides.
+
+    @Test
+    @DisplayName("D6: both branches delete the same element → no conflict (convergent deletion)")
+    void deletionD6_bothDeleteSameElement(@TempDir Path tempDir) throws Exception {
+        printScenarioHeader("D6", "DELETE/DELETE — both branches delete the same element",
+                "Base: BrakeDisk disk1 (diameter=300).\n"
+                + "║  Branch A (feature): delete disk1.\n"
+                + "║  Branch B (main): delete disk1.\n"
+                + "║  Merge A→B: both sides deleted the same element (convergent).",
+                "SUCCESS — no conflict; convergent deletion.");
+        var interactionProvider = new TestUserInteraction.ResultProvider(new TestUserInteraction());
+
+        try (var git = Git.init().setDirectory(tempDir.toFile()).setInitialBranch("main").call()) {
+            InternalVirtualModel vsum = createThreeModelVsum(tempDir);
+            addBrakesystem(vsum, tempDir);
+            addBrakeDisk(vsum, "disk1", 300, true, 25);
+
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("Base: disk1 d=300").call();
+
+            // Branch A (feature): delete disk1
+            git.branchCreate().setName("feature").call();
+            git.checkout().setName("feature").call();
+            var capture = freshCapture(vsum);
+            removeBrakeDisk(vsum, "disk1");
+            commitWithChangelog(git, capture, tempDir, "feature", "delete disk1");
+
+            // Branch B (main): also delete disk1
+            git.checkout().setName("main").call();
+            vsum.reload();
+            capture = freshCapture(vsum);
+            removeBrakeDisk(vsum, "disk1");
+            commitWithChangelog(git, capture, tempDir, "main", "delete disk1");
+
+            vsum.dispose();
+
+            // Merge A→B (no resolution provider → would abort on any detected conflict)
+            SemanticMergeResult result = merge(tempDir, "feature", "main", interactionProvider);
+            printScenarioResult("D6", result);
+
+            boolean hasDeleteConflict = result.getConflicts().stream()
+                    .anyMatch(c -> c.getType() == MergeConflict.ConflictType.MODIFY_DELETE
+                            || c.getType() == MergeConflict.ConflictType.DELETE_MODIFY);
+
+            System.out.println("[D6] success=" + result.isSuccess()
+                    + " status=" + result.getStatus()
+                    + " conflicts=" + result.getConflicts().size()
+                    + " hasDeleteConflict=" + hasDeleteConflict
+                    + " details=" + result.getConflicts());
+
+            // Convergent deletion: both branches deleted disk1, so there must be
+            // no delete-vs-modify conflict (the carve-out in UuidConflictDetector).
+            assertFalse(hasDeleteConflict,
+                    "Delete/delete of the same element must not be a conflict, got: "
+                    + result.getConflicts());
+            assertTrue(result.isSuccess(),
+                    "Convergent deletion should merge cleanly, got: " + result.getStatus()
+                    + " conflicts=" + result.getConflicts());
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // Cascade deletion scenarios (C1–C2): EMF containment cascade handling
     // ═══════════════════════════════════════════════════════════════════
