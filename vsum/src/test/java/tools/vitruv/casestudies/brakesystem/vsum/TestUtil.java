@@ -1,4 +1,4 @@
-package tools.vitruv.casestudies.brakesystem.vsum;
+package tools.vitruv.methodologisttemplate.vsum;
 
 import java.nio.file.Path;
 import java.util.Collection;
@@ -7,16 +7,15 @@ import java.util.function.Consumer;
 
 import org.eclipse.emf.common.util.URI;
 
-import brakesystem.BrakeComponent;
 import brakesystem.Brakesystem;
 import brakesystem.BrakesystemFactory;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
-import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
+import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
 import tools.vitruv.change.propagation.ChangePropagationMode;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.change.testutils.TestUserInteraction;
@@ -31,7 +30,7 @@ public class TestUtil {
 
     public TestUserInteraction userInteraction = new TestUserInteraction();
 
-    public InternalVirtualModel createDefaultVirtualModel(Path projectPath,Iterable<ChangePropagationSpecification> additionalCPS) {
+    public InternalVirtualModel createDefaultVirtualModel(Path projectPath, Iterable<ChangePropagationSpecification> additionalCPS) {
         InternalVirtualModel model = new VirtualModelBuilder()
                 .withStorageFolder(projectPath)
                 .withUserInteractorForResultProvider(
@@ -67,41 +66,6 @@ public class TestUtil {
                 .filter(element -> rootTypes.stream().anyMatch(it -> it.isInstance(element)))
                 .forEach(it -> selector.setSelected(it, true));
         return selector.createView();
-    }
-
-    public View getCADView(VirtualModel vsum) {
-        return getDefaultView(vsum, List.of(CAD_Model.class));
-    }
-
-    public View getBrakesystemView(VirtualModel vsum) {
-        return getDefaultView(vsum, List.of(Brakesystem.class));
-    }
-
-    public CAD_Model getRootOfCADView(View view) {
-        return view.getRootObjects(CAD_Model.class).iterator().next();
-    }
-
-    public Brakesystem getRootOfBrakesystemView(View view) {
-        return view.getRootObjects(Brakesystem.class).iterator().next();
-    }
-
-    public BrakeComponent findBrakeComponentWithId(Brakesystem root, String id) {
-        return root
-            .getBrakeComponents()
-            .stream()
-            .filter(component -> component.getId().equals(id))
-            .findFirst()
-            .orElseThrow();
-    }
-
-
-    public Namespace findNamespaceWithId(CAD_Model root, String id) {
-        return root
-            .getNamespaces()
-            .stream()
-            .filter(namespace -> namespace.getId().equals(id))
-            .findFirst()
-            .orElseThrow();
     }
 
     /**

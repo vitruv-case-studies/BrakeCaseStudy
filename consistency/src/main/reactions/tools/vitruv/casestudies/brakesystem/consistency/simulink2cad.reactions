@@ -1,0 +1,273 @@
+import java.io.File;
+import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
+import java.util.Arrays
+
+import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
+import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
+import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+
+import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+import "http://www.example.org/cad" as cad
+
+reactions: simulink2cad
+in reaction to changes in simulink
+execute actions in cad
+
+// Insertion Reactions
+reaction SimulinkModelInsertedAsRoot {
+    after element simulink::SimulinkModel inserted as root
+    call createAndRegisterRoot(newValue)
+}
+
+routine createAndRegisterRoot(simulink::SimulinkModel model) {
+    match {
+        require absence of cad::CAD_Model corresponding to model
+    }
+    create {
+        val mCad = new cad::CAD_Model
+    }
+    update {
+        mCad.name = model.name
+        persistProjectRelative(model, mCad, new File("").toString() + "example.cad")
+        addCorrespondenceBetween(model, mCad)
+    }
+}
+
+reaction SimulinkBlockInserted {
+    after element simulink::Block inserted in simulink::SimulinkModel[contains]
+    call createCADNamespace(newValue)
+}
+
+routine createCADNamespace(simulink::Block block) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to block.eContainer()
+        require absence of cad::Namespace corresponding to block
+    }
+    create {
+        val namespace = new cad::Namespace
+    }
+    update {
+        namespace.name = block.name
+        mCad.namespaces.add(namespace)
+        addCorrespondenceBetween(block, namespace)
+    }
+}
+
+
+reaction ParameterInserted {
+    after element simulink::Parameter inserted in simulink::Block[parameters]
+    call createCADParameter(newValue)
+}
+
+routine createCADParameter(simulink::Parameter parameter) {
+    match {
+        val mNamespace = retrieve cad::Namespace corresponding to parameter.eContainer()
+    }
+    update {
+
+        if (parameter.type === null) {
+            val parameterType = userInteractor.singleSelectionDialogBuilder.message(
+    			"What CAD Parameter do you want to add to be correspondent to this parameter?").choices(
+    			Arrays.asList("string","numeric","boolean")).windowModality(WindowModality.MODAL).
+    			startInteraction
+            switch (parameterType) {
+                case 0:
+                    createCADStringParameter(parameter, mNamespace)
+                case 1:
+                    createCADNumericParameter(parameter, mNamespace)
+                case 2:
+                    createCADBooleanParameter(parameter, mNamespace)
+                default:
+                    return // Do nothing
+            }
+        }else{
+            switch (parameter.type) {
+                case "string":
+                    createCADStringParameter(parameter, mNamespace)
+                case "double",
+                case "single",
+                case "half",
+                case "uint8",
+                case "int8",
+                case "uint16",
+                case "int16",
+                case "uint32",
+                case "int32",
+                case "uint64",
+                case "int64":
+                    createCADNumericParameter(parameter, mNamespace)
+                case "boolean":
+                    createCADBooleanParameter(parameter, mNamespace)
+                default:
+                    return // Do nothing
+            }
+        }
+
+    }
+}
+
+routine createCADNumericParameter(simulink::Parameter parameter, cad::Namespace mNamespace) {
+    create {
+        val cadParameter = new cad::NumericParameter
+    }
+    update {
+        val valueAsFloat = Float.parseFloat(parameter.value)
+
+        cadParameter.name = parameter.name
+        cadParameter.value = valueAsFloat
+        mNamespace.parameters.add(cadParameter)
+        addCorrespondenceBetween(parameter, cadParameter)
+    }
+}
+
+routine createCADStringParameter(simulink::Parameter parameter, cad::Namespace mNamespace) {
+    create {
+        val cadParameter = new cad::StringParameter
+    }
+    update {
+        cadParameter.name = parameter.name
+        cadParameter.value = parameter.value
+        mNamespace.parameters.add(cadParameter)
+        addCorrespondenceBetween(parameter, cadParameter)
+    }
+}
+
+routine createCADBooleanParameter(simulink::Parameter parameter, cad::Namespace mNamespace) {
+    create {
+        val cadParameter = new cad::BooleanParameter
+    }
+    update {
+        val valueAsBoolean = Boolean.parseBoolean(parameter.value)
+
+        cadParameter.name = parameter.name
+        cadParameter.value = valueAsBoolean
+        mNamespace.parameters.add(cadParameter)
+        addCorrespondenceBetween(parameter, cadParameter)
+    }
+}
+
+
+
+// Deletion Reactions
+
+reaction SimuLinkBlockDeleted {
+    after element simulink::Block deleted 
+    call deleteCADNamespace(affectedEObject)
+}
+
+routine deleteCADNamespace(simulink::Block block) {
+    match {
+        val mNamespace = retrieve cad::Namespace corresponding to block
+    }
+    update {
+        removeObject(mNamespace)
+        removeCorrespondenceBetween(block, mNamespace)
+    }
+}
+
+reaction ParameterDeleted {
+    after element simulink::Parameter deleted 
+    call deleteCADParameter(affectedEObject)
+}
+
+routine deleteCADParameter(simulink::Parameter parameter) {
+    match {
+        val cadParameter = retrieve cad::Parameter corresponding to parameter
+    }
+    update {
+        removeObject(cadParameter)
+        removeCorrespondenceBetween(parameter, cadParameter)
+    }
+}
+
+// Update Reactions
+
+reaction SimulinkBlockNameUpdated {
+    after attribute replaced at simulink::Block[name]
+    call updateCADNamespaceName(affectedEObject, newValue)
+}
+
+routine updateCADNamespaceName(simulink::Block block, String newName) {
+    match {
+        val mNamespace = retrieve cad::Namespace corresponding to block
+    }
+    update {
+        mNamespace.name = newName
+    }
+}
+
+
+reaction SimulinkParameterNameUpdated {
+    after attribute replaced at simulink::Parameter[name]
+    call updateCADParameterName(affectedEObject, newValue)
+}
+
+routine updateCADParameterName(simulink::Parameter parameter, String newName) {
+    match {
+        val cadParameter = retrieve cad::Parameter corresponding to parameter
+    }
+    update {
+        cadParameter.name = newName
+    }
+}
+
+
+reaction SimulinkParameterValueUpdated {
+    after attribute replaced at simulink::Parameter[value]
+    call updateCADParameterValue(affectedEObject, newValue)
+}
+
+
+routine updateCADParameterValue(simulink::Parameter parameter, String newValue) {
+    update {
+        switch (parameter.type) {
+                case "string":
+                    updateCADStringParameterValue(parameter)
+                case "double",
+                case "single",
+                case "half",
+                case "uint8",
+                case "int8",
+                case "uint16",
+                case "int16",
+                case "uint32",
+                case "int32",
+                case "uint64",
+                case "int64":
+                    updateCADNumericParameterValue(parameter)
+                case "boolean":
+                    updateCADBooleanParameterValue(parameter)
+                default:
+                    return // Do nothing
+            }
+    }
+}
+
+routine updateCADNumericParameterValue(simulink::Parameter parameter) {
+    match {
+        val cadParameter = retrieve cad::NumericParameter corresponding to parameter
+    }
+    update {
+        val valueAsFloat = Float.parseFloat(parameter.value)
+        cadParameter.value = valueAsFloat
+    }
+}
+
+routine updateCADStringParameterValue(simulink::Parameter parameter) {
+    match {
+        val cadParameter = retrieve cad::StringParameter corresponding to parameter
+    }
+    update {
+        cadParameter.value = parameter.value
+    }
+}
+
+routine updateCADBooleanParameterValue(simulink::Parameter parameter) {
+    match {
+        val cadParameter = retrieve cad::BooleanParameter corresponding to parameter
+    }
+    update {
+        val valueAsBoolean = Boolean.parseBoolean(parameter.value)
+        cadParameter.value = valueAsBoolean
+    }
+}
