@@ -23,7 +23,7 @@
    <extension point="org.eclipse.emf.ecore.generated_package">
       <!-- @generated simuLink -->
       <package
-            uri="http://vitruv.tools/methodologisttemplate/simulink"
+            uri="http://www.example.org/simulink"
             class="simulink.SimuLinkPackage"
             genModel="src/main/ecore/simuLink.genmodel"/>
    </extension>
@@ -31,7 +31,7 @@
    <extension point="org.eclipse.emf.ecore.generated_package">
       <!-- @generated autoSAR -->
       <package
-            uri="http://vitruv.tools/methodologisttemplate/autosar"
+            uri="http://www.example.org/autosar"
             class="autosar.AutoSARPackage"
             genModel="src/main/ecore/autoSAR.genmodel"/>
    </extension>

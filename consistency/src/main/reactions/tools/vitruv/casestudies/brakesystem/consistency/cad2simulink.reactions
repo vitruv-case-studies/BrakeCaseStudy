@@ -6,7 +6,7 @@ import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
 
-import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/cad" as cad
 
 reactions: cad2simulink

@@ -1,4 +1,4 @@
-package tools.vitruv.methodologisttemplate.vsum.BrakeDiskTests;
+package tools.vitruv.casestudies.brakesystem.vsum.BrakeDiskTests;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -24,11 +24,11 @@ import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import edu.kit.ipd.sdq.metamodels.cad.Unit;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
+import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
-import tools.vitruv.methodologisttemplate.vsum.TestUtil;
 
 public class Cad2BrakeDiskTest {
 

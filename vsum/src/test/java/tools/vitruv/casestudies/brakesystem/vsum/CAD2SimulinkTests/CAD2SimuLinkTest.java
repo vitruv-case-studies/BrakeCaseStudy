@@ -1,4 +1,4 @@
-package tools.vitruv.methodologisttemplate.vsum.CAD2SimulinkTests;
+package tools.vitruv.casestudies.brakesystem.vsum.CAD2SimulinkTests;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -20,11 +20,11 @@ import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import edu.kit.ipd.sdq.metamodels.cad.Parameter;
 import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
+import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
-import tools.vitruv.methodologisttemplate.vsum.TestUtil;
 
 import simulink.SimulinkModel;
 import simulink.SubSystem;

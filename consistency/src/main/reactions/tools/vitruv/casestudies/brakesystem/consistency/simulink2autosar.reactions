@@ -2,8 +2,8 @@ import java.io.File;
 
 
 
-import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
-import "http://vitruv.tools/methodologisttemplate/autosar" as autosar
+import "http://www.example.org/simulink" as simulink
+import "http://www.example.org/autosar" as autosar
 
 reactions: simulink2autosar
 in reaction to changes in simulink
