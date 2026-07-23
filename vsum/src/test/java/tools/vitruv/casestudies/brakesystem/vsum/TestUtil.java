@@ -1,10 +1,12 @@
 package tools.vitruv.casestudies.brakesystem.vsum;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 
+import lombok.SneakyThrows;
 import org.eclipse.emf.common.util.URI;
 
 import brakesystem.Brakesystem;
@@ -30,7 +32,7 @@ public class TestUtil {
 
     public TestUserInteraction userInteraction = new TestUserInteraction();
 
-    public InternalVirtualModel createDefaultVirtualModel(Path projectPath, Iterable<ChangePropagationSpecification> additionalCPS) {
+    public InternalVirtualModel createDefaultVirtualModel(Path projectPath, Iterable<ChangePropagationSpecification> additionalCPS) throws IOException {
         InternalVirtualModel model = new VirtualModelBuilder()
                 .withStorageFolder(projectPath)
                 .withUserInteractorForResultProvider(

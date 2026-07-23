@@ -1,5 +1,6 @@
 package tools.vitruv.casestudies.brakesystem.vsum.BrakeDiskTests;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
@@ -14,11 +15,8 @@ import org.junit.jupiter.api.io.TempDir;
 import brakesystem.BrakeDisk;
 import brakesystem.Brakesystem;
 import brakesystem.BrakesystemFactory;
-import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
 import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
-import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
 import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
@@ -45,7 +43,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void brakeDiskInsertionAndPropagationTest(@TempDir Path tempDir) {
+	void brakeDiskInsertionAndPropagationTest(@TempDir Path tempDir) throws IOException {
 
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
@@ -88,7 +86,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void changeDiameterTest(@TempDir Path tempDir) {
+	void changeDiameterTest(@TempDir Path tempDir) throws IOException {
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
@@ -133,7 +131,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void changeIdTest(@TempDir Path tempDir) {
+	void changeIdTest(@TempDir Path tempDir) throws IOException {
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
@@ -177,7 +175,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void changeVentilatedTest(@TempDir Path tempDir) {
+	void changeVentilatedTest(@TempDir Path tempDir) throws IOException {
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 
@@ -219,7 +217,7 @@ public class BrakeDisk2CadTest {
 	}
 
 	@Test
-	void changeOEMNumberTest(@TempDir Path tempDir) {
+	void changeOEMNumberTest(@TempDir Path tempDir) throws IOException {
 		VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
 		util.registerRootObjects(vsum, tempDir);
 

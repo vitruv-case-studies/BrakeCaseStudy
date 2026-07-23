@@ -1,5 +1,6 @@
 package tools.vitruv.casestudies.brakesystem.vsum.BrakeDiskTests;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
@@ -7,7 +8,6 @@ import java.util.function.Function;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -30,6 +30,8 @@ import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 public class Cad2BrakeDiskTest {
 
     TestUtil util = new TestUtil();
@@ -43,7 +45,7 @@ public class Cad2BrakeDiskTest {
     }
 
     @Test
-    void brakeDiskInsertionAndPropagationTest(@TempDir Path tempDir) {
+    void brakeDiskInsertionAndPropagationTest(@TempDir Path tempDir) throws IOException {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
         // Setting the user interaction to 0, thus an ABSSensor should be created
@@ -67,24 +69,22 @@ public class Cad2BrakeDiskTest {
     }
 
     @Test
-    void nochoice(@TempDir Path tempDir) {
+    void nochoice(@TempDir Path tempDir) throws IOException {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
         // add brake disk with parameters
         CommittableView view = util.getDefaultView(vsum,
                 List.of(CAD_Model.class))
                 .withChangeRecordingTrait();
-        assertThrows(AssertionError.class, () -> {
-            util.modifyView(view, (CommittableView v) -> {
-                Namespace namespace = createDefaultNamespace();
-                namespace.setId("brakeDisk1");
-                v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-            });
-        });
+        assertThrows(RuntimeException.class, () -> util.modifyView(view, (CommittableView v) -> {
+            Namespace namespace = createDefaultNamespace();
+            namespace.setId("brakeDisk1");
+            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
+        }));
     }
 
     @Test
-    void parameterInsertionAndPropagationTestForABSSensor(@TempDir Path tempDir) {
+    void parameterInsertionAndPropagationTestForABSSensor(@TempDir Path tempDir) throws IOException {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
         // Setting the user interaction to 0, thus an ABSSensor should be created
@@ -131,7 +131,7 @@ public class Cad2BrakeDiskTest {
     }
 
     @Test
-    void parameterInsertionAndPropagationForBrakeDiskTest(@TempDir Path tempDir) {
+    void parameterInsertionAndPropagationForBrakeDiskTest(@TempDir Path tempDir) throws IOException {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
         // Setting the user interaction to 0, thus an ABSSensor should be created
@@ -181,7 +181,7 @@ public class Cad2BrakeDiskTest {
     // propagated
     // back and forth correctly
     @Test
-    void biDirectionalPropagationTest(@TempDir Path tempDir) {
+    void biDirectionalPropagationTest(@TempDir Path tempDir) throws IOException {
         // Starting from the CAD model
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
@@ -249,7 +249,7 @@ public class Cad2BrakeDiskTest {
     // CAD Model creates a ABSSensor
     // Attribute changes to the ABSSensor are propagated to the CAD model
     @Test
-    void absSensorAttributePropagationTest(@TempDir Path tempDir) {
+    void absSensorAttributePropagationTest(@TempDir Path tempDir) throws IOException {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir,necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
         // Setting the user interaction to 0, thus an ABSSensor should be created
