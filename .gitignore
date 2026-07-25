@@ -14,3 +14,4 @@ build.properties
 plugin.properties
 EMF_Projects/model/.metadata
 
+/src-gen/

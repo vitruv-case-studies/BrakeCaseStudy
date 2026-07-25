@@ -1,6 +1,9 @@
 import java.io.File;
+import java.util.Arrays;
+import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
 
-
+import simulink.SubSystem;
+import autosar.AUTOSAR;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/autosar" as autosar
@@ -8,7 +11,6 @@ import "http://www.example.org/autosar" as autosar
 reactions: simulink2autosar
 in reaction to changes in simulink
 execute actions in autosar
-
 
 // Root Reactions
 reaction SimulinkModelInsertedAsRoot {
@@ -36,7 +38,7 @@ reaction SimulinkModelDeletedAsRoot {
 
 routine deleteAndUnregisterRoot(simulink::SimulinkModel model) {
     match {
-       val mAutosar = retrieve autosar::AUTOSAR corresponding to model 
+        val mAutosar = retrieve autosar::AUTOSAR corresponding to model
     }
     update {
         removeCorrespondenceBetween(model, mAutosar)
@@ -54,31 +56,206 @@ routine createCorrespondingAutoSarComponent(simulink::Block block) {
     match {
         val mAutosarModel = retrieve autosar::AUTOSAR corresponding to block.eContainer()
     }
-    create {
-        val mComponent = new autosar::AtomicSwComponentType
-        
-        
-    }
     update {
-        if (mAutosarModel.arpackage.size == 0) {
-            CreateDefaultARPackageIfNotExists(mAutosarModel)
-        }
-        val mARPackage = mAutosarModel.arpackage.get(0)
-        mComponent.setShortName(block.name)
-        mARPackage.elements.add(mComponent)
-        addCorrespondenceBetween(block, mComponent)
-        
-        
+        createCorrespondingAutoSarComponentForBlock(mAutosarModel, block)
     }
 }
 
+routine createCorrespondingAutoSarComponentForBlock(autosar::AUTOSAR model, simulink::Block block) {
+    update {
+        if (block instanceof SubSystem) {
+            createCompositionSwComponentType(model, block)
+        } else {
+            val componentType = userInteractor.singleSelectionDialogBuilder.message(
+                "What AutoSAR component do you want to add to be correspondent to this block?").choices(
+                Arrays.asList("ApplicationSwComponentType", "ServiceProxySwComponentType", "EcuAbstractionSwComponentType",
+                    "ComplexDeviceDriverSwComponentType", "NvBlockSwComponentType", "ServiceSwComponentType",
+                    "SensorActuatorSwComponentType")).windowModality(WindowModality.MODAL).startInteraction
+            switch (componentType) {
+                case 0:
+                    createApplicationSwComponentType(model, block)
+                case 1:
+                    createServiceProxySwComponentType(model, block)
+                case 2:
+                    createEcuAbstractionSwComponentType(model, block)
+                case 3:
+                    createComplexDeviceDriverSwComponentType(model, block)
+                case 4:
+                    createNvBlockSwComponentType(model, block)
+                case 5:
+                    createServiceSwComponentType(model, block)
+            }
+        }
+    }
+}
 
-routine CreateDefaultARPackageIfNotExists(autosar::AUTOSAR mAutosarModel) {
-    create{
+routine createCompositionSwComponentType(autosar::AUTOSAR model, simulink::SubSystem subsystem) {
+    create {
+        val component = new autosar::CompositionSwComponentType
+    }
+    update {
+        initializeAutoSarComponent(model, component, subsystem)
+    }
+}
+
+routine createApplicationSwComponentType(autosar::AUTOSAR model, simulink::Block block) {
+    create {
+        val component = new autosar::ApplicationSwComponentType
+    }
+    update {
+        initializeAutoSarComponent(model, component, block)
+    }
+}
+
+routine createServiceProxySwComponentType(autosar::AUTOSAR model, simulink::Block block) {
+    create {
+        val component = new autosar::ServiceProxySwComponentType
+    }
+    update {
+        initializeAutoSarComponent(model, component, block)
+    }
+}
+
+routine createEcuAbstractionSwComponentType(autosar::AUTOSAR model, simulink::Block block) {
+    create {
+        val component = new autosar::EcuAbstractionSwComponentType
+    }
+    update {
+        initializeAutoSarComponent(model, component, block)
+    }
+}
+
+routine createComplexDeviceDriverSwComponentType(autosar::AUTOSAR model, simulink::Block block) {
+    create {
+        val component = new autosar::ComplexDeviceDriverSwComponentType
+    }
+    update {
+        initializeAutoSarComponent(model, component, block)
+    }
+}
+
+routine createNvBlockSwComponentType(autosar::AUTOSAR model, simulink::Block block) {
+    create {
+        val component = new autosar::NvBlockSwComponentType
+    }
+    update {
+        initializeAutoSarComponent(model, component, block)
+    }
+}
+
+routine createServiceSwComponentType(autosar::AUTOSAR model, simulink::Block block) {
+    create {
+        val component = new autosar::ServiceSwComponentType
+    }
+    update {
+        initializeAutoSarComponent(model, component, block)
+    }
+}
+
+routine initializeAutoSarComponent(autosar::AUTOSAR model, autosar::SwComponentType component, simulink::Block block) {
+    update {
+        if (model.arpackage.size == 0) {
+            createDefaultARPackageIfNotExists(model)
+        }
+        val mARPackage = model.arpackage.get(0)
+        component.setShortName(block.name)
+        mARPackage.elements.add(component)
+        addCorrespondenceBetween(block, component)
+    }
+}
+
+routine createDefaultARPackageIfNotExists(autosar::AUTOSAR mAutosarModel) {
+    create {
         val newPackage = new autosar::ARPackage
     }
-    update {   
-        newPackage.setShortName("DefaultPackage")    
+    update {
+        newPackage.setShortName("DefaultPackage")
         mAutosarModel.arpackage.add(newPackage)
+    }
+}
+
+reaction SimulinkBlockInsertedInSubsystem {
+    after element simulink::Block inserted in simulink::SubSystem[subBlocks]
+    call insertCorrespondingComponent(affectedEObject, newValue)
+}
+
+routine insertCorrespondingComponent(simulink::SubSystem parentSubsystem, simulink::Block block) {
+    match {
+        val parentComposition = retrieve autosar::CompositionSwComponentType corresponding to parentSubsystem
+        val component = retrieve autosar::SwComponentType corresponding to block
+    }
+    create {
+        val prototype = new autosar::SwComponentPrototype
+    }
+    update {
+        prototype.setShortName(block.name)
+        prototype.type = component
+        parentComposition.getComponents().add(prototype)
+    }
+}
+
+reaction SimulinkBlockCreatedAndInsertedInSubsystem {
+    after element simulink::Block inserted in simulink::SubSystem[subBlocks]
+    call createAndInsertCorrespondingComponent(affectedEObject, newValue)
+}
+
+routine createAndInsertCorrespondingComponent(simulink::SubSystem parentSubsystem, simulink::Block block) {
+    match {
+        val parentComposition = retrieve autosar::CompositionSwComponentType corresponding to parentSubsystem
+        require absence of autosar::SwComponentType corresponding to block
+    }
+    update {
+        val mAutosarModel = parentComposition.eContainer().eContainer() as AUTOSAR
+        createCorrespondingAutoSarComponentForBlock(mAutosarModel, block)
+        insertComponent(parentComposition, block)
+    }
+}
+
+routine insertComponent(autosar::CompositionSwComponentType parentComposition, simulink::Block block) {
+    match {
+        val component = retrieve autosar::SwComponentType corresponding to block
+    }
+    create {
+        val prototype = new autosar::SwComponentPrototype
+    }
+    update {
+        prototype.setShortName(block.name)
+        prototype.type = component
+        parentComposition.getComponents().add(prototype)
+    }
+}
+
+reaction SimulinkBlockRemovedFromSubsystem {
+    after element simulink::Block removed from simulink::SubSystem[subBlocks]
+    call removeComponent(affectedEObject, oldValue)
+}
+
+routine removeComponent(simulink::SubSystem parentSubsystem, simulink::Block block) {
+    match {
+        val parentComposition = retrieve autosar::CompositionSwComponentType corresponding to parentSubsystem
+        val component = retrieve autosar::SwComponentType corresponding to block
+    }
+    update {
+        val prototype = parentComposition.getComponents().findFirst[p | p.type === component]
+        if (prototype !== null) {
+            parentComposition.getComponents().remove(prototype)
+        }
+    }
+}
+
+reaction SimulinkBlockDeleted {
+    after element simulink::Block deleted
+    call deleteComponent(affectedEObject)
+}
+
+routine deleteComponent(simulink::Block block) {
+    match {
+        val component = retrieve autosar::SwComponentType corresponding to block
+    }
+    update {
+        val mAutosarModel = component.eContainer().eContainer() as AUTOSAR
+        val mARPackage = mAutosarModel.arpackage.get(0)
+        mARPackage.elements.remove(component)
+        removeCorrespondenceBetween(block, component)
     }
 }

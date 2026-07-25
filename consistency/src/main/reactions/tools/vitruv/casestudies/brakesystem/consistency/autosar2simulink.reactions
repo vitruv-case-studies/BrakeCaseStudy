@@ -1,6 +1,6 @@
 import java.io.File;
 
-
+import autosar.CompositionSwComponentType;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/autosar" as autosar
@@ -8,7 +8,6 @@ import "http://www.example.org/autosar" as autosar
 reactions: autosar2simulink
 in reaction to changes in autosar
 execute actions in simulink
-
 
 // Root Reactions
 reaction AutoSarModelInsertedAsRoot {
@@ -29,7 +28,6 @@ routine createAndRegisterRoot(autosar::AUTOSAR model) {
     }
 }
 
-
 reaction AutoSarModelDeletedAsRoot {
     after element autosar::AUTOSAR deleted
     call deleteAndUnregisterRoot(affectedEObject)
@@ -45,16 +43,37 @@ routine deleteAndUnregisterRoot(autosar::AUTOSAR model) {
     }
 }
 
-
-reaction AtomicSwComponentTypeInserted {
-    after element autosar::AtomicSwComponentType inserted in autosar::ARPackage[elements]
-    call createCorrespondingSimuLinkBlock(newValue)
+// Block Reactions
+reaction SwComponentTypeInserted {
+    after element autosar::SwComponentType inserted in autosar::ARPackage[elements]
+    call createCorrespondingSimulinkElement(newValue)
 }
 
-routine createCorrespondingSimuLinkBlock(autosar::AtomicSwComponentType component) {
+routine createCorrespondingSimulinkElement(autosar::SwComponentType component) {
     match {
         val mSimulinkModel = retrieve simulink::SimulinkModel corresponding to component.eContainer().eContainer()
     }
+    update {
+        if (component instanceof CompositionSwComponentType) {
+            createCorrespondingSubsystem(mSimulinkModel, component)
+        } else {
+            createCorrespondingBlock(mSimulinkModel, component)
+        }
+    }
+}
+
+routine createCorrespondingSubsystem(simulink::SimulinkModel mSimulinkModel, autosar::CompositionSwComponentType composition) {
+    create {
+        val mSubsystem = new simulink::SubSystem
+    }
+    update {
+        mSubsystem.name = composition.getShortName()
+        mSimulinkModel.getContains().add(mSubsystem)
+        addCorrespondenceBetween(composition, mSubsystem)
+    }
+}
+
+routine createCorrespondingBlock(simulink::SimulinkModel mSimulinkModel, autosar::SwComponentType component) {
     create {
         val mBlock = new simulink::Block
     }
@@ -62,5 +81,53 @@ routine createCorrespondingSimuLinkBlock(autosar::AtomicSwComponentType componen
         mBlock.name = component.getShortName()
         mSimulinkModel.getContains().add(mBlock)
         addCorrespondenceBetween(component, mBlock)
+    }
+}
+
+reaction SwComponentPrototypeTypeSet {
+    after element autosar::SwComponentType replaced at autosar::SwComponentPrototype[type]
+    call insertCorrespondingBlock(affectedEObject)
+}
+
+routine insertCorrespondingBlock(autosar::SwComponentPrototype prototype) {
+    match {
+        val mSubsystem = retrieve simulink::SubSystem corresponding to prototype.eContainer()
+        val mChildBlock = retrieve simulink::Block corresponding to prototype.type
+    }
+    update {
+        mSubsystem.getSubBlocks().add(mChildBlock)
+    }
+}
+
+reaction SwComponentPrototypeRemoved {
+    after element autosar::SwComponentPrototype removed from autosar::CompositionSwComponentType[components]
+    call extractBlock(affectedEObject, oldValue)
+}
+
+routine extractBlock(autosar::CompositionSwComponentType parentComposition, autosar::SwComponentPrototype prototype) {
+    match {
+        val mSubsystem = retrieve simulink::SubSystem corresponding to parentComposition
+        val mChildBlock = retrieve simulink::Block corresponding to prototype.type
+        val mSimulinkModel = retrieve simulink::SimulinkModel corresponding to parentComposition.eContainer().eContainer()
+    }
+    update {
+        mSubsystem.getSubBlocks().remove(mChildBlock)
+        // prototype.type is not containment, so the component still exists in the package and we cannot just delete the corresponding block.
+        mSimulinkModel.getContains().add(mChildBlock)
+    }
+}
+
+reaction SwComponentTypeRemoved {
+    after element autosar::SwComponentType removed from autosar::ARPackage[elements]
+    call removeCorrespondingSimulinkElement(oldValue)
+}
+
+routine removeCorrespondingSimulinkElement(autosar::SwComponentType component) {
+    match {
+        val mBlock = retrieve simulink::Block corresponding to component
+    }
+    update {
+        removeObject(mBlock)
+        removeCorrespondenceBetween(component, mBlock)
     }
 }
