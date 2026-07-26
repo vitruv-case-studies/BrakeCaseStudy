@@ -307,6 +307,3 @@ routine updateSimulinkBooleanParameterValue(cad::BooleanParameter parameter) {
         mParameter.value = parameter.value.toString()
     }
 }       
-
-
-
