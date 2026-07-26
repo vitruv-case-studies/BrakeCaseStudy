@@ -2,9 +2,7 @@ import java.io.File;
 import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
 import java.util.Arrays
 
-import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
-import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+import tools.vitruv.casestudies.brakesystem.consistency.Cad2SimulinkUtility;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/cad" as cad
@@ -13,15 +11,11 @@ reactions: cad2simulink
 in reaction to changes in cad
 execute actions in simulink
 
-
-
 // Insertion Reactions
-
 reaction CAD_ModelInsertedAsRoot {
     after element cad::CAD_Model inserted as root
     call createAndRegisterRoot(newValue)
 }
-
 
 routine createAndRegisterRoot(cad::CAD_Model model) {
     match {
@@ -37,7 +31,6 @@ routine createAndRegisterRoot(cad::CAD_Model model) {
     }
 }
 
-
 reaction NameSpaceInserted {
     after element cad::Namespace inserted in cad::CAD_Model[namespaces]
     call createAndRegisterNamespace(newValue)
@@ -52,17 +45,16 @@ routine createAndRegisterNamespace(cad::Namespace namespace) {
     			"What Simulink component do you want to add to be correspondent to this namespace?").choices(
     			Arrays.asList("SimulinkBlock","SimulinkSubsystem")).windowModality(WindowModality.MODAL).
     			startInteraction
-    		switch (componentType) {
-    			case 0:
-    				createSimulinkBlock(namespace, mSimulink)
-    			case 1:
-    				createSimulinkSubsystem(namespace, mSimulink)
-                default:
-                    return // Do nothing
-    		}
+        switch (componentType) {
+            case 0:
+                createSimulinkBlock(namespace, mSimulink)
+            case 1:
+                createSimulinkSubsystem(namespace, mSimulink)
+            default:
+                return // Do nothing
+        }
     }
 }
-
 
 routine createSimulinkBlock(cad::Namespace namespace, simulink::SimulinkModel mSimulink) {
     create {
@@ -70,11 +62,10 @@ routine createSimulinkBlock(cad::Namespace namespace, simulink::SimulinkModel mS
     }
     update {
         mBlock.name = namespace.name
-        mSimulink.contains += mBlock
+        insertSimulinkBlock(mSimulink, mBlock)
         addCorrespondenceBetween(namespace, mBlock)
     }
 }
-
 
 routine createSimulinkSubsystem(cad::Namespace namespace, simulink::SimulinkModel mSimulink) {
     create {
@@ -82,17 +73,35 @@ routine createSimulinkSubsystem(cad::Namespace namespace, simulink::SimulinkMode
     }
     update {
         mSubsystem.name = namespace.name
-        mSimulink.contains += mSubsystem
+        insertSimulinkBlock(mSimulink, mSubsystem)
         addCorrespondenceBetween(namespace, mSubsystem)
     }
 }
 
+routine insertSimulinkBlock(simulink::SimulinkModel mSimulink, simulink::Block mBlock) {
+    update {
+        val subsystems = Cad2SimulinkUtility.getAllSubSystems(mSimulink)
+        var chosen = 0
+        if (subsystems.size() > 0) {
+            val choices = #["Insert at root level"] + subsystems.map[name]
+            chosen = userInteractor.singleSelectionDialogBuilder.message(
+                "Where do you want to insert the new Simulink component?").choices(choices).windowModality(WindowModality.MODAL).
+                startInteraction
+        }
+        
+        if (chosen == 0) {
+            mSimulink.contains += mBlock
+        } else {
+            val chosenSubsystem = subsystems.get(chosen - 1)
+            chosenSubsystem.subBlocks += mBlock
+        }
+    }
+}
 
 reaction StringParameterInserted {
     after element cad::StringParameter inserted in cad::Namespace[parameters]
     call createAndRegisterStringParameter(newValue)
 }
-
 
 routine createAndRegisterStringParameter(cad::StringParameter parameter) {
     match {
@@ -112,12 +121,10 @@ routine createAndRegisterStringParameter(cad::StringParameter parameter) {
 }
 
 
-
 reaction NumericParameterInserted {
     after element cad::NumericParameter inserted in cad::Namespace[parameters]
     call createAndRegisterNumericParameter(newValue)
 }
-
 
 routine createAndRegisterNumericParameter(cad::NumericParameter parameter) {
     match {
@@ -165,7 +172,6 @@ routine createAndRegisterNumericParameter(cad::NumericParameter parameter) {
         addCorrespondenceBetween(parameter, mParameter)
     }
 }
-
 
 reaction BooleanParameterInserted {
     after element cad::BooleanParameter inserted in cad::Namespace[parameters]

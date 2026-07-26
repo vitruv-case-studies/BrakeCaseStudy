@@ -2,6 +2,7 @@ import java.io.File;
 import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
 import java.util.Arrays
 
+import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
@@ -53,6 +54,27 @@ routine createCADNamespace(simulink::Block block) {
     }
 }
 
+reaction SimulinkBlockInsertedInSubSystem {
+    after element simulink::Block inserted in simulink::SubSystem[subBlocks]
+    call createCADNamespaceInSubSystem(affectedEObject, newValue)
+}
+
+routine createCADNamespaceInSubSystem(simulink::SubSystem subSystem, simulink::Block block) {
+    match {
+        val mParentNamespace = retrieve cad::Namespace corresponding to subSystem
+        require absence of cad::Namespace corresponding to block
+    }
+    create {
+        val namespace = new cad::Namespace
+    }
+    update {
+        val mCad = mParentNamespace.eContainer() as CAD_Model
+
+        namespace.name = block.name
+        mCad.namespaces.add(namespace)
+        addCorrespondenceBetween(block, namespace)
+    }
+}
 
 reaction ParameterInserted {
     after element simulink::Parameter inserted in simulink::Block[parameters]
@@ -182,6 +204,20 @@ routine deleteCADParameter(simulink::Parameter parameter) {
 
 // Update Reactions
 
+reaction SimulinkModelNameUpdated {
+    after attribute replaced at simulink::SimulinkModel[name]
+    call updateCADModelName(affectedEObject, newValue)
+}
+
+routine updateCADModelName(simulink::SimulinkModel model, String newName) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to model
+    }
+    update {
+        mCad.name = newName
+    }
+}
+
 reaction SimulinkBlockNameUpdated {
     after attribute replaced at simulink::Block[name]
     call updateCADNamespaceName(affectedEObject, newValue)
@@ -219,27 +255,40 @@ reaction SimulinkParameterValueUpdated {
 
 
 routine updateCADParameterValue(simulink::Parameter parameter, String newValue) {
+    match {
+        val cadParameter = retrieve cad::Parameter corresponding to parameter
+    }
     update {
-        switch (parameter.type) {
-                case "string":
-                    updateCADStringParameterValue(parameter)
-                case "double",
-                case "single",
-                case "half",
-                case "uint8",
-                case "int8",
-                case "uint16",
-                case "int16",
-                case "uint32",
-                case "int32",
-                case "uint64",
-                case "int64":
-                    updateCADNumericParameterValue(parameter)
-                case "boolean":
-                    updateCADBooleanParameterValue(parameter)
-                default:
-                    return // Do nothing
+        var type = parameter.type
+        if (type === null) {
+            if (cadParameter instanceof StringParameter) {
+                type = "string"
+            } else if (cadParameter instanceof NumericParameter) {
+                type = "int32"
+            } else if (cadParameter instanceof BooleanParameter) {
+                type = "boolean"
             }
+        }
+        switch (type) {
+            case "string":
+                updateCADStringParameterValue(parameter)
+            case "double",
+            case "single",
+            case "half",
+            case "uint8",
+            case "int8",
+            case "uint16",
+            case "int16",
+            case "uint32",
+            case "int32",
+            case "uint64",
+            case "int64":
+                updateCADNumericParameterValue(parameter)
+            case "boolean":
+                updateCADBooleanParameterValue(parameter)
+            default:
+                return // Do nothing
+        }
     }
 }
 

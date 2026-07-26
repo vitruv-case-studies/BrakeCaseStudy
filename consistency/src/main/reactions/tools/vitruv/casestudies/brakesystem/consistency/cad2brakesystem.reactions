@@ -118,20 +118,23 @@ routine createBrakePad(cad::Namespace namespace, brakesystem::Brakesystem mBrake
     }
     update {
         val calipers = mBrake.getBrakeComponents.filter[it instanceof BrakeCaliper].map[it as BrakeCaliper].toList
-        val options = calipers.map[id] + #["None"]
+        var chosen = 0
+        if (calipers.size() > 0) {
+            val choices = calipers.map[id] + #["None"]
+            chosen = userInteractor.singleSelectionDialogBuilder.message(
+                "Which brake calipher does this brake pad belong to?").choices(choices).windowModality(WindowModality.MODAL).
+                startInteraction
+        }
 
-        val selected = userInteractor.singleSelectionDialogBuilder.message(
-            "Which brake calipher does this brake pad belong to?").choices(options).windowModality(WindowModality.MODAL).startInteraction
-
-        if (selected < 0 || selected > calipers.size) {
+        if (chosen < 0 || chosen > calipers.size) {
             return
         }
 
         addCorrespondenceBetween(namespace, component);
 
-        if (selected < calipers.size) {
-            val selectedCaliper = calipers.get(selected)
-            selectedCaliper.brakePads.add(component)
+        if (chosen < calipers.size) {
+            val chosenCaliper = calipers.get(chosen)
+            chosenCaliper.brakePads.add(component)
         } else {
             mBrake.getBrakeComponents.add(component);
         }
