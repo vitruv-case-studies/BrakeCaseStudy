@@ -23,7 +23,7 @@ routine createAndRegisterRoot(autosar::AUTOSAR model) {
         val mSimulink = new simulink::SimulinkModel
     }
     update {
-        persistProjectRelative(model, mSimulink, new File("").toString() + "simulink.xml")
+        persistProjectRelative(model, mSimulink, new File("").toString() + "example.simulink")
         addCorrespondenceBetween(model, mSimulink)
     }
 }

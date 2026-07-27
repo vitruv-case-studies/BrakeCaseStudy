@@ -34,7 +34,7 @@ routine createAndRegisterRoot(simulink::SimulinkModel model) {
     update {
         mBrakesystem.instanceName = model.name
 
-        persistProjectRelative(model, mBrakesystem, new File("").toString() + "brakesystem.xml")
+        persistProjectRelative(model, mBrakesystem, new File("").toString() + "example.brakesystem")
         addCorrespondenceBetween(model, mBrakesystem)
     }
 }
