@@ -67,7 +67,6 @@ public class BrakeDisk2CadTest {
             boolean isVentilated = TestUtil.expectBooleanParameter(namespace, "Ventilated", true);
 
             return isOEMNumber && isDiameterInMM & isCenteringDiameterInMM && isRimHoleNumber && isHoleArrangementNumber && isBoltHoleCircleInMM && isBrakeDiskThicknessInMM && isMinimumThicknessInMM && isVentilated;
-
         }));
 
     }

@@ -18,6 +18,7 @@ import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
 import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
+import simulink.Block;
 import tools.vitruv.change.propagation.ChangePropagationMode;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.change.testutils.TestUserInteraction;
@@ -110,5 +111,10 @@ public class TestUtil {
             .filter(param -> param instanceof BooleanParameter)
             .map(param -> (BooleanParameter) param)
             .anyMatch(param -> param.getName().equals(name) && param.isValue() == value);
+    }
+
+    public static boolean expectParameter(Block block, String name, String type, Object value) {
+        return block.getParameters().stream()
+            .anyMatch(parameter -> parameter.getName().equals(name) && parameter.getType().equals(type) && parameter.getValue().equals(value.toString()));
     }
 }

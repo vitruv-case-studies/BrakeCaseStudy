@@ -287,7 +287,7 @@ routine updateCADParameterValue(simulink::Parameter parameter, String newValue) 
             case "boolean":
                 updateCADBooleanParameterValue(parameter)
             default:
-                return // Do nothing
+                return
         }
     }
 }
@@ -297,8 +297,7 @@ routine updateCADNumericParameterValue(simulink::Parameter parameter) {
         val cadParameter = retrieve cad::NumericParameter corresponding to parameter
     }
     update {
-        val valueAsFloat = Float.parseFloat(parameter.value)
-        cadParameter.value = valueAsFloat
+        cadParameter.value = Float.parseFloat(parameter.value)
     }
 }
 
@@ -316,7 +315,6 @@ routine updateCADBooleanParameterValue(simulink::Parameter parameter) {
         val cadParameter = retrieve cad::BooleanParameter corresponding to parameter
     }
     update {
-        val valueAsBoolean = Boolean.parseBoolean(parameter.value)
-        cadParameter.value = valueAsBoolean
+        cadParameter.value = Boolean.parseBoolean(parameter.value)
     }
 }
