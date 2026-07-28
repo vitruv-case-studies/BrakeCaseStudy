@@ -1,15 +1,11 @@
 package tools.vitruv.casestudies.brakesystem.vsum.Autosar2CadTests;
 
 import autosar.*;
-import brakesystem.ABSSensor;
-import brakesystem.Brakesystem;
 import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
-import mir.reactions.autosar2brakesystem.Autosar2brakesystemChangePropagationSpecification;
 import mir.reactions.autosar2cad.Autosar2cadChangePropagationSpecification;
-import mir.reactions.brakesystem2autosar.Brakesystem2autosarChangePropagationSpecification;
 import mir.reactions.cad2autosar.Cad2autosarChangePropagationSpecification;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;

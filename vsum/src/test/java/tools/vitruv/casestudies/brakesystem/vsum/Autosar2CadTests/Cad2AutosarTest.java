@@ -4,15 +4,9 @@ import autosar.ARPackage;
 import autosar.AUTOSAR;
 import autosar.SD;
 import autosar.SDG;
-import brakesystem.ABSSensor;
-import brakesystem.BrakeCaliper;
-import brakesystem.BrakeDisk;
-import brakesystem.Brakesystem;
 import edu.kit.ipd.sdq.metamodels.cad.*;
 import mir.reactions.autosar2cad.Autosar2cadChangePropagationSpecification;
-import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2autosar.Cad2autosarChangePropagationSpecification;
-import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
@@ -30,8 +24,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class Cad2AutosarTest {
     TestUtil util = new TestUtil();
