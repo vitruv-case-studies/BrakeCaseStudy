@@ -1,10 +1,9 @@
-package tools.vitruv.casestudies.brakesystem.vsum.Autosar2BreakDisk;
+package tools.vitruv.casestudies.brakesystem.vsum.Autosar2BreakDiskTests;
 
 import autosar.*;
 import brakesystem.ABSSensor;
 import brakesystem.Brakesystem;
 import mir.reactions.autosar2brakesystem.Autosar2brakesystemChangePropagationSpecification;
-import mir.reactions.autosar2simulink.Autosar2simulinkChangePropagationSpecification;
 import mir.reactions.brakesystem2autosar.Brakesystem2autosarChangePropagationSpecification;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
@@ -13,9 +12,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import simulink.Block;
-import simulink.SimulinkModel;
-import simulink.SubSystem;
 import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;

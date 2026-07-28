@@ -1,0 +1,455 @@
+import java.io.File;
+import java.lang.Object;
+
+import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
+
+import "http://www.example.org/cad" as cad
+import "http://www.example.org/autosar" as autosar
+
+reactions: cad2autosar
+in reaction to changes in cad
+execute actions in autosar
+
+// Root
+
+reaction CadModelInsertedAsRoot {
+    after element cad::CAD_Model inserted as root
+    call createAndRegisterRoot(newValue)
+}
+
+routine createAndRegisterRoot(cad::CAD_Model mCad) {
+    match {
+        require absence of autosar::AUTOSAR corresponding to mCad
+    }
+    create {
+        val mAutosar = new autosar::AUTOSAR
+    }
+    update {
+        createDefaultPackage(mCad, mAutosar)
+
+        persistProjectRelative(mCad, mAutosar, new File("").toString() + "example.autosar")
+        addCorrespondenceBetween(mCad, mAutosar)
+    }
+}
+
+routine createDefaultPackage(cad::CAD_Model mCad, autosar::AUTOSAR mAutosar) {
+    create {
+        val rootPackage = new autosar::ARPackage
+    }
+    update {
+        rootPackage.shortName = mCad.name
+        mAutosar.arpackage.add(rootPackage)
+    }
+}
+
+reaction CadModelNameChanged {
+    after attribute replaced at cad::CAD_Model[name]
+    call updateCorrespondingAutosarRootPackageName(affectedEObject)
+}
+
+routine updateCorrespondingAutosarRootPackageName(cad::CAD_Model mCad) {
+    match {
+        val mAutosar = retrieve autosar::AUTOSAR corresponding to mCad
+    }
+    update {
+        if (mAutosar.arpackage.size() > 0) {
+            val rootPackage = mAutosar.arpackage.get(0)
+            rootPackage.shortName = mCad.name
+        }
+    }
+}
+
+reaction CadModelDeletedAsRoot {
+    after element cad::CAD_Model deleted
+    call deleteAndUnregisterRoot(affectedEObject)
+}
+
+routine deleteAndUnregisterRoot(cad::CAD_Model mCad) {
+    match {
+        val mAutosar = retrieve autosar::AUTOSAR corresponding to mCad
+    }
+    update {
+        removeCorrespondenceBetween(mCad, mAutosar)
+        removeObject(mAutosar)
+    }
+}
+
+// Namespace
+
+reaction NamespaceInserted {
+    after element cad::Namespace inserted in cad::CAD_Model[namespaces]
+    call createCorrespondingPackage(newValue)
+}
+
+routine createCorrespondingPackage(cad::Namespace namespace) {
+    match {
+        val mAutosar = retrieve autosar::AUTOSAR corresponding to namespace.eContainer()
+        require absence of autosar::ARPackage corresponding to namespace
+    }
+    create {
+        val arPackage = new autosar::ARPackage
+        val adminData = new autosar::AdminData
+        val cadNamespace = new autosar::SDG
+        val cadNamespaceId = new autosar::SD
+    }
+    update {
+        arPackage.shortName = namespace.name
+
+        adminData.sdgs.add(cadNamespace)
+        cadNamespace.gid = "cadNamespace"
+        cadNamespace.sd.add(cadNamespaceId)
+        cadNamespaceId.key = "cadNamespaceId"
+        cadNamespaceId.value = namespace.id
+
+        val mCad = namespace.eContainer() as CAD_Model
+        if (mAutosar.arpackage.size() == 0) {
+            createDefaultPackage(mCad, mAutosar)
+        }
+        val rootPackage = mAutosar.arpackage.get(0)
+        rootPackage.subPackages.add(arPackage)
+
+        addCorrespondenceBetween(namespace, arPackage)
+    }
+}
+
+reaction NamespaceNameChanged {
+    after attribute replaced at cad::Namespace[name]
+    call updateCorrespondingPackageName(affectedEObject)
+}
+
+routine updateCorrespondingPackageName(cad::Namespace namespace) {
+    match {
+        val arPackage = retrieve autosar::ARPackage corresponding to namespace
+    }
+    update {
+        arPackage.shortName = namespace.name
+    }
+}
+
+reaction NamespaceIdChanged {
+    after attribute replaced at cad::Namespace[id]
+    call updateCorrespondingPackageId(affectedEObject)
+}
+
+routine updateCorrespondingPackageId(cad::Namespace namespace) {
+    match {
+        val arPackage = retrieve autosar::ARPackage corresponding to namespace
+    }
+    create {
+        val nAdminData = new autosar::AdminData
+        val nCadNamespace = new autosar::SDG
+        val nCadNamespaceId = new autosar::SD
+    }
+    update {
+        var adminData = arPackage.adminData
+        if (adminData === null) {
+            arPackage.adminData = nAdminData
+            adminData = nAdminData
+        }
+        var cadNamespace = adminData.sdgs.findFirst[it.gid == "cadNamespace"]
+        if (cadNamespace === null) {
+            adminData.sdgs.add(nCadNamespace)
+            cadNamespace = nCadNamespace
+            cadNamespace.gid = "cadNamespace"
+        }
+        var cadNamespaceId = cadNamespace.sd.findFirst[it.key == "cadNamespaceId"]
+        if (cadNamespaceId === null) {
+            cadNamespace.sd.add(nCadNamespaceId)
+            cadNamespaceId = nCadNamespaceId
+            cadNamespaceId.key = "cadNamespaceId"
+        }
+        cadNamespaceId.value = namespace.id
+    }
+}
+
+reaction NamespaceDeleted {
+    after element cad::Namespace deleted
+    call deleteCorrespondingPackage(affectedEObject)
+}
+
+routine deleteCorrespondingPackage(cad::Namespace namespace) {
+    match {
+        val arPackage = retrieve autosar::ARPackage corresponding to namespace
+    }
+    update {
+        removeCorrespondenceBetween(namespace, arPackage)
+        removeObject(arPackage)
+    }
+}
+
+// Parameter
+
+reaction StringParameterInserted {
+    after element cad::StringParameter inserted in cad::Namespace[parameters]
+    call {
+        createCorrespondingSDG(newValue)
+        initializeSDGOfStringParameter(newValue)
+    }
+}
+
+reaction NumericParameterInserted {
+    after element cad::NumericParameter inserted in cad::Namespace[parameters]
+    call {
+        createCorrespondingSDG(newValue)
+        initializeSDGOfNumericParameter(newValue)
+    }
+}
+
+reaction BooleanParameterInserted {
+    after element cad::BooleanParameter inserted in cad::Namespace[parameters]
+    call {
+        createCorrespondingSDG(newValue)
+        initializeSDGOfBooleanParameter(newValue)
+    }
+}
+
+routine createCorrespondingSDG(cad::Parameter parameter) {
+    match {
+        val arPackage = retrieve autosar::ARPackage corresponding to parameter.eContainer()
+        require absence of autosar::SDG corresponding to parameter
+    }
+    create {
+        val sdg = new autosar::SDG
+        val name = new autosar::SD
+        val description = new autosar::SD
+    }
+    update {
+        sdg.gid = parameter.id
+
+        name.key = "name"
+        name.value = parameter.name
+        sdg.sd.add(name)
+
+        if (parameter.description !== null) {
+            description.key = "description"
+            description.value = parameter.description
+            sdg.sd.add(description)
+        }
+
+        if (arPackage.adminData === null) {
+            createAdminData(arPackage)
+        }
+        arPackage.adminData.sdgs.add(sdg)
+
+        addCorrespondenceBetween(parameter, sdg)
+    }
+}
+
+routine createAdminData(autosar::ARPackage arPackage) {
+    create {
+        val adminData = new autosar::AdminData
+    }
+    update {
+        arPackage.adminData = adminData
+    }
+}
+
+routine initializeSDGOfStringParameter(cad::StringParameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    create {
+        val type = new autosar::SD
+        val value = new autosar::SD
+        val unit = new autosar::SD
+    }
+    update {
+        type.key = "type"
+        type.value = "string"
+        sdg.sd.add(type)
+
+        value.key = "value"
+        value.value = parameter.value
+        sdg.sd.add(value)
+
+        unit.key = "unit"
+        unit.value = parameter.unit
+        sdg.sd.add(unit)
+    }
+}
+
+routine initializeSDGOfNumericParameter(cad::NumericParameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    create {
+        val type = new autosar::SD
+        val value = new autosar::SD
+        val unit = new autosar::SD
+    }
+    update {
+        type.key = "type"
+        type.value = "float"
+        sdg.sd.add(type)
+
+        value.key = "value"
+        value.value = parameter.value
+        sdg.sd.add(value)
+
+        unit.key = "unit"
+        unit.value = parameter.unit
+        sdg.sd.add(unit)
+    }
+}
+
+routine initializeSDGOfBooleanParameter(cad::BooleanParameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    create {
+        val type = new autosar::SD
+        val value = new autosar::SD
+    }
+    update {
+        type.key = "type"
+        type.value = "boolean"
+        sdg.sd.add(type)
+
+        value.key = "value"
+        value.value = parameter.value
+        sdg.sd.add(value)
+    }
+}
+
+reaction ParameterIdChanged {
+    after attribute replaced at cad::Parameter[id]
+    call updateCorrespondingSDGId(affectedEObject)
+}
+
+routine updateCorrespondingSDGId(cad::Parameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    update {
+        sdg.gid = parameter.id
+    }
+}
+
+reaction ParameterNameChanged {
+    after attribute replaced at cad::Parameter[name]
+    call updateCorrespondingSDGName(affectedEObject)
+}
+
+routine updateCorrespondingSDGName(cad::Parameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    update {
+        updateSD(sdg, "name", parameter.name)
+    }
+}
+
+reaction ParameterDescriptionChanged {
+    after attribute replaced at cad::Parameter[description]
+    call updateCorrespondingSDGDescription(affectedEObject)
+}
+
+routine updateCorrespondingSDGDescription(cad::Parameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    update {
+        updateSD(sdg, "description", parameter.description)
+    }
+}
+
+reaction ParameterStringValueChanged {
+    after attribute replaced at cad::StringParameter[value]
+    call updateCorrespondingSDGStringValue(affectedEObject)
+}
+
+routine updateCorrespondingSDGStringValue(cad::StringParameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    update {
+        updateSD(sdg, "value", parameter.value)
+    }
+}
+
+reaction StringParameterUnitChanged {
+    after attribute replaced at cad::StringParameter[unit]
+    call updateCorrespondingSDGStringUnit(affectedEObject)
+}
+
+routine updateCorrespondingSDGStringUnit(cad::StringParameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    update {
+        updateSD(sdg, "unit", parameter.unit)
+    }
+}
+
+reaction ParameterNumericValueChanged {
+    after attribute replaced at cad::NumericParameter[value]
+    call updateCorrespondingSDGNumericValue(affectedEObject)
+}
+
+routine updateCorrespondingSDGNumericValue(cad::NumericParameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    update {
+        updateSD(sdg, "value", parameter.value)
+    }
+}
+
+reaction NumericParameterUnitChanged {
+    after attribute replaced at cad::NumericParameter[unit]
+    call updateCorrespondingSDGNumericUnit(affectedEObject)
+}
+
+routine updateCorrespondingSDGNumericUnit(cad::NumericParameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    update {
+        updateSD(sdg, "unit", parameter.unit)
+    }
+}
+
+reaction ParameterBooleanValueChanged {
+    after attribute replaced at cad::BooleanParameter[value]
+    call updateCorrespondingSDGBooleanValue(affectedEObject)
+}
+
+routine updateCorrespondingSDGBooleanValue(cad::BooleanParameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    update {
+        updateSD(sdg, "value", parameter.value)
+    }
+}
+
+routine updateSD(autosar::SDG sdg, String key, plain Object as value) {
+    create {
+        val newSD = new autosar::SD
+    }
+    update {
+        val sd = sdg.sd.findFirst[it.key == key]
+        if (sd === null) {
+            newSD.key = key
+            newSD.value = value
+            sdg.sd.add(newSD)
+        } else {
+            sd.value = value
+        }
+    }
+}
+
+reaction ParameterDeleted {
+    after element cad::Parameter deleted
+    call deleteCorrespondingSDG(affectedEObject)
+}
+
+routine deleteCorrespondingSDG(cad::Parameter parameter) {
+    match {
+        val sdg = retrieve autosar::SDG corresponding to parameter
+    }
+    update {
+        removeCorrespondenceBetween(parameter, sdg)
+        removeObject(sdg)
+    }
+}

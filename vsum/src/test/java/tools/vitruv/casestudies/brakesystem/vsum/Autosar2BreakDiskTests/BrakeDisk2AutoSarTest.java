@@ -1,16 +1,11 @@
-package tools.vitruv.casestudies.brakesystem.vsum.Autosar2BreakDisk;
+package tools.vitruv.casestudies.brakesystem.vsum.Autosar2BreakDiskTests;
 
 import autosar.AUTOSAR;
 import autosar.SD;
 import autosar.SensorActuatorSwComponentType;
 import brakesystem.*;
-import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
-import edu.kit.ipd.sdq.metamodels.cad.Namespace;
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import mir.reactions.autosar2brakesystem.Autosar2brakesystemChangePropagationSpecification;
 import mir.reactions.brakesystem2autosar.Brakesystem2autosarChangePropagationSpecification;
-import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
-import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.Assertions;

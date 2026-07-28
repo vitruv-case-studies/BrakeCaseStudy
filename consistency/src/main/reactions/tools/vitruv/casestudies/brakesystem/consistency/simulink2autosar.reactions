@@ -1,6 +1,6 @@
 import java.io.File;
 import java.util.Arrays;
-import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
+import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality;
 
 import simulink.SubSystem;
 import autosar.AUTOSAR;
