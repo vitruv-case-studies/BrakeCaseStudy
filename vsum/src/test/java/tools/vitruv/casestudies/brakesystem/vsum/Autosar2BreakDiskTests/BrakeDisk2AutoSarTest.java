@@ -6,13 +6,10 @@ import autosar.SensorActuatorSwComponentType;
 import brakesystem.*;
 import mir.reactions.autosar2brakesystem.Autosar2brakesystemChangePropagationSpecification;
 import mir.reactions.brakesystem2autosar.Brakesystem2autosarChangePropagationSpecification;
-import org.eclipse.emf.ecore.resource.Resource;
-import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
+import tools.vitruv.casestudies.brakesystem.vsum.TestBase;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
 import tools.vitruv.framework.views.View;
@@ -21,23 +18,19 @@ import tools.vitruv.framework.vsum.VirtualModel;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.function.Function;
 
-public class BrakeDisk2AutoSarTest {
-    TestUtil util = new TestUtil();
-    Iterable<ChangePropagationSpecification> necessaryCPS = List.of(new Autosar2brakesystemChangePropagationSpecification(), new Brakesystem2autosarChangePropagationSpecification());
-
-    @BeforeAll
-    static void setup() {
-        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("*", new XMIResourceFactoryImpl());
+public class BrakeDisk2AutoSarTest extends TestBase {
+    @Override protected List<ChangePropagationSpecification> createCPS() {
+        return List.of(new Autosar2brakesystemChangePropagationSpecification(),
+                new Brakesystem2autosarChangePropagationSpecification());
     }
 
-    @Test
-    void absSensorInsertionAndPropagationTest(@TempDir Path tempDir) throws IOException {
+    @Test void absSensorInsertionAndPropagationTest(@TempDir Path tempDir) throws IOException {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
 
-        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait(), (CommittableView v) -> {
+        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class))
+                .withChangeRecordingTrait(), (CommittableView v) -> {
             ABSSensor sensor = BrakesystemFactory.eINSTANCE.createABSSensor();
             sensor.setId("absSensor1");
 
@@ -47,23 +40,49 @@ public class BrakeDisk2AutoSarTest {
             v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().add(sensor);
         });
 
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(AUTOSAR.class)), (View v) -> {
-            AUTOSAR autosar = v.getRootObjects(AUTOSAR.class).iterator().next();
-            SensorActuatorSwComponentType sensor = (SensorActuatorSwComponentType) autosar.getArpackage().getFirst().getElements().getFirst();
+        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(AUTOSAR.class)),
+                (View v) -> {
+                    AUTOSAR autosar = v.getRootObjects(AUTOSAR.class).iterator().next();
+                    SensorActuatorSwComponentType
+                            sensor =
+                            (SensorActuatorSwComponentType) autosar.getArpackage()
+                                    .getFirst()
+                                    .getElements()
+                                    .getFirst();
 
-            SD specificationType = sensor.getAdminData().getSdgs().getFirst().getSd().stream().filter(it -> it.getKey().equals("specificationType")).findFirst().orElseThrow();
-            SD fittingDepth = sensor.getAdminData().getSdgs().getFirst().getSd().stream().filter(it -> it.getKey().equals("fittingDepth")).findFirst().orElseThrow();
+                    SD
+                            specificationType =
+                            sensor.getAdminData()
+                                    .getSdgs()
+                                    .getFirst()
+                                    .getSd()
+                                    .stream()
+                                    .filter(it -> it.getKey().equals("specificationType"))
+                                    .findFirst()
+                                    .orElseThrow();
+                    SD
+                            fittingDepth =
+                            sensor.getAdminData()
+                                    .getSdgs()
+                                    .getFirst()
+                                    .getSd()
+                                    .stream()
+                                    .filter(it -> it.getKey().equals("fittingDepth"))
+                                    .findFirst()
+                                    .orElseThrow();
 
-            return sensor.getShortName().equals("absSensor1") && specificationType.getValue().equals("ExampleSpecification") && fittingDepth.getValue().equals(120);
-        }));
+                    return sensor.getShortName().equals("absSensor1") &&
+                            specificationType.getValue().equals("ExampleSpecification") &&
+                            fittingDepth.getValue().equals(120);
+                }));
     }
 
-    @Test
-    void absSensorChangeFittingDepthTest(@TempDir Path tempDir) throws IOException {
+    @Test void absSensorChangeFittingDepthTest(@TempDir Path tempDir) throws IOException {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
 
-        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait(), (CommittableView v) -> {
+        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class))
+                .withChangeRecordingTrait(), (CommittableView v) -> {
             ABSSensor sensor = BrakesystemFactory.eINSTANCE.createABSSensor();
             sensor.setId("absSensor1");
 
@@ -73,28 +92,61 @@ public class BrakeDisk2AutoSarTest {
             v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().add(sensor);
         });
 
-        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait(), (CommittableView v) -> {
-            ABSSensor sensor = (ABSSensor) v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().getFirst();
+        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class))
+                .withChangeRecordingTrait(), (CommittableView v) -> {
+            ABSSensor
+                    sensor =
+                    (ABSSensor) v.getRootObjects(Brakesystem.class)
+                            .iterator()
+                            .next()
+                            .getBrakeComponents()
+                            .getFirst();
             sensor.setFittingDepth(130);
         });
 
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(AUTOSAR.class)), (View v) -> {
-            AUTOSAR autosar = v.getRootObjects(AUTOSAR.class).iterator().next();
-            SensorActuatorSwComponentType sensor = (SensorActuatorSwComponentType) autosar.getArpackage().getFirst().getElements().getFirst();
+        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(AUTOSAR.class)),
+                (View v) -> {
+                    AUTOSAR autosar = v.getRootObjects(AUTOSAR.class).iterator().next();
+                    SensorActuatorSwComponentType
+                            sensor =
+                            (SensorActuatorSwComponentType) autosar.getArpackage()
+                                    .getFirst()
+                                    .getElements()
+                                    .getFirst();
 
-            SD specificationType = sensor.getAdminData().getSdgs().getFirst().getSd().stream().filter(it -> it.getKey().equals("specificationType")).findFirst().orElseThrow();
-            SD fittingDepth = sensor.getAdminData().getSdgs().getFirst().getSd().stream().filter(it -> it.getKey().equals("fittingDepth")).findFirst().orElseThrow();
+                    SD
+                            specificationType =
+                            sensor.getAdminData()
+                                    .getSdgs()
+                                    .getFirst()
+                                    .getSd()
+                                    .stream()
+                                    .filter(it -> it.getKey().equals("specificationType"))
+                                    .findFirst()
+                                    .orElseThrow();
+                    SD
+                            fittingDepth =
+                            sensor.getAdminData()
+                                    .getSdgs()
+                                    .getFirst()
+                                    .getSd()
+                                    .stream()
+                                    .filter(it -> it.getKey().equals("fittingDepth"))
+                                    .findFirst()
+                                    .orElseThrow();
 
-            return sensor.getShortName().equals("absSensor1") && specificationType.getValue().equals("ExampleSpecification") && fittingDepth.getValue().equals(130);
-        }));
+                    return sensor.getShortName().equals("absSensor1") &&
+                            specificationType.getValue().equals("ExampleSpecification") &&
+                            fittingDepth.getValue().equals(130);
+                }));
     }
 
-    @Test
-    void absSensorDeleteTest(@TempDir Path tempDir) throws IOException {
+    @Test void absSensorDeleteTest(@TempDir Path tempDir) throws IOException {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
 
-        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait(), (CommittableView v) -> {
+        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class))
+                .withChangeRecordingTrait(), (CommittableView v) -> {
             ABSSensor sensor = BrakesystemFactory.eINSTANCE.createABSSensor();
             sensor.setId("absSensor1");
 
@@ -104,17 +156,19 @@ public class BrakeDisk2AutoSarTest {
             v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().add(sensor);
         });
 
-        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait(), (CommittableView v) -> {
-            v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().removeFirst();
+        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class))
+                .withChangeRecordingTrait(), (CommittableView v) -> {
+            v.getRootObjects(Brakesystem.class)
+                    .iterator()
+                    .next()
+                    .getBrakeComponents()
+                    .removeFirst();
         });
 
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(AUTOSAR.class)), (View v) -> {
-            AUTOSAR autosar = v.getRootObjects(AUTOSAR.class).iterator().next();
-            return autosar.getArpackage().getFirst().getElements().isEmpty();
-        }));
-    }
-
-    private boolean assertView(View view, Function<View, Boolean> viewAssertionFunction) {
-        return viewAssertionFunction.apply(view);
+        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(AUTOSAR.class)),
+                (View v) -> {
+                    AUTOSAR autosar = v.getRootObjects(AUTOSAR.class).iterator().next();
+                    return autosar.getArpackage().getFirst().getElements().isEmpty();
+                }));
     }
 }

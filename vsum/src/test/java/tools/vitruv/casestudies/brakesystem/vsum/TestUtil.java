@@ -33,24 +33,25 @@ public class TestUtil {
 
     public TestUserInteraction userInteraction = new TestUserInteraction();
 
-    public InternalVirtualModel createDefaultVirtualModel(Path projectPath, Iterable<ChangePropagationSpecification> additionalCPS) throws IOException {
-        InternalVirtualModel model = new VirtualModelBuilder()
-                .withStorageFolder(projectPath)
-                .withUserInteractorForResultProvider(
-                        new TestUserInteraction.ResultProvider(userInteraction))
-                .withChangePropagationSpecifications(additionalCPS)
-                .buildAndInitialize();
+    public InternalVirtualModel createDefaultVirtualModel(Path projectPath, Iterable<ChangePropagationSpecification> additionalCPS) throws
+            IOException {
+        InternalVirtualModel
+                model =
+                new VirtualModelBuilder().withStorageFolder(projectPath)
+                        .withUserInteractorForResultProvider(new TestUserInteraction.ResultProvider(
+                                userInteraction))
+                        .withChangePropagationSpecifications(additionalCPS)
+                        .buildAndInitialize();
         model.setChangePropagationMode(ChangePropagationMode.TRANSITIVE_CYCLIC);
         return model;
     }
 
     public void registerRootObjects(VirtualModel virtualModel, Path filePath) {
-        CommittableView view = getDefaultView(virtualModel,
-                List.of(Brakesystem.class))
-                .withChangeRecordingTrait();
+        CommittableView
+                view =
+                getDefaultView(virtualModel, List.of(Brakesystem.class)).withChangeRecordingTrait();
         modifyView(view, (CommittableView v) -> {
-            v.registerRoot(
-                    BrakesystemFactory.eINSTANCE.createBrakesystem(),
+            v.registerRoot(BrakesystemFactory.eINSTANCE.createBrakesystem(),
                     URI.createFileURI(filePath.toString() + "/brakesystem.model"));
         });
 
@@ -64,8 +65,11 @@ public class TestUtil {
     // See https://github.com/vitruv-tools/Vitruv/issues/717 for more information
     // about the rootTypes
     public View getDefaultView(VirtualModel vsum, Collection<Class<?>> rootTypes) {
-        var selector = vsum.createSelector(ViewTypeFactory.createIdentityMappingViewType("default"));
-        selector.getSelectableElements().stream()
+        var
+                selector =
+                vsum.createSelector(ViewTypeFactory.createIdentityMappingViewType("default"));
+        selector.getSelectableElements()
+                .stream()
                 .filter(element -> rootTypes.stream().anyMatch(it -> it.isInstance(element)))
                 .forEach(it -> selector.setSelected(it, true));
         return selector.createView();
@@ -73,48 +77,57 @@ public class TestUtil {
 
     /**
      * Tests whether there exists a StringParameter for namespace with the given name and value.
+     *
      * @param namespace - Namespace
-     * @param name - String
-     * @param value - String
+     * @param name      - String
+     * @param value     - String
      * @return boolean
      */
     public static boolean expectStringParameter(Namespace namespace, String name, String value) {
-        return namespace.getParameters().stream()
-            .filter(param -> param instanceof StringParameter)
-            .map(param -> (StringParameter) param)
-            .anyMatch(param -> param.getName().equals(name) && param.getValue().equals(value));
+        return namespace.getParameters()
+                .stream()
+                .filter(param -> param instanceof StringParameter)
+                .map(param -> (StringParameter) param)
+                .anyMatch(param -> param.getName().equals(name) && param.getValue().equals(value));
     }
 
     /**
      * Tests whether there exists a NumericParameter for namespace with the given name and value.
+     *
      * @param namespace - Namespace
-     * @param name - String
-     * @param value - float
+     * @param name      - String
+     * @param value     - float
      * @return boolean
      */
     public static boolean expectNumericParameter(Namespace namespace, String name, float value) {
-        return namespace.getParameters().stream()
-            .filter(param -> param instanceof NumericParameter)
-            .map(param -> (NumericParameter) param)
-            .anyMatch(param -> param.getName().equals(name) && param.getValue() == value);
+        return namespace.getParameters()
+                .stream()
+                .filter(param -> param instanceof NumericParameter)
+                .map(param -> (NumericParameter) param)
+                .anyMatch(param -> param.getName().equals(name) && param.getValue() == value);
     }
 
     /**
      * Tests whether there exists a BooleanParameter for namespace with the given name and value.
+     *
      * @param namespace - Namespace
-     * @param name - String
-     * @param value - boolean
+     * @param name      - String
+     * @param value     - boolean
      * @return boolean
      */
     public static boolean expectBooleanParameter(Namespace namespace, String name, boolean value) {
-        return namespace.getParameters().stream()
-            .filter(param -> param instanceof BooleanParameter)
-            .map(param -> (BooleanParameter) param)
-            .anyMatch(param -> param.getName().equals(name) && param.isValue() == value);
+        return namespace.getParameters()
+                .stream()
+                .filter(param -> param instanceof BooleanParameter)
+                .map(param -> (BooleanParameter) param)
+                .anyMatch(param -> param.getName().equals(name) && param.isValue() == value);
     }
 
     public static boolean expectParameter(Block block, String name, String type, Object value) {
-        return block.getParameters().stream()
-            .anyMatch(parameter -> parameter.getName().equals(name) && parameter.getType().equals(type) && parameter.getValue().equals(value.toString()));
+        return block.getParameters()
+                .stream()
+                .anyMatch(parameter -> parameter.getName().equals(name) &&
+                        parameter.getType().equals(type) &&
+                        parameter.getValue().equals(value.toString()));
     }
 }

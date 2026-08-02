@@ -85,7 +85,7 @@
           </projectMappings>
           <languages>
             <language>
-              <setup>tools.vitruv.compmodelcons.generator.NeoJoinVitruvSetup</setup>
+              <setup>tools.vitruv.compmodelcons.generator.NeoJoinVitruvBuildSetup</setup>
               <outputConfigurations>
                 <outputConfiguration>
                   <outputDirectory>
