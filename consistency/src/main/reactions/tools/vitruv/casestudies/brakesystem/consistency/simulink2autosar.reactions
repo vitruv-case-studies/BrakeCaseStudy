@@ -55,6 +55,7 @@ reaction SimulinkBlockInserted {
 routine createCorrespondingAutoSarComponent(simulink::Block block) {
     match {
         val mAutosarModel = retrieve autosar::AUTOSAR corresponding to block.eContainer()
+        require absence of autosar::SwComponentType corresponding to block
     }
     update {
         createCorrespondingAutoSarComponentForBlock(mAutosarModel, block)

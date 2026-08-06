@@ -52,6 +52,7 @@ reaction SwComponentTypeInserted {
 routine createCorrespondingSimulinkElement(autosar::SwComponentType component) {
     match {
         val mSimulinkModel = retrieve simulink::SimulinkModel corresponding to component.eContainer().eContainer()
+        require absence of simulink::Block corresponding to component
     }
     update {
         if (component instanceof CompositionSwComponentType) {
