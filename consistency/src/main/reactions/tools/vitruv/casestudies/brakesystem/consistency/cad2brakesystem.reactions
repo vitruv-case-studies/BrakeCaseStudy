@@ -37,6 +37,20 @@ routine createAndRegisterRoot(cad::CAD_Model model) {
     }
 }
 
+reaction CAD_ModelDeleted {
+    after element cad::CAD_Model deleted
+    call deleteCorrespondingBrake(affectedEObject)
+}
+
+routine deleteCorrespondingBrake(cad::CAD_Model model) {
+    match {
+        val mBrake = retrieve brakesystem::Brakesystem corresponding to model
+    }
+    update {
+        removeObject(mBrake)
+        removeCorrespondenceBetween(model, mBrake)
+    }
+}
 
 reaction NameSpaceInserted {
     after element cad::Namespace inserted in cad::CAD_Model[namespaces]
