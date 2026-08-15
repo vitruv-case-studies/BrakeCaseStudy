@@ -4,6 +4,7 @@ import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality;
 
 import simulink.SubSystem;
 import autosar.AUTOSAR;
+import autosar.SDG;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/autosar" as autosar
@@ -159,7 +160,6 @@ routine initializeAutoSarComponent(autosar::AUTOSAR model, autosar::SwComponentT
             createDefaultARPackageIfNotExists(model)
         }
         val mARPackage = model.arpackage.get(0)
-        component.setShortName(block.name)
         mARPackage.elements.add(component)
         addCorrespondenceBetween(block, component)
     }
@@ -189,7 +189,6 @@ routine insertCorrespondingComponent(simulink::SubSystem parentSubsystem, simuli
         val prototype = new autosar::SwComponentPrototype
     }
     update {
-        prototype.setShortName(block.name)
         prototype.type = component
         parentComposition.getComponents().add(prototype)
     }
@@ -220,7 +219,6 @@ routine insertComponent(autosar::CompositionSwComponentType parentComposition, s
         val prototype = new autosar::SwComponentPrototype
     }
     update {
-        prototype.setShortName(block.name)
         prototype.type = component
         parentComposition.getComponents().add(prototype)
     }
@@ -258,5 +256,19 @@ routine deleteComponent(simulink::Block block) {
         val mARPackage = mAutosarModel.arpackage.get(0)
         mARPackage.elements.remove(component)
         removeCorrespondenceBetween(block, component)
+    }
+}
+
+reaction SimulinkBlockNameChanged {
+    after attribute replaced at simulink::Block[name]
+    call updateComponentName(affectedEObject, newValue)
+}
+
+routine updateComponentName(simulink::Block block, String newName) {
+    match {
+        val component = retrieve autosar::SwComponentType corresponding to block
+    }
+    update {
+        component.shortName = newName
     }
 }

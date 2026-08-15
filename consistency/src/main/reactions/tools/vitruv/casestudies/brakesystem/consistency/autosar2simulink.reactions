@@ -1,5 +1,8 @@
 import java.io.File;
+import java.util.Arrays;
+import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality;
 
+import autosar.SwComponentType;
 import autosar.CompositionSwComponentType;
 
 import "http://www.example.org/simulink" as simulink
@@ -31,11 +34,11 @@ routine createAndRegisterRoot(autosar::AUTOSAR model) {
 reaction AutoSarModelDeletedAsRoot {
     after element autosar::AUTOSAR deleted
     call deleteAndUnregisterRoot(affectedEObject)
-}       
+}
 
 routine deleteAndUnregisterRoot(autosar::AUTOSAR model) {
     match {
-       val mSimulink = retrieve simulink::SimulinkModel corresponding to model 
+       val mSimulink = retrieve simulink::SimulinkModel corresponding to model
     }
     update {
         removeCorrespondenceBetween(model, mSimulink)
@@ -68,7 +71,6 @@ routine createCorrespondingSubsystem(simulink::SimulinkModel mSimulinkModel, aut
         val mSubsystem = new simulink::SubSystem
     }
     update {
-        mSubsystem.name = composition.getShortName()
         mSimulinkModel.getContains().add(mSubsystem)
         addCorrespondenceBetween(composition, mSubsystem)
     }
@@ -79,7 +81,6 @@ routine createCorrespondingBlock(simulink::SimulinkModel mSimulinkModel, autosar
         val mBlock = new simulink::Block
     }
     update {
-        mBlock.name = component.getShortName()
         mSimulinkModel.getContains().add(mBlock)
         addCorrespondenceBetween(component, mBlock)
     }
@@ -130,5 +131,19 @@ routine removeCorrespondingSimulinkElement(autosar::SwComponentType component) {
     update {
         removeObject(mBlock)
         removeCorrespondenceBetween(component, mBlock)
+    }
+}
+
+reaction SwComponentShortNameChanged {
+    after attribute replaced at autosar::SwComponentType[shortName]
+    call updateCorrespondingBlockName(affectedEObject)
+}
+
+routine updateCorrespondingBlockName(autosar::SwComponentType component) {
+    match {
+        val mBlock = retrieve simulink::Block corresponding to component
+    }
+    update {
+        mBlock.name = component.shortName
     }
 }
