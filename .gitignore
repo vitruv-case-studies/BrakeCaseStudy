@@ -13,5 +13,6 @@ plugin.properties
 
 .DS_Store
 .mvn/
+.project
 
 
