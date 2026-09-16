@@ -4,7 +4,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
 
-import org.checkerframework.checker.units.qual.A;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
