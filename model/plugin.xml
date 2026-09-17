@@ -36,4 +36,11 @@
             genModel="src/main/ecore/autoSAR.genmodel"/>
    </extension>
 
+   <extension point="org.eclipse.emf.ecore.generated_package">
+      <package
+            uri="http://example.org/bom"
+            class="bom.BomPackage"
+            genModel="src/main/ecore/bom.genmodel"/>
+   </extension>
+
 </plugin>

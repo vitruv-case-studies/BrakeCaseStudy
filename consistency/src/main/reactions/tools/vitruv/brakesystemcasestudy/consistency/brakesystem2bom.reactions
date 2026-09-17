@@ -1,0 +1,328 @@
+import java.io.File
+import java.util.Objects
+
+import brakesystem.ABSSensor
+import brakesystem.BrakeCaliper
+import brakesystem.BrakeComponent
+import brakesystem.BrakeDisk
+import brakesystem.BrakeHose
+import brakesystem.BrakePad
+import bom.BomFactory
+import bom.DataType
+import bom.StringParameterValue
+import bom.IntegerParameterValue
+import bom.BoolParameterValue
+
+import "http://www.example.org/brakesystem" as brakesystem
+import "http://example.org/bom" as bom
+
+reactions: brakesystem2bom
+in reaction to changes in brakesystem
+execute actions in bom
+
+reaction BrakesystemInsertedAsRoot {
+    after element brakesystem::Brakesystem inserted as root
+    call createBOM(newValue)
+}
+
+routine createBOM(brakesystem::Brakesystem source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    create {
+        val target = new bom::BOM
+    }
+    update {
+        target.name = source.instanceName
+        persistProjectRelative(source, target, new File("").toString() + "example.bom")
+        addCorrespondenceBetween(source, target)
+    }
+}
+
+reaction BrakesystemNameChanged {
+    after attribute replaced at brakesystem::Brakesystem[instanceName]
+    call updateBOMName(affectedEObject)
+}
+
+routine updateBOMName(brakesystem::Brakesystem source) {
+    match {
+        val target = retrieve bom::BOM corresponding to source
+    }
+    update {
+        if (!Objects.equals(target.name, source.instanceName)) target.name = source.instanceName
+    }
+}
+
+// A brake component not yet represented in the BOM starts a new item with
+// quantity one. Components created from a BOM item already have a correspondence.
+reaction BrakeComponentInserted {
+    after element brakesystem::BrakeComponent inserted in brakesystem::Brakesystem[BrakeComponents]
+    call createBOMItem(newValue)
+}
+
+routine createBOMItem(brakesystem::BrakeComponent component) {
+    match {
+        val target = retrieve bom::BOM corresponding to component.eContainer()
+        require absence of bom::Item corresponding to component
+    }
+    create {
+        val item = new bom::Item
+        val type = new bom::ItemType
+    }
+    update {
+        type.name = component.eClass().name
+        // Item.type is a non-containment reference, so its ItemType must be a root.
+        persistProjectRelative(component, type, new File("").toString() + "example.bom")
+        item.type = type
+        item.id = component.id
+        item.numberOfItems = 1
+        target.items.add(item)
+        addCorrespondenceBetween(component, item)
+        synchronizeParameters(component)
+    }
+}
+
+// A BOM item may correspond to several brake components. Only a one-to-one
+// item can take its id directly from a brake component.
+reaction BrakeComponentIdChanged {
+    after attribute replaced at brakesystem::BrakeComponent[id]
+    call updateBOMItemId(affectedEObject)
+}
+
+routine updateBOMItemId(brakesystem::BrakeComponent component) {
+    match {
+        val item = retrieve bom::Item corresponding to component
+    }
+    update {
+        if (item.numberOfItems == 1 && !Objects.equals(item.id, component.id)) {
+            item.id = component.id
+        }
+    }
+}
+
+// Every feature mapped by bom2brakesystem calls the same routine. It writes
+// the full current state, making insertion and later attribute changes agree.
+reaction SpecificationTypeChanged {
+    after attribute replaced at brakesystem::BrakeComponent[specificationType]
+    call synchronizeParameters(affectedEObject)
+}
+reaction OEMNumberChanged {
+    after attribute replaced at brakesystem::BrakeComponent[OEM_number]
+    call synchronizeParameters(affectedEObject)
+}
+reaction FittingPositionChanged {
+    after attribute replaced at brakesystem::BrakeComponent[fittingPosition]
+    call synchronizeParameters(affectedEObject)
+}
+reaction SensorTypeChanged {
+    after attribute replaced at brakesystem::ABSSensor[sensorType]
+    call synchronizeParameters(affectedEObject)
+}
+reaction FittingDepthChanged {
+    after attribute replaced at brakesystem::ABSSensor[fittingDepth]
+    call synchronizeParameters(affectedEObject)
+}
+reaction NumberOfPinsChanged {
+    after attribute replaced at brakesystem::ABSSensor[numberOfPins]
+    call synchronizeParameters(affectedEObject)
+}
+reaction SensorLengthChanged {
+    after attribute replaced at brakesystem::ABSSensor[lengthInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction PistonDiameterChanged {
+    after attribute replaced at brakesystem::BrakeCaliper[pistonDiameterInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction CaliperDiskThicknessChanged {
+    after attribute replaced at brakesystem::BrakeCaliper[brakeDiskThickness]
+    call synchronizeParameters(affectedEObject)
+}
+reaction ThreadSize1Changed {
+    after attribute replaced at brakesystem::BrakeHose[threadSize1]
+    call synchronizeParameters(affectedEObject)
+}
+reaction ThreadSize2Changed {
+    after attribute replaced at brakesystem::BrakeHose[threadSize2]
+    call synchronizeParameters(affectedEObject)
+}
+reaction HoseLengthChanged {
+    after attribute replaced at brakesystem::BrakeHose[lengthInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction DiameterChanged {
+    after attribute replaced at brakesystem::BrakeDisk[diameterInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction CenteringDiameterChanged {
+    after attribute replaced at brakesystem::BrakeDisk[centeringDiameterInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction RimHoleNumberChanged {
+    after attribute replaced at brakesystem::BrakeDisk[rimHoleNumber]
+    call synchronizeParameters(affectedEObject)
+}
+reaction HoleArrangementNumberChanged {
+    after attribute replaced at brakesystem::BrakeDisk[holeArrangementNumber]
+    call synchronizeParameters(affectedEObject)
+}
+reaction BoltHoleCircleChanged {
+    after attribute replaced at brakesystem::BrakeDisk[boltHoleCircleInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction DiskThicknessChanged {
+    after attribute replaced at brakesystem::BrakeDisk[brakeDiskThicknessInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction MinimumThicknessChanged {
+    after attribute replaced at brakesystem::BrakeDisk[minimumThicknessInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction VentilatedChanged {
+    after attribute replaced at brakesystem::BrakeDisk[ventilated]
+    call synchronizeParameters(affectedEObject)
+}
+reaction WearWarningChanged {
+    after attribute replaced at brakesystem::BrakePad[wearWarning]
+    call synchronizeParameters(affectedEObject)
+}
+reaction PadHeightChanged {
+    after attribute replaced at brakesystem::BrakePad[heightInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction PadWidthChanged {
+    after attribute replaced at brakesystem::BrakePad[widthInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction PadThicknessChanged {
+    after attribute replaced at brakesystem::BrakePad[thicknessInMM]
+    call synchronizeParameters(affectedEObject)
+}
+
+routine synchronizeParameters(brakesystem::BrakeComponent component) {
+    match {
+        val item = retrieve bom::Item corresponding to component
+    }
+    update {
+        putString(item, "Specification Type", component.specificationType)
+        putString(item, "OEM Number", component.OEM_number)
+        putString(item, "Fitting Position", component.fittingPosition)
+        if (component instanceof ABSSensor) {
+            val sensor = component as ABSSensor
+            putString(item, "Sensor Type", sensor.sensorType)
+            putInteger(item, "Fitting Depth", sensor.fittingDepth)
+            putInteger(item, "Number of Pins", sensor.numberOfPins)
+            putInteger(item, "Length", sensor.lengthInMM)
+        } else if (component instanceof BrakeCaliper) {
+            val caliper = component as BrakeCaliper
+            putInteger(item, "Piston Diameter", caliper.pistonDiameterInMM)
+            putInteger(item, "Brake Disk Thickness", caliper.brakeDiskThickness)
+        } else if (component instanceof BrakeHose) {
+            val hose = component as BrakeHose
+            putString(item, "Thread 1", hose.threadSize1)
+            putString(item, "Thread 2", hose.threadSize2)
+            putInteger(item, "Length", hose.lengthInMM)
+        } else if (component instanceof BrakeDisk) {
+            val disk = component as BrakeDisk
+            putInteger(item, "Diameter", disk.diameterInMM)
+            putInteger(item, "Centering Diameter", disk.centeringDiameterInMM)
+            putInteger(item, "Rim Hole Number", disk.rimHoleNumber)
+            putInteger(item, "Hole Arrangement Number", disk.holeArrangementNumber)
+            putInteger(item, "Bolt Hole Circle", disk.boltHoleCircleInMM)
+            putInteger(item, "Brake Disk Thickness", disk.brakeDiskThicknessInMM)
+            putInteger(item, "Minimum Thickness", disk.minimumThicknessInMM)
+            putBoolean(item, "Ventilated", disk.ventilated)
+        } else if (component instanceof BrakePad) {
+            val pad = component as BrakePad
+            putInteger(item, "Height", pad.heightInMM)
+            putInteger(item, "Width", pad.widthInMM)
+            putInteger(item, "Thickness", pad.thicknessInMM)
+            putBoolean(item, "Wear Warning", pad.wearWarning)
+        }
+    }
+}
+
+// A definition and value are created together. Later changes only replace
+// the value, so the references used by bom2brakesystem remain stable.
+routine putString(bom::Item item, String name, String newValue) {
+    update {
+        val existing = item.parameterValues.findFirst[p | p.definition !== null && p.definition.name == name] as StringParameterValue
+        if (existing === null) {
+            var definition = item.type.parameterDefinitions.findFirst[d | d.name == name]
+            if (definition === null) {
+                definition = BomFactory.eINSTANCE.createParameterDefinition()
+                definition.name = name
+                definition.dataType = DataType.ESTRING
+                item.type.parameterDefinitions.add(definition)
+            }
+            val value = BomFactory.eINSTANCE.createStringParameterValue()
+            value.definition = definition
+            value.value = newValue
+            item.parameterValues.add(value)
+        } else if (!Objects.equals(existing.value, newValue)) {
+            existing.value = newValue
+        }
+    }
+}
+
+routine putInteger(bom::Item item, String name, Integer newValue) {
+    update {
+        val existing = item.parameterValues.findFirst[p | p.definition !== null && p.definition.name == name] as IntegerParameterValue
+        if (existing === null) {
+            var definition = item.type.parameterDefinitions.findFirst[d | d.name == name]
+            if (definition === null) {
+                definition = BomFactory.eINSTANCE.createParameterDefinition()
+                definition.name = name
+                definition.dataType = DataType.EINT
+                item.type.parameterDefinitions.add(definition)
+            }
+            val value = BomFactory.eINSTANCE.createIntegerParameterValue()
+            value.definition = definition
+            value.value = newValue
+            item.parameterValues.add(value)
+        } else if (existing.value != newValue) {
+            existing.value = newValue
+        }
+    }
+}
+
+routine putBoolean(bom::Item item, String name, Boolean newValue) {
+    update {
+        val existing = item.parameterValues.findFirst[p | p.definition !== null && p.definition.name == name] as BoolParameterValue
+        if (existing === null) {
+            var definition = item.type.parameterDefinitions.findFirst[d | d.name == name]
+            if (definition === null) {
+                definition = BomFactory.eINSTANCE.createParameterDefinition()
+                definition.name = name
+                definition.dataType = DataType.EBOOLEAN
+                item.type.parameterDefinitions.add(definition)
+            }
+            val value = BomFactory.eINSTANCE.createBoolParameterValue()
+            value.definition = definition
+            value.value = newValue
+            item.parameterValues.add(value)
+        } else if (existing.value != newValue) {
+            existing.value = newValue
+        }
+    }
+}
+
+reaction BrakeComponentDeleted {
+    after element brakesystem::BrakeComponent deleted
+    call deleteBOMItemOrDecreaseQuantity(affectedEObject)
+}
+
+routine deleteBOMItemOrDecreaseQuantity(brakesystem::BrakeComponent component) {
+    match {
+        val item = retrieve bom::Item corresponding to component
+    }
+    update {
+        removeCorrespondenceBetween(component, item)
+        val remaining = getCorrespondingElements(item, BrakeComponent, null, null).size
+        if (remaining == 0) {
+            removeObject(item)
+        } else if (item.numberOfItems != remaining) {
+            item.numberOfItems = remaining
+        }
+    }
+}
