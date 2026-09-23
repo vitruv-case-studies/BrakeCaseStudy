@@ -50,7 +50,7 @@ routine deleteCorrespondingCADModel(brakesystem::Brakesystem repo) {
 //// Brake Component
 //
 reaction BrakeComponentInserted {
-    after element brakesystem::BrakeComponent inserted in brakesystem::Brakesystem[BrakeComponents]
+    after element brakesystem::BrakeComponent inserted in brakesystem::Brakesystem[brakeComponents]
     call createAndRegisterBrakeComponent(newValue)
 }
 
@@ -84,7 +84,6 @@ routine createAndRegisterNamespaceForBrakeComponent(cad::CAD_Model cadModel, bra
         val namespace = new cad::Namespace 
     }
     update {
-        
         namespace.id = component.id
         cadModel.namespaces.add(namespace)
         addCorrespondenceBetween(component, namespace)

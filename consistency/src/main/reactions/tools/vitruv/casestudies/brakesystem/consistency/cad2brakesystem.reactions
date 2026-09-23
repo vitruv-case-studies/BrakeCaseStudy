@@ -64,7 +64,7 @@ routine createAndRegisterNamespace(cad::Namespace namespace) {
     }
     update {
         val componentType = userInteractor.singleSelectionDialogBuilder.message(
-            "What brake component does this namespace represent?").choices(
+            "What brake component does this namespace '" + namespace.id + "' represent?").choices(
             Arrays.asList("ABSSensor","BrakeCaliper","BrakeHose","BrakeDisk", "BrakePad")).windowModality(WindowModality.MODAL).startInteraction
         switch (componentType) {
             case 0:
@@ -90,7 +90,7 @@ routine createABSSensor(cad::Namespace namespace, brakesystem::Brakesystem mBrak
     }
     update {
         addCorrespondenceBetween(namespace, component);
-        // we cannot use the BrakeComponents syntax because there is no setter I think, so we
+        // we cannot use the brakeComponents syntax because there is no setter I think, so we
         // have to use the explicit getter syntax
         mBrake.getBrakeComponents.add(component);
     }

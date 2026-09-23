@@ -97,7 +97,7 @@ routine deleteAndUnregisterRoot(brakesystem::Brakesystem mBrakesystem) {
 // ABSSensor
 
 reaction ABSSensorInserted {
-    after element brakesystem::ABSSensor inserted in brakesystem::Brakesystem[BrakeComponents]
+    after element brakesystem::ABSSensor inserted in brakesystem::Brakesystem[brakeComponents]
     call createCorrespondingAutosarComponent(newValue)
 }
 

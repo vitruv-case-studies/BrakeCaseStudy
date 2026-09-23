@@ -189,8 +189,10 @@ routine insertCorrespondingComponent(simulink::SubSystem parentSubsystem, simuli
         val prototype = new autosar::SwComponentPrototype
     }
     update {
-        prototype.type = component
-        parentComposition.getComponents().add(prototype)
+        if (parentComposition.getComponents().findFirst[p | p.type === component] === null) {
+            prototype.type = component
+            parentComposition.getComponents().add(prototype)
+        }
     }
 }
 
@@ -207,20 +209,7 @@ routine createAndInsertCorrespondingComponent(simulink::SubSystem parentSubsyste
     update {
         val mAutosarModel = parentComposition.eContainer().eContainer() as AUTOSAR
         createCorrespondingAutoSarComponentForBlock(mAutosarModel, block)
-        insertComponent(parentComposition, block)
-    }
-}
-
-routine insertComponent(autosar::CompositionSwComponentType parentComposition, simulink::Block block) {
-    match {
-        val component = retrieve autosar::SwComponentType corresponding to block
-    }
-    create {
-        val prototype = new autosar::SwComponentPrototype
-    }
-    update {
-        prototype.type = component
-        parentComposition.getComponents().add(prototype)
+        insertCorrespondingComponent(parentSubsystem, block)
     }
 }
 
