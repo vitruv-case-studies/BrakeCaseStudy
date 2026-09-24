@@ -1,4 +1,3 @@
-
 import java.io.File;
 
 import edu.kit.ipd.sdq.metamodels.cad.Unit;
@@ -32,30 +31,62 @@ routine createAndRegisterRoot(brakesystem::Brakesystem repo) {
     }
 }
 
+reaction BrakesystemDeleted {
+    after element brakesystem::Brakesystem deleted
+    call deleteCorrespondingCADModel(affectedEObject)
+}
+
+routine deleteCorrespondingCADModel(brakesystem::Brakesystem repo) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to repo
+    }
+    update {
+        removeObject(mCad)
+        removeCorrespondenceBetween(repo, mCad)
+    }
+}
+
 //
 //// Brake Component
 //
-
-
-
 reaction BrakeComponentInserted {
-    after element brakesystem::BrakeComponent inserted in brakesystem::Brakesystem[BrakeComponents]
+    after element brakesystem::BrakeComponent inserted in brakesystem::Brakesystem[brakeComponents]
     call createAndRegisterBrakeComponent(newValue)
 }
 
-routine createAndRegisterBrakeComponent(brakesystem::BrakeComponent comp) {
+routine createAndRegisterBrakeComponent(brakesystem::BrakeComponent component) {
     match {
-        val mCad = retrieve cad::CAD_Model corresponding to comp.eContainer()
-        require absence of cad::Namespace corresponding to comp
+        val mCad = retrieve cad::CAD_Model corresponding to component.eContainer()
+        require absence of cad::Namespace corresponding to component
     }
+    update {
+        createAndRegisterNamespaceForBrakeComponent(mCad, component)
+    }
+}
+
+reaction BrakePadInsertedInCaliper {
+    after element brakesystem::BrakePad inserted in brakesystem::BrakeCaliper[brakePads]
+    call createAndRegisterBrakePad(newValue)
+}
+
+routine createAndRegisterBrakePad(brakesystem::BrakePad pad) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to pad.eContainer().eContainer()
+        require absence of cad::Namespace corresponding to pad
+    }
+    update {
+        createAndRegisterNamespaceForBrakeComponent(mCad, pad)
+    }
+}
+
+routine createAndRegisterNamespaceForBrakeComponent(cad::CAD_Model cadModel, brakesystem::BrakeComponent component) {
     create {
         val namespace = new cad::Namespace 
     }
     update {
-        
-        namespace.id = comp.id
-        mCad.namespaces.add(namespace)
-        addCorrespondenceBetween(comp, namespace)
+        namespace.id = component.id
+        cadModel.namespaces.add(namespace)
+        addCorrespondenceBetween(component, namespace)
     }
 }
 
@@ -342,25 +373,17 @@ routine updateVentilated(brakesystem::BrakeDisk disk) {
 /// Generalized to _any_ BrakeComponent
 
 reaction BrakeComponentDeleted {
-    after element brakesystem::BrakeComponent removed 
-        // Removed also needs to specify from where (what model element, and reference)
-        // we delete another model element
-        from brakesystem::Brakesystem[BrakeComponents]
-    // affectedEObject has the BrakeSystem from which the BrakeDisk has been removed
-    call deleteCorrespondingBrakeDisk(affectedEObject, oldValue)
+    after element brakesystem::BrakeComponent deleted 
+    call deleteCorrespondingBrakeDisk(affectedEObject)
 }
 
-routine deleteCorrespondingBrakeDisk(brakesystem::Brakesystem system, brakesystem::BrakeComponent component) {
+routine deleteCorrespondingBrakeDisk(brakesystem::BrakeComponent component) {
     match {
         // Within a match block, only retrieve statements can be written
         val namespace = retrieve cad::Namespace corresponding to component
-        // We can also retrieve the CAD Model corresponding to the brake system
-        // This is where the namespace we want to delete is contained
-        val cadModel = retrieve cad::CAD_Model corresponding to system
     }
     update {
-        // We only remove the reference, the namespace should not exist later on
-        cadModel.namespaces.remove(namespace)
+        removeObject(namespace)
         removeCorrespondenceBetween(component, namespace)
     }
 }

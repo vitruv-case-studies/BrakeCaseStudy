@@ -23,6 +23,11 @@
             <artifactId>tools.vitruv.casestudies.brakesystem.model</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>tools.vitruv.casestudies.brakesystem.viewtype</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Vitruvius dependencies -->
         <dependency>
@@ -110,6 +115,11 @@
                     <dependency>
                         <groupId>${project.groupId}</groupId>
                         <artifactId>tools.vitruv.casestudies.brakesystem.model</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>${project.groupId}</groupId>
+                        <artifactId>tools.vitruv.casestudies.brakesystem.viewtype</artifactId>
                         <version>${project.version}</version>
                     </dependency>
                 </dependencies>

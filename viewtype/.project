@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>tools.vitruv.casestudies.brakesystem.model</name>
+	<name>tools.vitruv.casestudies.brakesystem.viewtype</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -17,7 +17,7 @@
 	</natures>
 	<filteredResources>
 		<filter>
-			<id>1785015185745</id>
+			<id>1785015185767</id>
 			<name></name>
 			<type>30</type>
 			<matcher>

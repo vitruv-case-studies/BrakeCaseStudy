@@ -10,8 +10,7 @@ import brakesystem.ABSSensor;
 import brakesystem.BrakeCaliper;
 import brakesystem.BrakeHose;
 import brakesystem.BrakeDisk;
-
-
+import brakesystem.BrakePad;
 
 import "http://www.example.org/brakesystem" as brakesystem
 import "http://www.example.org/cad" as cad
@@ -38,6 +37,20 @@ routine createAndRegisterRoot(cad::CAD_Model model) {
     }
 }
 
+reaction CAD_ModelDeleted {
+    after element cad::CAD_Model deleted
+    call deleteCorrespondingBrake(affectedEObject)
+}
+
+routine deleteCorrespondingBrake(cad::CAD_Model model) {
+    match {
+        val mBrake = retrieve brakesystem::Brakesystem corresponding to model
+    }
+    update {
+        removeObject(mBrake)
+        removeCorrespondenceBetween(model, mBrake)
+    }
+}
 
 reaction NameSpaceInserted {
     after element cad::Namespace inserted in cad::CAD_Model[namespaces]
@@ -51,8 +64,8 @@ routine createAndRegisterNamespace(cad::Namespace namespace) {
     }
     update {
         val componentType = userInteractor.singleSelectionDialogBuilder.message(
-            "What brake component does this namespace represent?").choices(
-            Arrays.asList("ABSSensor","BrakeCaliper","BrakeHose","BrakeDisk")).windowModality(WindowModality.MODAL).startInteraction
+            "What brake component does this namespace '" + namespace.id + "' represent?").choices(
+            Arrays.asList("ABSSensor","BrakeCaliper","BrakeHose","BrakeDisk", "BrakePad")).windowModality(WindowModality.MODAL).startInteraction
         switch (componentType) {
             case 0:
                 createABSSensor(namespace, mBrake)
@@ -62,6 +75,8 @@ routine createAndRegisterNamespace(cad::Namespace namespace) {
                 createBrakeHose(namespace, mBrake)
             case 3:
                 createBrakeDisk(namespace, mBrake)
+            case 4:
+                createBrakePad(namespace, mBrake)
             default:
                 return // do nothing
         }
@@ -75,7 +90,7 @@ routine createABSSensor(cad::Namespace namespace, brakesystem::Brakesystem mBrak
     }
     update {
         addCorrespondenceBetween(namespace, component);
-        // we cannot use the BrakeComponents syntax because there is no setter I think, so we
+        // we cannot use the brakeComponents syntax because there is no setter I think, so we
         // have to use the explicit getter syntax
         mBrake.getBrakeComponents.add(component);
     }
@@ -111,6 +126,35 @@ routine createBrakeDisk(cad::Namespace namespace, brakesystem::Brakesystem mBrak
     }
 }
 
+routine createBrakePad(cad::Namespace namespace, brakesystem::Brakesystem mBrake) {
+    create {
+        val component = new brakesystem::BrakePad
+    }
+    update {
+        val calipers = mBrake.getBrakeComponents.filter[it instanceof BrakeCaliper].map[it as BrakeCaliper].toList
+        var chosen = 0
+        if (calipers.size() > 0) {
+            val choices = calipers.map[id] + #["None"]
+            chosen = userInteractor.singleSelectionDialogBuilder.message(
+                "Which brake calipher does this brake pad belong to?").choices(choices).windowModality(WindowModality.MODAL).
+                startInteraction
+        }
+
+        if (chosen < 0 || chosen > calipers.size) {
+            return
+        }
+
+        addCorrespondenceBetween(namespace, component);
+
+        if (chosen < calipers.size) {
+            val chosenCaliper = calipers.get(chosen)
+            chosenCaliper.brakePads.add(component)
+        } else {
+            mBrake.getBrakeComponents.add(component);
+        }
+    }
+}
+
 // Reaction for changing the id of namespace
 reaction NamespaceIdChanged {
     after attribute replaced at cad::Namespace[id]
@@ -131,26 +175,17 @@ routine updateCorrespondingBrakeComponentId(cad::Namespace namespace) {
 
 // Deletion of Namespaces
 reaction NamespaceDeleted {
-    after element cad::Namespace removed 
-        from cad::CAD_Model[namespaces]
-    call deleteCorrespondingBrakeComponent(affectedEObject, oldValue)
+    after element cad::Namespace deleted
+    call deleteCorrespondingBrakeComponent(affectedEObject)
 }
 
-routine deleteCorrespondingBrakeComponent(
-    cad::CAD_Model cadModel, cad::Namespace namespace
-) {
+routine deleteCorrespondingBrakeComponent(cad::Namespace namespace) {
     match {
         // Retrieve the corresponding BrakeComponent
         val component = retrieve brakesystem::BrakeComponent corresponding to namespace
-
-        // Retrieve the BrakeSystem corresponding to the CAD model
-        val system = retrieve brakesystem::Brakesystem corresponding to cadModel
     }
     update {
-        // Remove the BrakeComponent from the BrakeSystem
-        system.getBrakeComponents.remove(component)
-
-        // Remove correspondence
+        removeObject(component)
         removeCorrespondenceBetween(component, namespace)
     }
 }
@@ -161,8 +196,18 @@ reaction ParameterInserted {
     call updateCorrespondingAttribute(newValue)
 }
 
-reaction ParameterValueChanged {
+reaction StringParameterValueChanged {
     after attribute replaced at cad::StringParameter[value]
+    call updateCorrespondingAttribute(affectedEObject)
+}
+
+reaction NumericParameterValueChanged {
+    after attribute replaced at cad::NumericParameter[value]
+    call updateCorrespondingAttribute(affectedEObject)
+}
+
+reaction BooleanParameterValueChanged {
+    after attribute replaced at cad::BooleanParameter[value]
     call updateCorrespondingAttribute(affectedEObject)
 }
 
@@ -185,7 +230,9 @@ routine updateCorrespondingAttribute(cad::Parameter parameter) {
             updateBrakeHose(parameter)
         } else if (mBrakeComponent instanceof BrakeDisk) {
             updateBrakeDisk(parameter)
-        } 
+        } else if (mBrakeComponent instanceof BrakePad) {
+            updateBrakePad(parameter)
+        }
     }
 }
 
@@ -314,6 +361,35 @@ routine updateBrakeDisk(cad::Parameter parameter) {
             val booleanParam = parameter
             if (booleanParam.name == "Ventilated") {
                 brakeDisk.setVentilated(booleanParam.value)
+            } 
+            return
+        }
+    }
+}
+
+routine updateBrakePad(cad::Parameter parameter) {
+    match {
+        val brakePad = retrieve brakesystem::BrakePad corresponding to parameter.eContainer()
+    }
+    update {
+        if (parameter instanceof NumericParameter) {
+            val numericParam = parameter 
+            switch (numericParam.name) {
+                case "Height":
+                    brakePad.setHeightInMM(Math.round(numericParam.value))
+                case "Width":
+                    brakePad.setWidthInMM(Math.round(numericParam.value))
+                case "Thickness":
+                    brakePad.setThicknessInMM(Math.round(numericParam.value))
+                default:
+                    return
+            }
+            return
+        }
+        if (parameter instanceof BooleanParameter) {
+            val booleanParam = parameter
+            if (booleanParam.name == "Wear Warning") {
+                brakePad.setWearWarning(booleanParam.value)
             } 
             return
         }
