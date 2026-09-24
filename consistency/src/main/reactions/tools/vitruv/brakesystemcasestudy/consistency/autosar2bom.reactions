@@ -1,0 +1,345 @@
+import java.io.File
+import java.util.Objects
+
+import autosar.ARPackage
+import autosar.AtomicSwComponentType
+import autosar.SDG
+import bom.DataType
+import bom.StringParameterValue
+import bom.IntegerParameterValue
+import bom.DoubleParameterValue
+import bom.BoolParameterValue
+
+import "http://vitruv.tools/methodologisttemplate/autosar" as autosar
+import "http://example.org/bom" as bom
+
+reactions: autosar2bom
+in reaction to changes in autosar
+execute actions in bom
+
+reaction AUTOSARInsertedAsRoot {
+    after element autosar::AUTOSAR inserted as root
+    call createBOM(newValue)
+}
+
+routine createBOM(autosar::AUTOSAR source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    create {
+        val target = new bom::BOM
+    }
+    update {
+        target.name = if (source.arpackage.empty) "AUTOSAR" else source.arpackage.get(0).shortName
+        persistProjectRelative(source, target, new File("").toString() + "example.bom")
+        addCorrespondenceBetween(source, target)
+        if (!source.arpackage.empty) addCorrespondenceBetween(source.arpackage.get(0), target)
+    }
+}
+
+reaction RootPackageInserted {
+    after element autosar::ARPackage inserted in autosar::AUTOSAR[arpackage]
+    call registerRootPackage(newValue)
+}
+
+routine registerRootPackage(autosar::ARPackage rootPackage) {
+    match {
+        val target = retrieve bom::BOM corresponding to rootPackage.eContainer()
+    }
+    update {
+        if (getCorrespondingElements(target, ARPackage, null, null).empty) {
+            target.name = rootPackage.shortName
+            addCorrespondenceBetween(rootPackage, target)
+        }
+    }
+}
+
+reaction RootPackageNameChanged {
+    after attribute replaced at autosar::ARPackage[shortName]
+    call updateBOMName(affectedEObject)
+}
+
+routine updateBOMName(autosar::ARPackage rootPackage) {
+    match {
+        val target = retrieve bom::BOM corresponding to rootPackage
+    }
+    update {
+        if (!Objects.equals(target.name, rootPackage.shortName)) target.name = rootPackage.shortName
+    }
+}
+
+reaction AtomicComponentInserted {
+    after element autosar::AtomicSwComponentType inserted in autosar::ARPackage[elements]
+    call createItem(newValue)
+}
+
+routine createItem(autosar::AtomicSwComponentType component) {
+    match {
+        val target = retrieve bom::BOM corresponding to component.eContainer().eContainer()
+        require absence of bom::Item corresponding to component
+    }
+    create {
+        val item = new bom::Item
+        val type = new bom::ItemType
+    }
+    update {
+        type.name = component.shortName
+        persistProjectRelative(component, type, new File("").toString() + "example.bom")
+        item.id = if (component.uuid === null) component.shortName else component.uuid
+        item.type = type
+        item.numberOfItems = 1
+        target.items.add(item)
+        addCorrespondenceBetween(component, item)
+        addCorrespondenceBetween(component, type)
+        if (component.adminData !== null) {
+            for (group : component.adminData.sdgs) createParameterValueForItem(group, item)
+        }
+    }
+}
+
+reaction ComponentShortNameChanged {
+    after attribute replaced at autosar::AtomicSwComponentType[shortName]
+    call updateItemIdentity(affectedEObject)
+}
+
+reaction ComponentUuidChanged {
+    after attribute replaced at autosar::AtomicSwComponentType[uuid]
+    call updateItemIdentity(affectedEObject)
+}
+
+routine updateItemIdentity(autosar::AtomicSwComponentType component) {
+    match {
+        val item = retrieve bom::Item corresponding to component
+    }
+    update {
+        if (item.type !== null && !Objects.equals(item.type.name, component.shortName)) {
+            item.type.name = component.shortName
+        }
+        if (item.numberOfItems == 1) {
+            val expectedId = if (component.uuid === null) component.shortName else component.uuid
+            if (!Objects.equals(item.id, expectedId)) item.id = expectedId
+        }
+    }
+}
+
+reaction ParameterGroupInserted {
+    after element autosar::SDG inserted in autosar::AdminData[sdgs]
+    call createParameterValue(newValue)
+}
+
+reaction ParameterEntryInserted {
+    after element autosar::SD inserted in autosar::SDG[sd]
+    call createParameterValue(newValue.eContainer() as SDG)
+}
+
+routine createParameterValue(autosar::SDG group) {
+    match {
+        val item = retrieve bom::Item corresponding to group.eContainer().eContainer()
+        require absence of bom::ParameterValue corresponding to group
+    }
+    update {
+        createParameterValueForItem(group, item)
+    }
+}
+
+routine createParameterValueForItem(autosar::SDG group, bom::Item item) {
+    update {
+        if (Objects.equals(group.gid, "BOM_PARAMETER")) {
+            val nameEntry = group.sd.findFirst[entry | Objects.equals(entry.key, "name")]
+            val typeEntry = group.sd.findFirst[entry | Objects.equals(entry.key, "type")]
+            val valueEntry = group.sd.findFirst[entry | Objects.equals(entry.key, "value")]
+            if (nameEntry !== null && typeEntry !== null && valueEntry !== null &&
+                    nameEntry.value !== null && typeEntry.value !== null && valueEntry.value !== null) {
+                val name = nameEntry.value.toString
+                val type = typeEntry.value.toString
+                val text = valueEntry.value.toString
+                switch (type) {
+                    case "EInt": createIntegerValue(group, item, name, text)
+                    case "EDouble": createDoubleValue(group, item, name, text)
+                    case "EBoolean": createBooleanValue(group, item, name, text)
+                    case "EString": createStringValue(group, item, name, text)
+                    default: createStringValue(group, item, name, text)
+                }
+            }
+        }
+    }
+}
+
+routine createStringValue(autosar::SDG group, bom::Item item, String name, String text) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::StringParameterValue
+    }
+    update {
+        initializeValue(group, item, definition, value, name, DataType.ESTRING)
+        value.value = text
+        synchronizeParameterValue(group)
+    }
+}
+
+routine createIntegerValue(autosar::SDG group, bom::Item item, String name, String text) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::IntegerParameterValue
+    }
+    update {
+        initializeValue(group, item, definition, value, name, DataType.EINT)
+        value.value = Integer.parseInt(text)
+        synchronizeParameterValue(group)
+    }
+}
+
+routine createDoubleValue(autosar::SDG group, bom::Item item, String name, String text) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::DoubleParameterValue
+    }
+    update {
+        initializeValue(group, item, definition, value, name, DataType.EDOUBLE)
+        value.value = Double.parseDouble(text)
+        synchronizeParameterValue(group)
+    }
+}
+
+routine createBooleanValue(autosar::SDG group, bom::Item item, String name, String text) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::BoolParameterValue
+    }
+    update {
+        initializeValue(group, item, definition, value, name, DataType.EBOOLEAN)
+        value.value = Boolean.parseBoolean(text)
+        synchronizeParameterValue(group)
+    }
+}
+
+routine initializeValue(autosar::SDG group, bom::Item item, bom::ParameterDefinition definition,
+        bom::ParameterValue value, String name, bom::DataType dataType) {
+    update {
+        definition.name = name
+        definition.dataType = dataType
+        item.type.parameterDefinitions.add(definition)
+        value.definition = definition
+        item.parameterValues.add(value)
+        addCorrespondenceBetween(group, value)
+        addCorrespondenceBetween(group, definition)
+    }
+}
+
+reaction ParameterEntryKeyChanged {
+    after attribute replaced at autosar::SD[key]
+    call synchronizeParameterValue(affectedEObject.eContainer() as SDG)
+}
+
+reaction ParameterEntryValueChanged {
+    after attribute replaced at autosar::SD[value]
+    call synchronizeParameterValue(affectedEObject.eContainer() as SDG)
+}
+
+routine synchronizeParameterValue(autosar::SDG group) {
+    match {
+        val value = retrieve bom::ParameterValue corresponding to group
+    }
+    update {
+        val nameEntry = group.sd.findFirst[entry | Objects.equals(entry.key, "name")]
+        val valueEntry = group.sd.findFirst[entry | Objects.equals(entry.key, "value")]
+        val unitEntry = group.sd.findFirst[entry | Objects.equals(entry.key, "unit")]
+        val descriptionEntry = group.sd.findFirst[entry | Objects.equals(entry.key, "description")]
+        if (nameEntry !== null && nameEntry.value !== null && value.definition !== null) {
+            value.definition.name = nameEntry.value.toString
+        }
+        value.description = if (descriptionEntry === null || descriptionEntry.value === null)
+            null else descriptionEntry.value.toString
+        if (valueEntry !== null && valueEntry.value !== null) {
+            val text = valueEntry.value.toString
+            if (value instanceof StringParameterValue) {
+                (value as StringParameterValue).value = text
+            } else if (value instanceof IntegerParameterValue) {
+                (value as IntegerParameterValue).value = Integer.parseInt(text)
+                (value as IntegerParameterValue).unit = if (unitEntry === null || unitEntry.value === null)
+                    null else unitEntry.value.toString
+            } else if (value instanceof DoubleParameterValue) {
+                (value as DoubleParameterValue).value = Double.parseDouble(text)
+                (value as DoubleParameterValue).unit = if (unitEntry === null || unitEntry.value === null)
+                    null else unitEntry.value.toString
+            } else if (value instanceof BoolParameterValue) {
+                (value as BoolParameterValue).value = Boolean.parseBoolean(text)
+            }
+        }
+    }
+}
+
+reaction ParameterGroupDeleted {
+    after element autosar::SDG deleted
+    call deleteParameterValue(affectedEObject)
+}
+
+reaction ParameterGroupRemoved {
+    after element autosar::SDG removed from autosar::AdminData[sdgs]
+    call deleteRemovedParameterValue(affectedEObject, oldValue)
+}
+
+routine deleteRemovedParameterValue(autosar::AdminData adminData, autosar::SDG group) {
+    match {
+        val item = retrieve bom::Item corresponding to adminData.eContainer()
+    }
+    update {
+        val nameEntry = group.sd.findFirst[entry | Objects.equals(entry.key, "name")]
+        if (nameEntry !== null && nameEntry.value !== null) {
+            val name = nameEntry.value.toString
+            val value = item.parameterValues.findFirst[candidate |
+                candidate.definition !== null && Objects.equals(candidate.definition.name, name)]
+            if (value !== null) {
+                val definition = value.definition
+                val correspondingGroups = getCorrespondingElements(value, SDG, null, null)
+                if (correspondingGroups.size <= 1) {
+                    removeCorrespondenceBetween(group, value)
+                    if (definition !== null) removeCorrespondenceBetween(group, definition)
+                    removeObject(value)
+                    if (definition !== null) removeObject(definition)
+                }
+            }
+        }
+    }
+}
+
+routine deleteParameterValue(autosar::SDG group) {
+    match {
+        val value = retrieve bom::ParameterValue corresponding to group
+    }
+    update {
+        val definition = value.definition
+        removeCorrespondenceBetween(group, value)
+        if (definition !== null) removeCorrespondenceBetween(group, definition)
+        val remaining = getCorrespondingElements(value, SDG, null, null).size
+        if (remaining == 0) {
+            removeObject(value)
+            if (definition !== null) removeObject(definition)
+        }
+    }
+}
+
+reaction AtomicComponentDeleted {
+    after element autosar::AtomicSwComponentType deleted
+    call deleteItemOrDecreaseQuantity(affectedEObject)
+}
+
+routine deleteItemOrDecreaseQuantity(autosar::AtomicSwComponentType component) {
+    match {
+        val item = retrieve bom::Item corresponding to component
+    }
+    update {
+        val type = item.type
+        removeCorrespondenceBetween(component, item)
+        if (type !== null) removeCorrespondenceBetween(component, type)
+        val remaining = getCorrespondingElements(item, AtomicSwComponentType, null, null).size
+        if (remaining == 0) {
+            removeObject(item)
+            if (type !== null && getCorrespondingElements(type, AtomicSwComponentType, null, null).size == 0) {
+                removeObject(type)
+            }
+        } else if (item.numberOfItems != remaining) {
+            item.numberOfItems = remaining
+        }
+    }
+}

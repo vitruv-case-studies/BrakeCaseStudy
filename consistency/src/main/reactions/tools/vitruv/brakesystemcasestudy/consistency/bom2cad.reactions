@@ -1,0 +1,293 @@
+import java.io.File
+import java.util.Objects
+
+import bom.StringParameterValue
+import bom.IntegerParameterValue
+import bom.DoubleParameterValue
+import bom.BoolParameterValue
+import bom.NumericParameterValue
+import edu.kit.ipd.sdq.metamodels.cad.Namespace
+import edu.kit.ipd.sdq.metamodels.cad.NumericParameter
+import edu.kit.ipd.sdq.metamodels.cad.StringParameter
+import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter
+import edu.kit.ipd.sdq.metamodels.cad.Parameter
+import edu.kit.ipd.sdq.metamodels.cad.Unit
+
+import "http://example.org/bom" as bom
+import "http://www.example.org/cad" as cad
+
+reactions: bom2cad
+in reaction to changes in bom
+execute actions in cad
+
+reaction BOMInsertedAsRoot {
+    after element bom::BOM inserted as root
+    call createCADModel(newValue)
+}
+
+routine createCADModel(bom::BOM source) {
+    match {
+        require absence of cad::CAD_Model corresponding to source
+    }
+    create {
+        val target = new cad::CAD_Model
+    }
+    update {
+        target.name = source.name
+        persistProjectRelative(source, target, new File("").toString() + "example.cad")
+        addCorrespondenceBetween(source, target)
+    }
+}
+
+reaction BOMNameChanged {
+    after attribute replaced at bom::BOM[name]
+    call updateCADModelName(affectedEObject)
+}
+
+routine updateCADModelName(bom::BOM source) {
+    match {
+        val target = retrieve cad::CAD_Model corresponding to source
+    }
+    update {
+        if (!Objects.equals(target.name, source.name)) target.name = source.name
+    }
+}
+
+reaction ItemInserted {
+    after element bom::Item inserted in bom::BOM[items]
+    call synchronizeNamespaces(newValue)
+}
+
+reaction NumberOfItemsChanged {
+    after attribute replaced at bom::Item[numberOfItems]
+    call synchronizeNamespaces(affectedEObject)
+}
+
+routine synchronizeNamespaces(bom::Item item) {
+    match {
+        val model = retrieve cad::CAD_Model corresponding to item.eContainer()
+    }
+    update {
+        val desired = Math.max(0, item.numberOfItems)
+        while (getCorrespondingElements(item, Namespace, null, null).size > desired) {
+            val namespaces = getCorrespondingElements(item, Namespace, null, null)
+            val namespace = namespaces.last
+            removeObject(namespace)
+            removeCorrespondenceBetween(item, namespace)
+        }
+        var index = getCorrespondingElements(item, Namespace, null, null).size
+        while (index < desired) {
+            createNamespace(item, model, index)
+            index = index + 1
+        }
+        updateNamespaceIdentity(item)
+    }
+}
+
+routine createNamespace(bom::Item item, cad::CAD_Model model, Integer index) {
+    create {
+        val namespace = new cad::Namespace
+    }
+    update {
+        namespace.id = if (index == 0) item.id else item.id + "-" + (index + 1)
+        if (item.type !== null) {
+            namespace.name = item.type.name
+            namespace.description = item.type.description
+        }
+        model.namespaces.add(namespace)
+        addCorrespondenceBetween(item, namespace)
+        for (value : item.parameterValues) createParameter(value, namespace)
+    }
+}
+
+reaction ItemIdChanged {
+    after attribute replaced at bom::Item[id]
+    call updateNamespaceIdentity(affectedEObject)
+}
+
+routine updateNamespaceIdentity(bom::Item item) {
+    update {
+        var index = 0
+        for (namespace : getCorrespondingElements(item, Namespace, null, null)) {
+            val expectedId = if (index == 0) item.id else item.id + "-" + (index + 1)
+            if (!Objects.equals(namespace.id, expectedId)) namespace.id = expectedId
+            if (item.type !== null) {
+                if (!Objects.equals(namespace.name, item.type.name)) namespace.name = item.type.name
+                if (!Objects.equals(namespace.description, item.type.description)) namespace.description = item.type.description
+            }
+            index = index + 1
+        }
+    }
+}
+
+reaction ParameterValueInserted {
+    after element bom::ParameterValue inserted in bom::Item[parameterValues]
+    call createParameters(newValue)
+}
+
+routine createParameters(bom::ParameterValue value) {
+    update {
+        for (namespace : getCorrespondingElements(value.eContainer(), Namespace, null, null)) {
+            createParameter(value, namespace)
+        }
+    }
+}
+
+routine createParameter(bom::ParameterValue value, cad::Namespace namespace) {
+    update {
+        if (value.definition !== null) {
+            if (value instanceof StringParameterValue) {
+                createStringParameter(value as StringParameterValue, namespace)
+            } else if (value instanceof IntegerParameterValue) {
+                createIntegerParameter(value as IntegerParameterValue, namespace)
+            } else if (value instanceof DoubleParameterValue) {
+                createDoubleParameter(value as DoubleParameterValue, namespace)
+            } else if (value instanceof BoolParameterValue) {
+                createBooleanParameter(value as BoolParameterValue, namespace)
+            }
+        }
+    }
+}
+
+routine createStringParameter(bom::StringParameterValue value, cad::Namespace namespace) {
+    create {
+        val parameter = new cad::StringParameter
+    }
+    update {
+        parameter.name = value.definition.name
+        parameter.description = value.description
+        parameter.value = value.value
+        namespace.parameters.add(parameter)
+        addCorrespondenceBetween(value, parameter)
+    }
+}
+
+routine createIntegerParameter(bom::IntegerParameterValue value, cad::Namespace namespace) {
+    create {
+        val parameter = new cad::NumericParameter
+    }
+    update {
+        initializeNumericParameter(value, parameter, value.value.floatValue)
+        namespace.parameters.add(parameter)
+        addCorrespondenceBetween(value, parameter)
+    }
+}
+
+routine createDoubleParameter(bom::DoubleParameterValue value, cad::Namespace namespace) {
+    create {
+        val parameter = new cad::NumericParameter
+    }
+    update {
+        initializeNumericParameter(value, parameter, value.value.floatValue)
+        namespace.parameters.add(parameter)
+        addCorrespondenceBetween(value, parameter)
+    }
+}
+
+routine initializeNumericParameter(bom::NumericParameterValue value, cad::NumericParameter parameter, Float number) {
+    update {
+        parameter.name = value.definition.name
+        parameter.description = value.description
+        parameter.value = number
+        applyUnit(value, parameter)
+    }
+}
+
+routine applyUnit(bom::NumericParameterValue value, cad::NumericParameter parameter) {
+    update {
+        if (value.unit === null) {
+            // CAD's Unit EAttribute has MM as its Ecore default.
+            if (parameter.unit != Unit.MM) parameter.unit = Unit.MM
+        } else {
+            var unit = Unit.get(value.unit)
+            if (unit === null) unit = Unit.getByName(value.unit)
+            if (unit !== null && parameter.unit != unit) parameter.unit = unit
+        }
+    }
+}
+
+routine createBooleanParameter(bom::BoolParameterValue value, cad::Namespace namespace) {
+    create {
+        val parameter = new cad::BooleanParameter
+    }
+    update {
+        parameter.name = value.definition.name
+        parameter.description = value.description
+        parameter.value = value.value
+        namespace.parameters.add(parameter)
+        addCorrespondenceBetween(value, parameter)
+    }
+}
+
+reaction StringValueChanged {
+    after attribute replaced at bom::StringParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+reaction IntegerValueChanged {
+    after attribute replaced at bom::IntegerParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+reaction DoubleValueChanged {
+    after attribute replaced at bom::DoubleParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+reaction BooleanValueChanged {
+    after attribute replaced at bom::BoolParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+reaction NumericUnitChanged {
+    after attribute replaced at bom::NumericParameterValue[unit]
+    call updateParameters(affectedEObject)
+}
+reaction ParameterDescriptionChanged {
+    after attribute replaced at bom::ParameterValue[description]
+    call updateParameters(affectedEObject)
+}
+
+routine updateParameters(bom::ParameterValue value) {
+    update {
+        for (parameter : getCorrespondingElements(value, Parameter, null, null)) {
+            parameter.description = value.description
+            if (value.definition !== null) parameter.name = value.definition.name
+            if (value instanceof StringParameterValue && parameter instanceof StringParameter) {
+                (parameter as StringParameter).value = (value as StringParameterValue).value
+            } else if (value instanceof IntegerParameterValue && parameter instanceof NumericParameter) {
+                (parameter as NumericParameter).value = (value as IntegerParameterValue).value.floatValue
+                applyUnit(value as IntegerParameterValue, parameter as NumericParameter)
+            } else if (value instanceof DoubleParameterValue && parameter instanceof NumericParameter) {
+                (parameter as NumericParameter).value = (value as DoubleParameterValue).value.floatValue
+                applyUnit(value as DoubleParameterValue, parameter as NumericParameter)
+            } else if (value instanceof BoolParameterValue && parameter instanceof BooleanParameter) {
+                (parameter as BooleanParameter).value = (value as BoolParameterValue).value
+            }
+        }
+    }
+}
+
+reaction ParameterValueDeleted {
+    after element bom::ParameterValue deleted
+    call deleteParameters(affectedEObject)
+}
+
+routine deleteParameters(bom::ParameterValue value) {
+    update {
+        for (parameter : getCorrespondingElements(value, Parameter, null, null)) {
+            removeObject(parameter)
+            removeCorrespondenceBetween(value, parameter)
+        }
+    }
+}
+
+reaction ItemDeleted {
+    after element bom::Item deleted
+    call deleteNamespaces(affectedEObject)
+}
+
+routine deleteNamespaces(bom::Item item) {
+    update {
+        for (namespace : getCorrespondingElements(item, Namespace, null, null)) {
+            removeObject(namespace)
+            removeCorrespondenceBetween(item, namespace)
+        }
+    }
+}

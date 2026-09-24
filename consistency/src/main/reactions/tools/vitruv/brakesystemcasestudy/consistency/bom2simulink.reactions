@@ -1,0 +1,283 @@
+import java.io.File
+import java.util.Objects
+
+import bom.StringParameterValue
+import bom.IntegerParameterValue
+import bom.DoubleParameterValue
+import bom.BoolParameterValue
+import simulink.Block
+import simulink.Parameter
+
+import "http://example.org/bom" as bom
+import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+
+reactions: bom2simulink
+in reaction to changes in bom
+execute actions in simulink
+
+reaction BOMInsertedAsRoot {
+    after element bom::BOM inserted as root
+    call createSimulinkModel(newValue)
+}
+
+routine createSimulinkModel(bom::BOM source) {
+    match {
+        require absence of simulink::SimulinkModel corresponding to source
+    }
+    create {
+        val target = new simulink::SimulinkModel
+    }
+    update {
+        target.name = source.name
+        target.version = "1.0"
+        persistProjectRelative(source, target, new File("").toString() + "example.simulink")
+        addCorrespondenceBetween(source, target)
+    }
+}
+
+reaction BOMNameChanged {
+    after attribute replaced at bom::BOM[name]
+    call updateSimulinkModelName(affectedEObject)
+}
+
+routine updateSimulinkModelName(bom::BOM source) {
+    match {
+        val target = retrieve simulink::SimulinkModel corresponding to source
+    }
+    update {
+        if (!Objects.equals(target.name, source.name)) target.name = source.name
+    }
+}
+
+reaction ItemInserted {
+    after element bom::Item inserted in bom::BOM[items]
+    call synchronizeBlocks(newValue)
+}
+
+reaction NumberOfItemsChanged {
+    after attribute replaced at bom::Item[numberOfItems]
+    call synchronizeBlocks(affectedEObject)
+}
+
+routine synchronizeBlocks(bom::Item item) {
+    match {
+        val model = retrieve simulink::SimulinkModel corresponding to item.eContainer()
+    }
+    update {
+        val desired = Math.max(0, item.numberOfItems)
+        while (getCorrespondingElements(item, Block, null, null).size > desired) {
+            val blocks = getCorrespondingElements(item, Block, null, null)
+            val block = blocks.last
+            if (item.type !== null) removeCorrespondenceBetween(item.type, block)
+            removeObject(block)
+            removeCorrespondenceBetween(item, block)
+        }
+        var index = getCorrespondingElements(item, Block, null, null).size
+        while (index < desired) {
+            createBlock(item, model)
+            index = index + 1
+        }
+        updateBlockNames(item)
+    }
+}
+
+routine createBlock(bom::Item item, simulink::SimulinkModel model) {
+    create {
+        val block = new simulink::Block
+    }
+    update {
+        block.name = if (item.type === null) item.id else item.type.name
+        model.contains.add(block)
+        addCorrespondenceBetween(item, block)
+        if (item.type !== null) addCorrespondenceBetween(item.type, block)
+        for (value : item.parameterValues) createParameter(value, block)
+    }
+}
+
+reaction ItemTypeNameChanged {
+    after attribute replaced at bom::ItemType[name]
+    call updateBlocksForType(affectedEObject)
+}
+
+routine updateBlocksForType(bom::ItemType type) {
+    update {
+        for (block : getCorrespondingElements(type, Block, null, null)) {
+            if (!Objects.equals(block.name, type.name)) block.name = type.name
+        }
+    }
+}
+
+routine updateBlockNames(bom::Item item) {
+    update {
+        if (item.type !== null) {
+            for (block : getCorrespondingElements(item, Block, null, null)) {
+                if (!Objects.equals(block.name, item.type.name)) block.name = item.type.name
+            }
+        }
+    }
+}
+
+reaction ParameterValueInserted {
+    after element bom::ParameterValue inserted in bom::Item[parameterValues]
+    call createParameters(newValue)
+}
+
+routine createParameters(bom::ParameterValue value) {
+    update {
+        for (block : getCorrespondingElements(value.eContainer(), Block, null, null)) {
+            createParameter(value, block)
+        }
+    }
+}
+
+routine createParameter(bom::ParameterValue value, simulink::Block block) {
+    update {
+        if (value.definition !== null) {
+            if (value instanceof StringParameterValue) {
+                createStringParameter(value as StringParameterValue, block)
+            } else if (value instanceof IntegerParameterValue) {
+                createIntegerParameter(value as IntegerParameterValue, block)
+            } else if (value instanceof DoubleParameterValue) {
+                createDoubleParameter(value as DoubleParameterValue, block)
+            } else if (value instanceof BoolParameterValue) {
+                createBooleanParameter(value as BoolParameterValue, block)
+            }
+        }
+    }
+}
+
+routine createStringParameter(bom::StringParameterValue value, simulink::Block block) {
+    create {
+        val parameter = new simulink::Parameter
+    }
+    update {
+        initializeParameter(value, parameter, "string", value.value)
+        block.parameters.add(parameter)
+    }
+}
+
+routine createIntegerParameter(bom::IntegerParameterValue value, simulink::Block block) {
+    create {
+        val parameter = new simulink::Parameter
+    }
+    update {
+        initializeParameter(value, parameter, "int32", value.value.toString)
+        block.parameters.add(parameter)
+    }
+}
+
+routine createDoubleParameter(bom::DoubleParameterValue value, simulink::Block block) {
+    create {
+        val parameter = new simulink::Parameter
+    }
+    update {
+        initializeParameter(value, parameter, "double", value.value.toString)
+        block.parameters.add(parameter)
+    }
+}
+
+routine createBooleanParameter(bom::BoolParameterValue value, simulink::Block block) {
+    create {
+        val parameter = new simulink::Parameter
+    }
+    update {
+        initializeParameter(value, parameter, "boolean", value.value.toString)
+        block.parameters.add(parameter)
+    }
+}
+
+routine initializeParameter(bom::ParameterValue value, simulink::Parameter parameter, String type, String text) {
+    update {
+        parameter.name = value.definition.name
+        parameter.type = type
+        parameter.value = text
+        addCorrespondenceBetween(value, parameter)
+        addCorrespondenceBetween(value.definition, parameter)
+    }
+}
+
+reaction ParameterDefinitionNameChanged {
+    after attribute replaced at bom::ParameterDefinition[name]
+    call updateParameterNames(affectedEObject)
+}
+
+routine updateParameterNames(bom::ParameterDefinition definition) {
+    update {
+        for (parameter : getCorrespondingElements(definition, Parameter, null, null)) {
+            if (!Objects.equals(parameter.name, definition.name)) parameter.name = definition.name
+        }
+    }
+}
+
+reaction StringValueChanged {
+    after attribute replaced at bom::StringParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+
+reaction IntegerValueChanged {
+    after attribute replaced at bom::IntegerParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+
+reaction DoubleValueChanged {
+    after attribute replaced at bom::DoubleParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+
+reaction BooleanValueChanged {
+    after attribute replaced at bom::BoolParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+
+routine updateParameters(bom::ParameterValue value) {
+    update {
+        for (parameter : getCorrespondingElements(value, Parameter, null, null)) {
+            if (value.definition !== null && !Objects.equals(parameter.name, value.definition.name)) {
+                parameter.name = value.definition.name
+            }
+            if (value instanceof StringParameterValue) {
+                parameter.type = "string"
+                parameter.value = (value as StringParameterValue).value
+            } else if (value instanceof IntegerParameterValue) {
+                parameter.type = "int32"
+                parameter.value = (value as IntegerParameterValue).value.toString
+            } else if (value instanceof DoubleParameterValue) {
+                parameter.type = "double"
+                parameter.value = (value as DoubleParameterValue).value.toString
+            } else if (value instanceof BoolParameterValue) {
+                parameter.type = "boolean"
+                parameter.value = (value as BoolParameterValue).value.toString
+            }
+        }
+    }
+}
+
+reaction ParameterValueDeleted {
+    after element bom::ParameterValue deleted
+    call deleteParameters(affectedEObject)
+}
+
+routine deleteParameters(bom::ParameterValue value) {
+    update {
+        for (parameter : getCorrespondingElements(value, Parameter, null, null)) {
+            if (value.definition !== null) removeCorrespondenceBetween(value.definition, parameter)
+            removeObject(parameter)
+            removeCorrespondenceBetween(value, parameter)
+        }
+    }
+}
+
+reaction ItemDeleted {
+    after element bom::Item deleted
+    call deleteBlocks(affectedEObject)
+}
+
+routine deleteBlocks(bom::Item item) {
+    update {
+        for (block : getCorrespondingElements(item, Block, null, null)) {
+            if (item.type !== null) removeCorrespondenceBetween(item.type, block)
+            removeObject(block)
+            removeCorrespondenceBetween(item, block)
+        }
+    }
+}

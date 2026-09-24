@@ -1,0 +1,264 @@
+import java.io.File
+import java.util.Objects
+
+import bom.BomFactory
+import bom.DataType
+import bom.ParameterValue
+import bom.NumericParameterValue
+import bom.StringParameterValue
+import bom.DoubleParameterValue
+import bom.BoolParameterValue
+import edu.kit.ipd.sdq.metamodels.cad.StringParameter
+import edu.kit.ipd.sdq.metamodels.cad.NumericParameter
+import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter
+import edu.kit.ipd.sdq.metamodels.cad.Namespace
+
+import "http://www.example.org/cad" as cad
+import "http://example.org/bom" as bom
+
+reactions: cad2bom
+in reaction to changes in cad
+execute actions in bom
+
+reaction CADModelInsertedAsRoot {
+    after element cad::CAD_Model inserted as root
+    call createBOM(newValue)
+}
+
+routine createBOM(cad::CAD_Model source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    create {
+        val target = new bom::BOM
+    }
+    update {
+        target.name = source.name
+        persistProjectRelative(source, target, new File("").toString() + "example.bom")
+        addCorrespondenceBetween(source, target)
+    }
+}
+
+reaction CADModelNameChanged {
+    after attribute replaced at cad::CAD_Model[name]
+    call updateBOMName(affectedEObject)
+}
+
+routine updateBOMName(cad::CAD_Model source) {
+    match {
+        val target = retrieve bom::BOM corresponding to source
+    }
+    update {
+        if (!Objects.equals(target.name, source.name)) target.name = source.name
+    }
+}
+
+reaction NamespaceInserted {
+    after element cad::Namespace inserted in cad::CAD_Model[namespaces]
+    call createItem(newValue)
+}
+
+routine createItem(cad::Namespace namespace) {
+    match {
+        val target = retrieve bom::BOM corresponding to namespace.eContainer()
+        require absence of bom::Item corresponding to namespace
+    }
+    create {
+        val item = new bom::Item
+        val type = new bom::ItemType
+    }
+    update {
+        type.name = namespace.name
+        type.description = namespace.description
+        persistProjectRelative(namespace, type, new File("").toString() + "example.bom")
+        item.id = namespace.id
+        item.type = type
+        item.numberOfItems = 1
+        target.items.add(item)
+        addCorrespondenceBetween(namespace, item)
+        for (parameter : namespace.parameters) createParameterValue(parameter)
+    }
+}
+
+reaction NamespaceIdChanged {
+    after attribute replaced at cad::Namespace[id]
+    call updateItemIdentity(affectedEObject)
+}
+reaction NamespaceNameChanged {
+    after attribute replaced at cad::Namespace[name]
+    call updateItemIdentity(affectedEObject)
+}
+reaction NamespaceDescriptionChanged {
+    after attribute replaced at cad::Namespace[description]
+    call updateItemIdentity(affectedEObject)
+}
+
+routine updateItemIdentity(cad::Namespace namespace) {
+    match {
+        val item = retrieve bom::Item corresponding to namespace
+    }
+    update {
+        if (item.numberOfItems == 1 && !Objects.equals(item.id, namespace.id)) item.id = namespace.id
+        if (item.type !== null) {
+            if (!Objects.equals(item.type.name, namespace.name)) item.type.name = namespace.name
+            if (!Objects.equals(item.type.description, namespace.description)) item.type.description = namespace.description
+        }
+    }
+}
+
+reaction ParameterInserted {
+    after element cad::Parameter inserted in cad::Namespace[parameters]
+    call createParameterValue(newValue)
+}
+
+routine createParameterValue(cad::Parameter parameter) {
+    match {
+        val item = retrieve bom::Item corresponding to parameter.eContainer()
+        require absence of bom::ParameterValue corresponding to parameter
+    }
+    update {
+        if (parameter instanceof StringParameter) {
+            createStringValue(parameter as StringParameter, item)
+        } else if (parameter instanceof NumericParameter) {
+            createNumericValue(parameter as NumericParameter, item)
+        } else if (parameter instanceof BooleanParameter) {
+            createBooleanValue(parameter as BooleanParameter, item)
+        }
+    }
+}
+
+routine createStringValue(cad::StringParameter parameter, bom::Item item) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::StringParameterValue
+    }
+    update {
+        definition.name = parameter.name
+        definition.dataType = DataType.ESTRING
+        item.type.parameterDefinitions.add(definition)
+        value.definition = definition
+        value.description = parameter.description
+        value.value = parameter.value
+        item.parameterValues.add(value)
+        addCorrespondenceBetween(parameter, value)
+    }
+}
+
+// CAD stores numeric values as EFloat and cannot distinguish a former BOM
+// integer from a double. A newly introduced CAD numeric parameter therefore
+// becomes a DoubleParameterValue.
+routine createNumericValue(cad::NumericParameter parameter, bom::Item item) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::DoubleParameterValue
+    }
+    update {
+        definition.name = parameter.name
+        definition.dataType = DataType.EDOUBLE
+        item.type.parameterDefinitions.add(definition)
+        value.definition = definition
+        value.description = parameter.description
+        value.value = parameter.value
+        value.unit = if (parameter.unit === null) null else parameter.unit.toString
+        item.parameterValues.add(value)
+        addCorrespondenceBetween(parameter, value)
+    }
+}
+
+routine createBooleanValue(cad::BooleanParameter parameter, bom::Item item) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::BoolParameterValue
+    }
+    update {
+        definition.name = parameter.name
+        definition.dataType = DataType.EBOOLEAN
+        item.type.parameterDefinitions.add(definition)
+        value.definition = definition
+        value.description = parameter.description
+        value.value = parameter.value
+        item.parameterValues.add(value)
+        addCorrespondenceBetween(parameter, value)
+    }
+}
+
+reaction ParameterNameChanged {
+    after attribute replaced at cad::Parameter[name]
+    call updateParameterValue(affectedEObject)
+}
+reaction ParameterDescriptionChanged {
+    after attribute replaced at cad::Parameter[description]
+    call updateParameterValue(affectedEObject)
+}
+reaction StringValueChanged {
+    after attribute replaced at cad::StringParameter[value]
+    call updateParameterValue(affectedEObject)
+}
+reaction NumericValueChanged {
+    after attribute replaced at cad::NumericParameter[value]
+    call updateParameterValue(affectedEObject)
+}
+reaction NumericUnitChanged {
+    after attribute replaced at cad::NumericParameter[unit]
+    call updateParameterValue(affectedEObject)
+}
+reaction BooleanValueChanged {
+    after attribute replaced at cad::BooleanParameter[value]
+    call updateParameterValue(affectedEObject)
+}
+
+routine updateParameterValue(cad::Parameter parameter) {
+    match {
+        val value = retrieve bom::ParameterValue corresponding to parameter
+    }
+    update {
+        value.description = parameter.description
+        if (value.definition !== null) value.definition.name = parameter.name
+        if (parameter instanceof StringParameter && value instanceof StringParameterValue) {
+            (value as StringParameterValue).setValue((parameter as StringParameter).value)
+        } else if (parameter instanceof NumericParameter && value instanceof DoubleParameterValue) {
+            val numeric = parameter as NumericParameter
+            (value as DoubleParameterValue).setValue(numeric.value)
+            (value as DoubleParameterValue).setUnit(if (numeric.unit === null) null else numeric.unit.toString)
+        } else if (parameter instanceof NumericParameter && value instanceof NumericParameterValue) {
+            (value as NumericParameterValue).setUnit(if ((parameter as NumericParameter).unit === null) null else (parameter as NumericParameter).unit.toString)
+        } else if (parameter instanceof BooleanParameter && value instanceof BoolParameterValue) {
+            (value as BoolParameterValue).setValue((parameter as BooleanParameter).value)
+        }
+    }
+}
+
+reaction ParameterDeleted {
+    after element cad::Parameter deleted
+    call deleteParameterValue(affectedEObject)
+}
+
+routine deleteParameterValue(cad::Parameter parameter) {
+    match {
+        val value = retrieve bom::ParameterValue corresponding to parameter
+    }
+    update {
+        removeObject(value)
+        removeCorrespondenceBetween(parameter, value)
+    }
+}
+
+reaction NamespaceDeleted {
+    after element cad::Namespace deleted
+    call deleteItem(affectedEObject)
+}
+
+routine deleteItem(cad::Namespace namespace) {
+    match {
+        val item = retrieve bom::Item corresponding to namespace
+    }
+    update {
+        removeCorrespondenceBetween(namespace, item)
+        val remaining = getCorrespondingElements(item, Namespace, null, null).size
+        if (remaining == 0) {
+            removeObject(item)
+        } else if (item.numberOfItems != remaining) {
+            item.numberOfItems = remaining
+        }
+    }
+}

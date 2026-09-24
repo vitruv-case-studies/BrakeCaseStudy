@@ -38,7 +38,9 @@
     <genClasses ecoreClass="bom.ecore#//StringParameterValue">
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute bom.ecore#//StringParameterValue/value"/>
     </genClasses>
-    <genClasses image="false" ecoreClass="bom.ecore#//NumericParameterValue"/>
+    <genClasses image="false" ecoreClass="bom.ecore#//NumericParameterValue">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute bom.ecore#//NumericParameterValue/unit"/>
+    </genClasses>
     <genClasses ecoreClass="bom.ecore#//BoolParameterValue">
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute bom.ecore#//BoolParameterValue/value"/>
     </genClasses>

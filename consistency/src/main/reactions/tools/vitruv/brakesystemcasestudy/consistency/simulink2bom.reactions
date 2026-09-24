@@ -1,0 +1,259 @@
+import java.io.File
+import java.util.Objects
+
+import bom.DataType
+import bom.StringParameterValue
+import bom.IntegerParameterValue
+import bom.DoubleParameterValue
+import bom.BoolParameterValue
+import simulink.Block
+import simulink.Parameter
+
+import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+import "http://example.org/bom" as bom
+
+reactions: simulink2bom
+in reaction to changes in simulink
+execute actions in bom
+
+reaction SimulinkModelInsertedAsRoot {
+    after element simulink::SimulinkModel inserted as root
+    call createBOM(newValue)
+}
+
+routine createBOM(simulink::SimulinkModel source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    create {
+        val target = new bom::BOM
+    }
+    update {
+        target.name = source.name
+        persistProjectRelative(source, target, new File("").toString() + "example.bom")
+        addCorrespondenceBetween(source, target)
+    }
+}
+
+reaction SimulinkModelNameChanged {
+    after attribute replaced at simulink::SimulinkModel[name]
+    call updateBOMName(affectedEObject)
+}
+
+routine updateBOMName(simulink::SimulinkModel source) {
+    match {
+        val target = retrieve bom::BOM corresponding to source
+    }
+    update {
+        if (!Objects.equals(target.name, source.name)) target.name = source.name
+    }
+}
+
+reaction BlockInserted {
+    after element simulink::Block inserted in simulink::SimulinkModel[contains]
+    call createItem(newValue)
+}
+
+routine createItem(simulink::Block block) {
+    match {
+        val target = retrieve bom::BOM corresponding to block.eContainer()
+        require absence of bom::Item corresponding to block
+    }
+    create {
+        val item = new bom::Item
+        val type = new bom::ItemType
+    }
+    update {
+        type.name = block.name
+        persistProjectRelative(block, type, new File("").toString() + "example.bom")
+        item.id = block.name
+        item.type = type
+        item.numberOfItems = 1
+        target.items.add(item)
+        addCorrespondenceBetween(block, item)
+        addCorrespondenceBetween(block, type)
+        for (parameter : block.parameters) createParameterValue(parameter)
+    }
+}
+
+reaction BlockNameChanged {
+    after attribute replaced at simulink::Block[name]
+    call updateItemTypeName(affectedEObject)
+}
+
+routine updateItemTypeName(simulink::Block block) {
+    match {
+        val item = retrieve bom::Item corresponding to block
+    }
+    update {
+        if (item.type !== null && !Objects.equals(item.type.name, block.name)) {
+            item.type.name = block.name
+        }
+    }
+}
+
+reaction ParameterInserted {
+    after element simulink::Parameter inserted in simulink::Block[parameters]
+    call createParameterValue(newValue)
+}
+
+routine createParameterValue(simulink::Parameter parameter) {
+    match {
+        val item = retrieve bom::Item corresponding to parameter.eContainer()
+        require absence of bom::ParameterValue corresponding to parameter
+    }
+    update {
+        if (parameter.type === null || parameter.type == "string") {
+            createStringValue(parameter, item)
+        } else {
+            switch (parameter.type) {
+                case "double",
+                case "single",
+                case "half": createDoubleValue(parameter, item)
+                case "uint8",
+                case "int8",
+                case "uint16",
+                case "int16",
+                case "uint32",
+                case "int32",
+                case "uint64",
+                case "int64": createIntegerValue(parameter, item)
+                case "boolean": createBooleanValue(parameter, item)
+                default: createStringValue(parameter, item)
+            }
+        }
+    }
+}
+
+routine createStringValue(simulink::Parameter parameter, bom::Item item) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::StringParameterValue
+    }
+    update {
+        initializeValue(parameter, item, definition, value, DataType.ESTRING)
+        value.value = parameter.value
+    }
+}
+
+routine createIntegerValue(simulink::Parameter parameter, bom::Item item) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::IntegerParameterValue
+    }
+    update {
+        initializeValue(parameter, item, definition, value, DataType.EINT)
+        value.value = Integer.parseInt(parameter.value)
+    }
+}
+
+routine createDoubleValue(simulink::Parameter parameter, bom::Item item) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::DoubleParameterValue
+    }
+    update {
+        initializeValue(parameter, item, definition, value, DataType.EDOUBLE)
+        value.value = Double.parseDouble(parameter.value)
+    }
+}
+
+routine createBooleanValue(simulink::Parameter parameter, bom::Item item) {
+    create {
+        val definition = new bom::ParameterDefinition
+        val value = new bom::BoolParameterValue
+    }
+    update {
+        initializeValue(parameter, item, definition, value, DataType.EBOOLEAN)
+        value.value = Boolean.parseBoolean(parameter.value)
+    }
+}
+
+routine initializeValue(simulink::Parameter parameter, bom::Item item, bom::ParameterDefinition definition,
+        bom::ParameterValue value, bom::DataType dataType) {
+    update {
+        definition.name = parameter.name
+        definition.dataType = dataType
+        item.type.parameterDefinitions.add(definition)
+        value.definition = definition
+        item.parameterValues.add(value)
+        addCorrespondenceBetween(parameter, value)
+        addCorrespondenceBetween(parameter, definition)
+    }
+}
+
+reaction ParameterNameChanged {
+    after attribute replaced at simulink::Parameter[name]
+    call updateParameterValue(affectedEObject)
+}
+
+reaction ParameterValueChanged {
+    after attribute replaced at simulink::Parameter[value]
+    call updateParameterValue(affectedEObject)
+}
+
+routine updateParameterValue(simulink::Parameter parameter) {
+    match {
+        val value = retrieve bom::ParameterValue corresponding to parameter
+    }
+    update {
+        if (value.definition !== null && !Objects.equals(value.definition.name, parameter.name)) {
+            value.definition.name = parameter.name
+        }
+        if (value instanceof StringParameterValue) {
+            (value as StringParameterValue).value = parameter.value
+        } else if (value instanceof IntegerParameterValue) {
+            (value as IntegerParameterValue).value = Integer.parseInt(parameter.value)
+        } else if (value instanceof DoubleParameterValue) {
+            (value as DoubleParameterValue).value = Double.parseDouble(parameter.value)
+        } else if (value instanceof BoolParameterValue) {
+            (value as BoolParameterValue).value = Boolean.parseBoolean(parameter.value)
+        }
+    }
+}
+
+reaction ParameterDeleted {
+    after element simulink::Parameter deleted
+    call deleteParameterValue(affectedEObject)
+}
+
+routine deleteParameterValue(simulink::Parameter parameter) {
+    match {
+        val value = retrieve bom::ParameterValue corresponding to parameter
+    }
+    update {
+        val definition = value.definition
+        removeCorrespondenceBetween(parameter, value)
+        if (definition !== null) removeCorrespondenceBetween(parameter, definition)
+        val remaining = getCorrespondingElements(value, Parameter, null, null).size
+        if (remaining == 0) {
+            removeObject(value)
+            if (definition !== null) removeObject(definition)
+        }
+    }
+}
+
+reaction BlockDeleted {
+    after element simulink::Block deleted
+    call deleteItemOrDecreaseQuantity(affectedEObject)
+}
+
+routine deleteItemOrDecreaseQuantity(simulink::Block block) {
+    match {
+        val item = retrieve bom::Item corresponding to block
+    }
+    update {
+        val type = item.type
+        removeCorrespondenceBetween(block, item)
+        if (type !== null) removeCorrespondenceBetween(block, type)
+        val remaining = getCorrespondingElements(item, Block, null, null).size
+        if (remaining == 0) {
+            removeObject(item)
+            if (type !== null && getCorrespondingElements(type, Block, null, null).size == 0) {
+                removeObject(type)
+            }
+        } else if (item.numberOfItems != remaining) {
+            item.numberOfItems = remaining
+        }
+    }
+}
