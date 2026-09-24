@@ -43,4 +43,12 @@
             genModel="src/main/ecore/bom.genmodel"/>
    </extension>
 
+   <extension point="org.eclipse.emf.ecore.generated_package">
+      <!-- @generated SysML -->
+      <package
+            uri="https://www.omg.org/spec/SysML/20250201"
+            class="org.omg.sysml.lang.sysml.SysmlPackage"
+            genModel="src/main/ecore/SysML.genmodel"/>
+   </extension>
+
 </plugin>

@@ -1,0 +1,588 @@
+import java.io.File;
+
+import "https://www.omg.org/spec/SysML/20250201" as sysml
+import "http://vitruv.tools/methodologisttemplate/simulink" as simulink
+
+// Change propagation: Simulink --> SysML
+// Existence rules  : E3, E4, E8, E9, E10, E13, E14, E15, E16, E17, E18, E19, E20, E21
+// Property rules   : P2, P4, P5, P6
+// Structural rules : S3 (Block re-parented -> PartUsage re-parented)
+// Rule D           : requirement/function traceability cascade, Simulink -> SysML only.
+// Rule E           : Parameter <-> AttributeUsage, name only.
+// Rule F           : BusSignalMapping <-> FlowUsage, Simulink -> SysML only.
+// Rule G           : BusSelector/BusCreator/Goto/From/GotoTagVisibility/ModelReference get a generic PartUsage via E3. PortBlock excluded — see Rule I.
+// Rule H           : Goto/From tag-based virtual wire <-> FlowUsage, Simulink -> SysML only.
+// Rule I           : PortBlock family shares its wrapped Port's PortUsage instead of a new PartUsage.
+// SimulinkModel <-> Package has no correspondence — see VSUMRunner.registerRootObjects for why.
+// LibraryLinkReference/IdentifierReference/SimulinkReference carry no correspondence of their own — identity data for whatever element already has one.
+// See README.md §3.4 for the full rule table this maps onto.
+
+// NOTE — segment name must start with lowercase (Reactions DSL requirement)
+reactions: simulinkToSysml
+in reaction to changes in simulink
+execute actions in sysml
+
+// Shared helper — SysML has no direct parent.nestedPart.add(child); members are attached via a FeatureMembership relationship.
+routine attachAsMember(sysml::Element parent, sysml::Element member) {
+	create {
+		val membership = new sysml::FeatureMembership
+	}
+	update {
+		parent.ownedRelationship += membership
+		membership.ownedRelatedElement += member
+		// nestedPart was de-derived (see model/pom.xml) so nothing populates it automatically — write it explicitly (see SimulinkToSysMLCompletenessTest.c1).
+		if (parent instanceof org.omg.sysml.lang.sysml.PartUsage && member instanceof org.omg.sysml.lang.sysml.PartUsage) {
+			(parent as org.omg.sysml.lang.sysml.PartUsage).nestedPart += member as org.omg.sysml.lang.sysml.PartUsage
+		}
+	}
+}
+
+// Rule A — Block <-> PartUsage / SubSystem <-> PartUsage
+
+// E3 — Block/SubSystem created -> create a PartUsage, trigger Rule D's cascade. Also covers Rule G's Block subtypes generically; PortBlock excluded (Rule I).
+reaction BlockCreated {
+	after element simulink::Block created
+		with !(affectedEObject instanceof simulink.PortBlock)
+	call createPartUsageForBlock(affectedEObject)
+}
+
+// A Block registered as a resource root generates InsertRootEObject, not CreateEObject — needs its own reaction alongside BlockCreated.
+reaction BlockInsertedAsRoot {
+	after element simulink::Block inserted as root
+		with !(newValue instanceof simulink.PortBlock)
+	call createPartUsageForBlock(newValue)
+}
+
+// retrieve corresponding to gates the whole match — split into two complementarily-gated routines instead of if/else.
+routine createPartUsageForBlock(simulink::Block block) {
+	match {
+		require absence of sysml::PartUsage corresponding to block
+	}
+	create {
+		val part = new sysml::PartUsage
+	}
+	update {
+		part.declaredName = block.simulinkRef.name
+		addCorrespondenceBetween(block, part)
+		attachToParentPartIfExists(block, part)
+		persistAsRootIfNoParentPart(block, part)
+		// Rule D's cascade is for real architecture blocks only — Rule G's bus/tag/model-reference plumbing shares this routine but must not trigger it.
+		if (!(block instanceof simulink.BusSpecification)
+				&& !(block instanceof simulink.VirtualBlock)
+				&& !(block instanceof simulink.ModelReference)) {
+			createFunctionAndRequirementForPartUsage(part)
+		}
+	}
+}
+
+// Case 1: block.parent already has a corresponding PartUsage -> attach as its member.
+routine attachToParentPartIfExists(simulink::Block block, sysml::PartUsage part) {
+	match {
+		val parentPart = retrieve sysml::PartUsage corresponding to block.^parent
+	}
+	update {
+		attachAsMember(parentPart, part)
+	}
+}
+
+// Case 2: block has no parent (a root Block) -> persist the new PartUsage as its own resource root.
+routine persistAsRootIfNoParentPart(simulink::Block block, sysml::PartUsage part) {
+	match {
+		require absence of sysml::PartUsage corresponding to block.^parent
+	}
+	update {
+		persistProjectRelative(block, part, new File("").toString() + "sysml/" + block.simulinkRef.name + ".sysml")
+	}
+}
+
+// Rule D — cascade: sibling ActionUsage (function) + RequirementUsage (requirement); deliberately no Satisfy/Perform/Allocate wiring.
+routine createFunctionAndRequirementForPartUsage(sysml::PartUsage part) {
+	match {
+		require absence of sysml::ActionUsage corresponding to part
+		require absence of sysml::RequirementUsage corresponding to part
+	}
+	create {
+		val function = new sysml::ActionUsage
+		val requirement = new sysml::RequirementUsage
+	}
+	update {
+		// part.owningRelationship is null when part is itself a root (persisted via persistProjectRelative, not attachAsMember) — a plain if/else, not a retrieve gate.
+		function.declaredName = "process" + part.declaredName
+		requirement.declaredName = part.declaredName + "Requirement"
+		if (part.owningRelationship !== null) {
+			val owner = part.owningRelationship.owningRelatedElement
+			attachAsMember(owner, function)
+			attachAsMember(owner, requirement)
+		} else {
+			persistProjectRelative(part, function, new File("").toString() + "sysml/" + function.declaredName + ".sysml")
+			persistProjectRelative(part, requirement, new File("").toString() + "sysml/" + requirement.declaredName + ".sysml")
+		}
+		addCorrespondenceBetween(part, function)
+		addCorrespondenceBetween(part, requirement)
+	}
+}
+
+// E4 — Block/SubSystem deleted -> delete corresponding PartUsage and its Rule D siblings. PortBlock excluded, same as BlockCreated.
+reaction BlockDeleted {
+	after element simulink::Block deleted
+		with !(affectedEObject instanceof simulink.PortBlock)
+	call deletePartUsageForBlock(affectedEObject)
+}
+
+routine deletePartUsageForBlock(simulink::Block block) {
+	match {
+		val part = retrieve sysml::PartUsage corresponding to block
+		val function = retrieve sysml::ActionUsage corresponding to part
+		val requirement = retrieve sysml::RequirementUsage corresponding to part
+	}
+	update {
+		if (function !== null) {
+			removeObject(function)
+			removeCorrespondenceBetween(part, function)
+		}
+		if (requirement !== null) {
+			removeObject(requirement)
+			removeCorrespondenceBetween(part, requirement)
+		}
+		removeObject(part)
+		removeCorrespondenceBetween(block, part)
+	}
+}
+
+// P2 — Block.simulinkRef.name changed -> update PartUsage.declaredName, cascading to the Rule D siblings too. PortBlock excluded, same as BlockCreated.
+reaction BlockRenamed {
+	after attribute replaced at simulink::IdentifierReference[name]
+		// IdentifierReference.element has no eOpposite, so it's unreliable — eContainer() is EMF's built-in and always correct here.
+		with affectedEObject.eContainer() instanceof simulink.Block
+			&& !(affectedEObject.eContainer() instanceof simulink.PortBlock)
+	call syncBlockNameToPartUsage(affectedEObject)
+}
+
+// Split into three independently-gated routines so a PartUsage with no Rule D siblings (e.g. created via VSUMRunner.addPartUsage) still gets renamed.
+routine syncBlockNameToPartUsage(simulink::IdentifierReference ref) {
+	match {
+		val part = retrieve sysml::PartUsage corresponding to ref.eContainer()
+	}
+	update {
+		part.declaredName = ref.name
+		syncCascadeFunctionName(part, ref.name)
+		syncCascadeRequirementName(part, ref.name)
+	}
+}
+
+routine syncCascadeFunctionName(sysml::PartUsage part, String newName) {
+	match {
+		val function = retrieve sysml::ActionUsage corresponding to part
+	}
+	update {
+		function.declaredName = "process" + newName
+	}
+}
+
+routine syncCascadeRequirementName(sysml::PartUsage part, String newName) {
+	match {
+		val requirement = retrieve sysml::RequirementUsage corresponding to part
+	}
+	update {
+		requirement.declaredName = newName + "Requirement"
+	}
+}
+
+// S3 — Block moved into a SubSystem.subBlocks -> re-parent its PartUsage, if it already has one (i.e. it's a move, not a fresh creation).
+reaction BlockReparented {
+	after element simulink::Block inserted in simulink::SubSystem[subBlocks]
+	call reparentPartUsageIfExisting(affectedEObject, newValue)
+}
+
+routine reparentPartUsageIfExisting(simulink::SubSystem parentBlock, simulink::Block block) {
+	match {
+		val part = retrieve sysml::PartUsage corresponding to block
+		val newParentPart = retrieve sysml::PartUsage corresponding to parentBlock
+	}
+	update {
+		if (part !== null && newParentPart !== null) {
+			attachAsMember(newParentPart, part)
+		}
+	}
+}
+
+// Rule B — InPort / OutPort <-> PortUsage
+
+// E8 — InPort created -> create a PortUsage with direction = in
+reaction InPortCreated {
+	after element simulink::InPort created
+	call createPortUsageForInPort(affectedEObject)
+}
+
+routine createPortUsageForInPort(simulink::InPort inPort) {
+	match {
+		require absence of sysml::PortUsage corresponding to inPort
+		val part = retrieve sysml::PartUsage corresponding to inPort.container
+	}
+	create {
+		val port = new sysml::PortUsage
+	}
+	update {
+		port.declaredName = inPort.simulinkRef.name
+		port.direction = org.omg.sysml.lang.sysml.FeatureDirectionKind.IN
+		attachAsMember(part, port)
+		addCorrespondenceBetween(inPort, port)
+	}
+}
+
+// E9 — OutPort created -> create a PortUsage with direction = out
+reaction OutPortCreated {
+	after element simulink::OutPort created
+	call createPortUsageForOutPort(affectedEObject)
+}
+
+routine createPortUsageForOutPort(simulink::OutPort outPort) {
+	match {
+		require absence of sysml::PortUsage corresponding to outPort
+		val part = retrieve sysml::PartUsage corresponding to outPort.container
+	}
+	create {
+		val port = new sysml::PortUsage
+	}
+	update {
+		port.declaredName = outPort.simulinkRef.name
+		port.direction = org.omg.sysml.lang.sysml.FeatureDirectionKind.OUT
+		attachAsMember(part, port)
+		addCorrespondenceBetween(outPort, port)
+	}
+}
+
+// Trigger/Enable/State extend InPort/OutPort, so InPortCreated/OutPortCreated/PortDeleted/PortRenamed already cover them via the abstract Port supertype.
+
+// E10 — InPort or OutPort deleted -> delete corresponding PortUsage
+reaction PortDeleted {
+	after element simulink::Port deleted
+	call deletePortUsageForPort(affectedEObject)
+}
+
+routine deletePortUsageForPort(simulink::Port port) {
+	match {
+		val portUsage = retrieve sysml::PortUsage corresponding to port
+	}
+	update {
+		removeObject(portUsage)
+		removeCorrespondenceBetween(port, portUsage)
+	}
+}
+
+// P4 — Port's simulinkRef.name changed -> update PortUsage.declaredName
+reaction PortRenamed {
+	after attribute replaced at simulink::IdentifierReference[name]
+		with affectedEObject.eContainer() instanceof simulink.Port
+	call syncPortNameToPortUsage(affectedEObject)
+}
+
+routine syncPortNameToPortUsage(simulink::IdentifierReference ref) {
+	match {
+		val portUsage = retrieve sysml::PortUsage corresponding to ref.eContainer()
+	}
+	update {
+		portUsage.declaredName = ref.name
+	}
+}
+
+// Rule E — Parameter <-> AttributeUsage, name only — Parameter.value has no SysML target without a full KerML FeatureValue tree.
+
+// E15 — Parameter created (on a Block or a Port) -> create an AttributeUsage under the corresponding PartUsage/PortUsage
+reaction ParameterCreated {
+	after element simulink::Parameter created
+	call createAttributeUsageForParameter(affectedEObject)
+}
+
+routine createAttributeUsageForParameter(simulink::Parameter param) {
+	update {
+		createAttributeUsageForBlockParameter(param)
+		createAttributeUsageForPortParameter(param)
+	}
+}
+
+routine createAttributeUsageForBlockParameter(simulink::Parameter param) {
+	match {
+		require absence of sysml::AttributeUsage corresponding to param
+		val part = retrieve sysml::PartUsage corresponding to param.eContainer()
+	}
+	create {
+		val attr = new sysml::AttributeUsage
+	}
+	update {
+		attr.declaredName = param.name
+		attachAsMember(part, attr)
+		addCorrespondenceBetween(param, attr)
+	}
+}
+
+routine createAttributeUsageForPortParameter(simulink::Parameter param) {
+	match {
+		require absence of sysml::AttributeUsage corresponding to param
+		val port = retrieve sysml::PortUsage corresponding to param.eContainer()
+	}
+	create {
+		val attr = new sysml::AttributeUsage
+	}
+	update {
+		attr.declaredName = param.name
+		attachAsMember(port, attr)
+		addCorrespondenceBetween(param, attr)
+	}
+}
+
+// E16 — Parameter deleted -> delete corresponding AttributeUsage
+reaction ParameterDeleted {
+	after element simulink::Parameter deleted
+	call deleteAttributeUsageForParameter(affectedEObject)
+}
+
+routine deleteAttributeUsageForParameter(simulink::Parameter param) {
+	match {
+		val attr = retrieve sysml::AttributeUsage corresponding to param
+	}
+	update {
+		removeObject(attr)
+		removeCorrespondenceBetween(param, attr)
+	}
+}
+
+// P6 — Parameter.name changed -> update AttributeUsage.declaredName. Parameter isn't a SimulinkElement, name is a plain attribute here.
+reaction ParameterRenamed {
+	after attribute replaced at simulink::Parameter[name]
+	call syncParameterNameToAttributeUsage(affectedEObject)
+}
+
+routine syncParameterNameToAttributeUsage(simulink::Parameter param) {
+	match {
+		val attr = retrieve sysml::AttributeUsage corresponding to param
+	}
+	update {
+		attr.declaredName = param.name
+	}
+}
+
+// Rule C — SingleConnection <-> FlowUsage
+
+// E13 — SingleConnection created (top-level, not a MultiConnection branch) -> create a FlowUsage between the corresponding PortUsages
+reaction SingleConnectionCreated {
+	after element simulink::SingleConnection created
+		with affectedEObject.^parent === null
+	call createFlowUsageForConnection(affectedEObject)
+}
+
+routine createFlowUsageForConnection(simulink::SingleConnection connection) {
+	match {
+		require absence of sysml::FlowUsage corresponding to connection
+		val outPortUsage = retrieve sysml::PortUsage corresponding to connection.outport
+		val inPortUsage = retrieve sysml::PortUsage corresponding to connection.inport
+	}
+	create {
+		val flow = new sysml::FlowUsage
+	}
+	update {
+		// FlowUsage.flowEnd is derived — Relationship.source/target are the real features that establish the connection.
+		flow.source += outPortUsage
+		flow.target += inPortUsage
+		// Anchoring flow to the short-lived connection risks dangling refs once E14 deletes it — attach it under the stable owning PartUsage instead.
+		val owner = outPortUsage.owningRelationship.owningRelatedElement
+		attachAsMember(owner, flow)
+		addCorrespondenceBetween(connection, flow)
+	}
+}
+
+// E14 — SingleConnection deleted -> delete corresponding FlowUsage
+reaction SingleConnectionDeleted {
+	after element simulink::SingleConnection deleted
+	call deleteFlowUsageForConnection(affectedEObject)
+}
+
+routine deleteFlowUsageForConnection(simulink::SingleConnection connection) {
+	match {
+		val flow = retrieve sysml::FlowUsage corresponding to connection
+	}
+	update {
+		removeObject(flow)
+		removeCorrespondenceBetween(connection, flow)
+	}
+}
+
+// E17 — SingleConnection created as a MultiConnection branch -> create a FlowUsage too, source resolved via the parent (a branch's own `from` is unset).
+reaction MultiConnectionBranchCreated {
+	after element simulink::SingleConnection created
+		with affectedEObject.^parent !== null
+	call createFlowUsageForMultiConnectionBranch(affectedEObject)
+}
+
+routine createFlowUsageForMultiConnectionBranch(simulink::SingleConnection connection) {
+	match {
+		require absence of sysml::FlowUsage corresponding to connection
+		val outPortUsage = retrieve sysml::PortUsage corresponding to connection.^parent.outport
+		val inPortUsage = retrieve sysml::PortUsage corresponding to connection.inport
+	}
+	create {
+		val flow = new sysml::FlowUsage
+	}
+	update {
+		flow.source += outPortUsage
+		flow.target += inPortUsage
+		val owner = outPortUsage.owningRelationship.owningRelatedElement
+		attachAsMember(owner, flow)
+		addCorrespondenceBetween(connection, flow)
+	}
+}
+// Deletion needs no branch-specific handling — deleteFlowUsageForConnection already looks up by the connection object itself.
+// MultiConnection itself gets no correspondence — its identity is realized through its branches' FlowUsages.
+
+// Rule F — BusSignalMapping <-> FlowUsage, same semantic as Rule C. Gets a synthetic declaredName since it has no simulinkRef of its own.
+reaction BusSignalMappingCreated {
+	after element simulink::BusSignalMapping created
+	call createFlowUsageForBusSignalMapping(affectedEObject)
+}
+
+routine createFlowUsageForBusSignalMapping(simulink::BusSignalMapping mapping) {
+	match {
+		require absence of sysml::FlowUsage corresponding to mapping
+		val fromPortUsage = retrieve sysml::PortUsage corresponding to mapping.mappingFrom
+		val toPortUsage = retrieve sysml::PortUsage corresponding to mapping.mappingTo
+	}
+	create {
+		val flow = new sysml::FlowUsage
+	}
+	update {
+		flow.declaredName = mapping.mappingFrom.simulinkRef.name + "_to_" + mapping.mappingTo.simulinkRef.name
+		flow.source += fromPortUsage
+		flow.target += toPortUsage
+		val owner = fromPortUsage.owningRelationship.owningRelatedElement
+		attachAsMember(owner, flow)
+		addCorrespondenceBetween(mapping, flow)
+	}
+}
+
+reaction BusSignalMappingDeleted {
+	after element simulink::BusSignalMapping deleted
+	call deleteFlowUsageForBusSignalMapping(affectedEObject)
+}
+
+routine deleteFlowUsageForBusSignalMapping(simulink::BusSignalMapping mapping) {
+	match {
+		val flow = retrieve sysml::FlowUsage corresponding to mapping
+	}
+	update {
+		removeObject(flow)
+		removeCorrespondenceBetween(mapping, flow)
+	}
+}
+
+// Rule H — Goto/From virtual wire <-> FlowUsage, source the Goto's InPort, target the From's OutPort (reversed from Rule C). Trusts the existing gotoBlock link rather than re-deriving it from tags.
+
+// E18 — From created with a resolved gotoBlock -> create a FlowUsage from the Goto's InPort to the From's OutPort. Guarded on gotoBlock !== null to avoid a null-navigation throw.
+reaction FromLinkedToGotoCreated {
+	after element simulink::From created
+		with affectedEObject.gotoBlock !== null
+	call createFlowUsageForGotoFromLink(affectedEObject)
+}
+
+// mirrors BlockInsertedAsRoot — a root-registered From generates InsertRootEObject, not CreateEObject.
+reaction FromLinkedToGotoInsertedAsRoot {
+	after element simulink::From inserted as root
+		with newValue.gotoBlock !== null
+	call createFlowUsageForGotoFromLink(newValue)
+}
+
+// A port added in the same transaction as its block's own root registration never fires its own created event, so the OutPort is added afterward, separately — this reaction re-triggers the match once it shows up.
+reaction FromOutPortCreated {
+	after element simulink::OutPort created
+	call retriggerGotoFromLinkIfApplicable(affectedEObject)
+}
+
+routine retriggerGotoFromLinkIfApplicable(simulink::OutPort outPort) {
+	update {
+		if (outPort.container instanceof simulink.From) {
+			val fromBlock = outPort.container as simulink.From
+			if (fromBlock.gotoBlock !== null) {
+				createFlowUsageForGotoFromLink(fromBlock)
+			}
+		}
+	}
+}
+
+// require absence + a null filter().head gracefully skips rather than throwing, so a Goto/From with no port yet just doesn't fire.
+routine createFlowUsageForGotoFromLink(simulink::From fromBlock) {
+	match {
+		require absence of sysml::FlowUsage corresponding to fromBlock
+		val gotoInPortUsage = retrieve sysml::PortUsage corresponding to fromBlock.gotoBlock.ports.filter(simulink.InPort).head
+		val fromOutPortUsage = retrieve sysml::PortUsage corresponding to fromBlock.ports.filter(simulink.OutPort).head
+	}
+	create {
+		val flow = new sysml::FlowUsage
+	}
+	update {
+		flow.source += gotoInPortUsage
+		flow.target += fromOutPortUsage
+		val owner = fromOutPortUsage.owningRelationship.owningRelatedElement
+		attachAsMember(owner, flow)
+		addCorrespondenceBetween(fromBlock, flow)
+	}
+}
+
+// E19 — From deleted -> delete the virtual-wire FlowUsage too.
+reaction FromDeleted {
+	after element simulink::From deleted
+	call deleteFlowUsageForGotoFromLink(affectedEObject)
+}
+
+routine deleteFlowUsageForGotoFromLink(simulink::From fromBlock) {
+	match {
+		val flow = retrieve sysml::FlowUsage corresponding to fromBlock
+	}
+	update {
+		removeObject(flow)
+		removeCorrespondenceBetween(fromBlock, flow)
+	}
+}
+
+// E19 note — deleting the Goto side severs From.gotoBlock via the eOpposite before a plain "Goto deleted" event could read fromBlocks (it's already empty by then) — react to the severing itself instead, same cleanup as FromDeleted either way.
+reaction FromUnlinkedFromGoto {
+	after element simulink::From removed from simulink::Goto[fromBlocks]
+	call deleteFlowUsageForGotoFromLink(oldValue)
+}
+
+// Rule I — PortBlock family shares its wrapped Port's PortUsage instead of a new PartUsage — same SysML-visible interface point, not a second one.
+
+// E20 — PortBlock created (wrapping an already-corresponded Port) -> add a second correspondence to the same PortUsage
+reaction PortBlockCreated {
+	after element simulink::PortBlock created
+	call sharePortUsageForPortBlock(affectedEObject)
+}
+
+// mirrors BlockInsertedAsRoot, for the (unusual but possible) case of a PortBlock registered as its own root.
+reaction PortBlockInsertedAsRoot {
+	after element simulink::PortBlock inserted as root
+	call sharePortUsageForPortBlock(newValue)
+}
+
+routine sharePortUsageForPortBlock(simulink::PortBlock portBlock) {
+	match {
+		require absence of sysml::PortUsage corresponding to portBlock
+		val portUsage = retrieve sysml::PortUsage corresponding to portBlock.port
+	}
+	update {
+		addCorrespondenceBetween(portBlock, portUsage)
+	}
+}
+
+// E21 — PortBlock deleted -> remove only its own shared correspondence entry. The PortUsage itself stays, owned by the real Port's lifecycle (PortDeleted).
+reaction PortBlockDeleted {
+	after element simulink::PortBlock deleted
+	call unsharePortUsageForPortBlock(affectedEObject)
+}
+
+routine unsharePortUsageForPortBlock(simulink::PortBlock portBlock) {
+	match {
+		val portUsage = retrieve sysml::PortUsage corresponding to portBlock
+	}
+	update {
+		removeCorrespondenceBetween(portBlock, portUsage)
+	}
+}
