@@ -10,6 +10,10 @@ Workflow {
     bean = StandaloneSetup {
         scanClassPath = true
         platformUri = workspaceRoot
+        projectMapping = {
+            projectName = "tools.vitruv.casestudies.brakesystem.model"
+            path = workspaceRoot
+        }
     }
 
     component = EcoreGenerator {
