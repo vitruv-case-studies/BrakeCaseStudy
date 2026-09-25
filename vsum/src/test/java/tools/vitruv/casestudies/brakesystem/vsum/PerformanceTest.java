@@ -31,9 +31,7 @@ import org.eclipse.emf.common.util.URI;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import tools.vitruv.change.atomic.uuid.Uuid;
-import tools.vitruv.change.composite.description.CompositeChange;
 import tools.vitruv.change.composite.description.PropagatedChange;
-import tools.vitruv.change.composite.description.TransactionalChange;
 import tools.vitruv.change.composite.description.VitruviusChange;
 import tools.vitruv.change.composite.propagation.ChangePropagationListener;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
@@ -229,9 +227,14 @@ public class PerformanceTest extends TestBase {
         for (PropagatedChange propagatedChange : iterable) {
           numberOfPropagationWaves += 1;
 
-          var originalChange = propagatedChange.getOriginalChange();
-          numberOfTransactionalChanges += countTransactionalChanges(originalChange);
-          numberOfEChanges += originalChange.getEChanges().size();
+          for (var transactionalChange : propagatedChange
+              .getOriginalChange()
+              .getTransactionalChangeSequence()) {
+            numberOfTransactionalChanges += 1;
+            numberOfEChanges += transactionalChange
+                .getEChanges()
+                .size();
+          }
         }
       }
 
@@ -240,20 +243,6 @@ public class PerformanceTest extends TestBase {
                              + numberOfTransactionalChanges + ", e changes: " + numberOfEChanges);
       System.out.println("propagations per second: " + (numberOfPropagations * 1000.0) / duration.toMillis());
       System.out.println("e changes per second: " + (numberOfEChanges * 1000.0) / duration.toMillis());
-    }
-
-    private int countTransactionalChanges(VitruviusChange<?> change) {
-      if (change instanceof TransactionalChange<?>) {
-        return 1;
-      }
-      if (change instanceof CompositeChange<?, ?> composite) {
-        int count = 0;
-        for (var containedChange : composite.getChanges()) {
-          count += countTransactionalChanges(containedChange);
-        }
-        return count;
-      }
-      return 0;
     }
   }
 }

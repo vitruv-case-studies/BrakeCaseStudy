@@ -15,7 +15,3 @@ plugin.properties
 EMF_Projects/model/.metadata
 
 /src-gen/
-
-.DS_Store
-.mvn/
-.project
