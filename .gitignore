@@ -1,8 +1,6 @@
 # VS Code
 .vscode/
 
-.metadata
-
 # Maven
 target/
 *.log
@@ -12,6 +10,8 @@ target/
 META-INF
 build.properties
 plugin.properties
-EMF_Projects/model/.metadata
 
-/src-gen/
+.DS_Store
+.mvn/
+
+

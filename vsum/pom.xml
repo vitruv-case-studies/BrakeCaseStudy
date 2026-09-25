@@ -29,11 +29,6 @@
             <artifactId>tools.vitruv.casestudies.brakesystem.consistency</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>tools.vitruv.casestudies.brakesystem.viewtype</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
         <!-- Vitruvius dependencies -->
         <dependency>
