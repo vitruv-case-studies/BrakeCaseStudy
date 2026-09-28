@@ -1,4 +1,3 @@
-import java.io.File;
 import java.util.Arrays;
 import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality;
 
@@ -27,7 +26,7 @@ routine createAndRegisterRoot(simulink::SimulinkModel model) {
         val mAutosar = new autosar::AUTOSAR
     }
     update {
-        persistProjectRelative(model, mAutosar, new File("").toString() + "example.autosar")
+        persistProjectRelative(model, mAutosar, "example.autosar")
         addCorrespondenceBetween(model, mAutosar)
     }
 }

@@ -1,4 +1,3 @@
-import java.io.File;
 import java.lang.Object;
 
 import "http://www.example.org/brakesystem" as brakesystem
@@ -29,7 +28,7 @@ routine createAndRegisterRoot(brakesystem::Brakesystem mBrakesystem) {
 
         mAutosar.admindata = adminData
 
-        persistProjectRelative(mBrakesystem, mAutosar, new File("").toString() + "example.autosar")
+        persistProjectRelative(mBrakesystem, mAutosar, "example.autosar")
         addCorrespondenceBetween(mBrakesystem, mAutosar)
     }
 }

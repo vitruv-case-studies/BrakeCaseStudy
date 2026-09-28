@@ -1,4 +1,3 @@
-import java.io.File;
 import java.util.Arrays;
 import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality;
 
@@ -29,7 +28,7 @@ routine createAndRegisterRoot(brakesystem::Brakesystem model) {
     update {
         mSimulink.name = model.instanceName
 
-        persistProjectRelative(model, mSimulink, new File("").toString() + "example.simulink")
+        persistProjectRelative(model, mSimulink, "example.simulink")
         addCorrespondenceBetween(model, mSimulink)
     }
 }
