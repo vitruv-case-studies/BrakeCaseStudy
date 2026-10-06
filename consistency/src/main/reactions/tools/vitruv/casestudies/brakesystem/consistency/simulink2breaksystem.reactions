@@ -9,6 +9,13 @@ import brakesystem.BrakeHose;
 import brakesystem.BrakeDisk;
 import brakesystem.BrakePad;
 
+import tools.vitruv.casestudies.brakesystem.consistency.ParameterValueUtility;
+import brakesystem.Brakesystem;
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility;
+import brakesystem.BrakeComponent;
+import autosar.SwComponentType;
+import autosar.SensorActuatorSwComponentType;
+
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/brakesystem" as brakesystem
 
@@ -24,6 +31,21 @@ reaction SimulinkModelInsertedAsRoot {
 }
 
 routine createAndRegisterRoot(simulink::SimulinkModel model) {
+    match {
+        require absence of brakesystem::Brakesystem corresponding to model
+    }
+    update {
+        // Another model may already have created the counterpart; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, model, Brakesystem)
+        if (existing !== null) {
+            addCorrespondenceBetween(model, existing)
+        } else {
+            createRoot(model)
+        }
+    }
+}
+
+routine createRoot(simulink::SimulinkModel model) {
     match {
         require absence of brakesystem::Brakesystem corresponding to model
     }
@@ -80,15 +102,46 @@ routine createAndRegisterBrakeComponent(simulink::SimulinkModel mSimulink, simul
         require absence of brakesystem::BrakeComponent corresponding to block
     }
     update {
-        var choices = Arrays.asList("BrakeDisk", "BrakeHose", "ABSSensor")
-        if (block instanceof SubSystem) {
-            choices = (choices + #["BrakeCaliper"]).toList
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, BrakeComponent)
+        if (existing !== null) {
+            addCorrespondenceBetween(block, existing)
         } else {
-            choices = (choices + #["BrakePad"]).toList
+            createAndRegisterBrakeComponentDirectly(mSimulink, block)
         }
+    }
+}
+
+routine createAndRegisterBrakeComponentDirectly(simulink::SimulinkModel mSimulink, simulink::Block block) {
+    match {
+        val mBrakesystem = retrieve brakesystem::Brakesystem corresponding to mSimulink
+        require absence of brakesystem::BrakeComponent corresponding to block
+    }
+    update {
+        // AUTOSAR already decides whether the block is a sensor (SensorActuatorSwComponentType <-> ABSSensor),
+        // so the user cannot give a contradicting answer here
+        val swComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, SwComponentType)
+        if (swComponent instanceof SensorActuatorSwComponentType) {
+            createABSSensor(mBrakesystem, block)
+            return
+        }
+        val choices = newArrayList("BrakeDisk", "BrakeHose")
+        if (swComponent === null) {
+            choices += "ABSSensor"
+        }
+        if (block instanceof SubSystem) {
+            choices += "BrakeCaliper"
+        } else {
+            choices += "BrakePad"
+        }
+        // Blocks may also model parts that are no brake components, e.g. software or other hardware
+        choices += "None"
         val chosen = userInteractor.singleSelectionDialogBuilder.message(
             "What brake component does this block represent?").choices(
             choices).windowModality(WindowModality.MODAL).startInteraction
+        if (chosen < 0 || chosen >= choices.size) {
+            return
+        }
         switch (choices.get(chosen)) {
             case "BrakeDisk":
                 createBrakeDisk(mBrakesystem, block)
@@ -165,6 +218,22 @@ reaction BlockInsertedInSubSystem {
 }
 
 routine createAndRegisterBrakeComponentInSubsystem(simulink::SubSystem subSystem, simulink::Block block) {
+    match {
+        val caliper = retrieve brakesystem::BrakeCaliper corresponding to subSystem
+        require absence of brakesystem::BrakeComponent corresponding to block
+    }
+    update {
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, BrakeComponent)
+        if (existing !== null) {
+            addCorrespondenceBetween(block, existing)
+        } else {
+            createAndRegisterBrakeComponentInSubsystemDirectly(subSystem, block)
+        }
+    }
+}
+
+routine createAndRegisterBrakeComponentInSubsystemDirectly(simulink::SubSystem subSystem, simulink::Block block) {
     match {
         val caliper = retrieve brakesystem::BrakeCaliper corresponding to subSystem
         require absence of brakesystem::BrakeComponent corresponding to block
@@ -262,84 +331,114 @@ routine updateBrakeComponent(simulink::Parameter parameter) {
     }
 }
 
+// Simulink parameter values are free-form strings (possibly MATLAB expressions).
+// Values that cannot be interpreted as the attribute's type are ignored.
+
 routine updateBrakeDisk(simulink::Parameter parameter, brakesystem::BrakeDisk brakeComponent) {
     update {
-        val name = parameter.name
-        switch (name) {
+        if (parameter.name == "Ventilated") {
+            val ventilated = ParameterValueUtility.toBoolean(parameter.value)
+            if (ventilated !== null) {
+                brakeComponent.setVentilated(ventilated)
+            }
+            return
+        }
+        val value = ParameterValueUtility.toInteger(parameter.value)
+        if (value === null) {
+            return
+        }
+        switch (parameter.name) {
             case "Diameter":
-                brakeComponent.setDiameterInMM(Integer.parseInt(parameter.value))
+                brakeComponent.setDiameterInMM(value)
             case "Centering Diameter":
-                brakeComponent.setCenteringDiameterInMM(Integer.parseInt(parameter.value))
+                brakeComponent.setCenteringDiameterInMM(value)
             case "Rim Hole Number":
-                brakeComponent.setRimHoleNumber(Integer.parseInt(parameter.value))    
+                brakeComponent.setRimHoleNumber(value)
             case "Hole Arrangement Number":
-                brakeComponent.setHoleArrangementNumber(Integer.parseInt(parameter.value))    
+                brakeComponent.setHoleArrangementNumber(value)
             case "Bolt Hole Circle":
-                brakeComponent.setBoltHoleCircleInMM(Integer.parseInt(parameter.value))
+                brakeComponent.setBoltHoleCircleInMM(value)
             case "Brake Disk Thickness":
-                brakeComponent.setBrakeDiskThicknessInMM(Integer.parseInt(parameter.value))
+                brakeComponent.setBrakeDiskThicknessInMM(value)
             case "Minimum Thickness":
-                brakeComponent.setMinimumThicknessInMM(Integer.parseInt(parameter.value))
-            case "Ventilated":
-                brakeComponent.setVentilated(Boolean.parseBoolean(parameter.value))
+                brakeComponent.setMinimumThicknessInMM(value)
         }
     }
 }
 
 routine updateBrakeCaliper(simulink::Parameter parameter, brakesystem::BrakeCaliper brakeComponent) {
     update {
-        val name = parameter.name
-        switch (name) {
+        val value = ParameterValueUtility.toInteger(parameter.value)
+        if (value === null) {
+            return
+        }
+        switch (parameter.name) {
             case "Piston Diameter":
-                brakeComponent.setPistonDiameterInMM(Integer.parseInt(parameter.value))
+                brakeComponent.setPistonDiameterInMM(value)
             case "Brake Disk Thickness":
-                brakeComponent.setBrakeDiskThickness(Integer.parseInt(parameter.value))
+                brakeComponent.setBrakeDiskThickness(value)
         }
     }
 }
 
 routine updateBrakePad(simulink::Parameter parameter, brakesystem::BrakePad brakeComponent) {
     update {
-        val name = parameter.name
-        switch (name) {
+        if (parameter.name == "Wear Warning") {
+            val wearWarning = ParameterValueUtility.toBoolean(parameter.value)
+            if (wearWarning !== null) {
+                brakeComponent.setWearWarning(wearWarning)
+            }
+            return
+        }
+        val value = ParameterValueUtility.toInteger(parameter.value)
+        if (value === null) {
+            return
+        }
+        switch (parameter.name) {
             case "Height":
-                brakeComponent.setHeightInMM(Integer.parseInt(parameter.value))
+                brakeComponent.setHeightInMM(value)
             case "Width":
-                brakeComponent.setWidthInMM(Integer.parseInt(parameter.value))
+                brakeComponent.setWidthInMM(value)
             case "Thickness":
-                brakeComponent.setThicknessInMM(Integer.parseInt(parameter.value))
-            case "Wear Warning":
-                brakeComponent.setWearWarning(Boolean.parseBoolean(parameter.value))
+                brakeComponent.setThicknessInMM(value)
         }
     }
 }
 
 routine updateBrakeHose(simulink::Parameter parameter, brakesystem::BrakeHose brakeComponent) {
     update {
-        val name = parameter.name
-        switch (name) {
+        switch (parameter.name) {
             case "Thread 1":
                 brakeComponent.threadSize1 = parameter.value
             case "Thread 2":
                 brakeComponent.threadSize2 = parameter.value
-            case "Length":
-                brakeComponent.setLengthInMM(Integer.parseInt(parameter.value))
+            case "Length": {
+                val value = ParameterValueUtility.toInteger(parameter.value)
+                if (value !== null) {
+                    brakeComponent.setLengthInMM(value)
+                }
+            }
         }
     }
 }
 
 routine updateABSSensor(simulink::Parameter parameter, brakesystem::ABSSensor brakeComponent) {
     update {
-        val name = parameter.name
-        switch (name) {
-            case "Sensor Type":
-                brakeComponent.sensorType = parameter.value
+        if (parameter.name == "Sensor Type") {
+            brakeComponent.sensorType = parameter.value
+            return
+        }
+        val value = ParameterValueUtility.toInteger(parameter.value)
+        if (value === null) {
+            return
+        }
+        switch (parameter.name) {
             case "Fitting Depth":
-                brakeComponent.setFittingDepth(Integer.parseInt(parameter.value))
+                brakeComponent.setFittingDepth(value)
             case "Number of Pins":
-                brakeComponent.setNumberOfPins(Integer.parseInt(parameter.value))
+                brakeComponent.setNumberOfPins(value)
             case "Length":
-                brakeComponent.setLengthInMM(Integer.parseInt(parameter.value))
+                brakeComponent.setLengthInMM(value)
         }
     }
 }

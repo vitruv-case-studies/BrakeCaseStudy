@@ -2,6 +2,13 @@ import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
 import java.util.Arrays
 
 import tools.vitruv.casestudies.brakesystem.consistency.Cad2SimulinkUtility;
+import simulink.SimulinkModel;
+import tools.vitruv.casestudies.brakesystem.consistency.ParameterValueUtility;
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility;
+import simulink.Block;
+import brakesystem.BrakeComponent;
+import brakesystem.BrakeCaliper;
+import simulink.SubSystem;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/cad" as cad
@@ -17,6 +24,21 @@ reaction CAD_ModelInsertedAsRoot {
 }
 
 routine createAndRegisterRoot(cad::CAD_Model model) {
+    match {
+        require absence of simulink::SimulinkModel corresponding to model
+    }
+    update {
+        // Another model may already have created the counterpart; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, model, SimulinkModel)
+        if (existing !== null) {
+            addCorrespondenceBetween(model, existing)
+        } else {
+            createRoot(model)
+        }
+    }
+}
+
+routine createRoot(cad::CAD_Model model) {
     match {
         require absence of simulink::SimulinkModel corresponding to model
     }
@@ -40,10 +62,34 @@ routine createAndRegisterNamespace(cad::Namespace namespace) {
         require absence of simulink::Block corresponding to namespace
     }
     update {
-        val componentType = userInteractor.singleSelectionDialogBuilder.message(
-    			"What Simulink component do you want to add to be correspondent to this namespace?").choices(
-    			Arrays.asList("SimulinkBlock","SimulinkSubsystem")).windowModality(WindowModality.MODAL).
-    			startInteraction
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, Block)
+        if (existing !== null) {
+            addCorrespondenceBetween(namespace, existing)
+        } else {
+            createAndRegisterNamespaceDirectly(namespace)
+        }
+    }
+}
+
+routine createAndRegisterNamespaceDirectly(cad::Namespace namespace) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to namespace.eContainer()
+        require absence of simulink::Block corresponding to namespace
+    }
+    update {
+        // A known brake component determines the kind of block: calipers contain their pads
+        val brakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, BrakeComponent)
+        val componentType = if (brakeComponent instanceof BrakeCaliper) {
+            1
+        } else if (brakeComponent !== null) {
+            0
+        } else {
+            userInteractor.singleSelectionDialogBuilder.message(
+                "What Simulink component do you want to add to be correspondent to this namespace?").choices(
+                Arrays.asList("SimulinkBlock","SimulinkSubsystem")).windowModality(WindowModality.MODAL).
+                startInteraction
+        }
         switch (componentType) {
             case 0:
                 createSimulinkBlock(namespace, mSimulink)
@@ -61,7 +107,7 @@ routine createSimulinkBlock(cad::Namespace namespace, simulink::SimulinkModel mS
     }
     update {
         mBlock.name = namespace.name
-        insertSimulinkBlock(mSimulink, mBlock)
+        insertSimulinkBlock(namespace, mSimulink, mBlock)
         addCorrespondenceBetween(namespace, mBlock)
     }
 }
@@ -72,13 +118,27 @@ routine createSimulinkSubsystem(cad::Namespace namespace, simulink::SimulinkMode
     }
     update {
         mSubsystem.name = namespace.name
-        insertSimulinkBlock(mSimulink, mSubsystem)
+        insertSimulinkBlock(namespace, mSimulink, mSubsystem)
         addCorrespondenceBetween(namespace, mSubsystem)
     }
 }
 
-routine insertSimulinkBlock(simulink::SimulinkModel mSimulink, simulink::Block mBlock) {
+routine insertSimulinkBlock(cad::Namespace namespace, simulink::SimulinkModel mSimulink, simulink::Block mBlock) {
     update {
+        // A known brake component determines the position: a pad belongs into the subsystem of its caliper
+        val brakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, BrakeComponent)
+        if (brakeComponent !== null) {
+            val container = brakeComponent.eContainer
+            val caliperSubsystem = if (container instanceof BrakeCaliper) {
+                TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, container, SubSystem)
+            }
+            if (caliperSubsystem !== null) {
+                caliperSubsystem.subBlocks += mBlock
+            } else {
+                mSimulink.contains += mBlock
+            }
+            return
+        }
         val subsystems = Cad2SimulinkUtility.getAllSubSystems(mSimulink)
         var chosen = 0
         if (subsystems.size() > 0) {
@@ -88,11 +148,10 @@ routine insertSimulinkBlock(simulink::SimulinkModel mSimulink, simulink::Block m
                 startInteraction
         }
         
-        if (chosen == 0) {
-            mSimulink.contains += mBlock
+        if (chosen > 0 && chosen <= subsystems.size) {
+            subsystems.get(chosen - 1).subBlocks += mBlock
         } else {
-            val chosenSubsystem = subsystems.get(chosen - 1)
-            chosenSubsystem.subBlocks += mBlock
+            mSimulink.contains += mBlock
         }
     }
 }
@@ -111,6 +170,12 @@ routine createAndRegisterStringParameter(cad::StringParameter parameter) {
         val mParameter = new simulink::Parameter
     }
     update {
+        // A parameter with the same name may already have been created via the brake system model
+        val sameName = mBlock.parameters.findFirst[name == parameter.name]
+        if (sameName !== null && !TransitiveCorrespondenceUtility.hasDirectlyCorresponding(executionState.correspondenceModel, sameName, typeof(edu.kit.ipd.sdq.metamodels.cad.Parameter))) {
+            addCorrespondenceBetween(parameter, sameName)
+            return
+        }
         mParameter.name = parameter.name
         mParameter.value = parameter.value
         mParameter.type = "string"
@@ -134,8 +199,14 @@ routine createAndRegisterNumericParameter(cad::NumericParameter parameter) {
         val mParameter = new simulink::Parameter
     }
     update {
+        // A parameter with the same name may already have been created via the brake system model
+        val sameName = mBlock.parameters.findFirst[name == parameter.name]
+        if (sameName !== null && !TransitiveCorrespondenceUtility.hasDirectlyCorresponding(executionState.correspondenceModel, sameName, typeof(edu.kit.ipd.sdq.metamodels.cad.Parameter))) {
+            addCorrespondenceBetween(parameter, sameName)
+            return
+        }
         mParameter.name = parameter.name
-        mParameter.value = parameter.value.toString()
+        mParameter.value = ParameterValueUtility.formatNumber(ParameterValueUtility.cadToSimulinkValue(parameter.value, parameter.unit))
         val parametertype = userInteractor.singleSelectionDialogBuilder.message(
             "What Simulink Parametertype do you want to add to be correspondent to this Numeric CAD Parameter?").choices(
             Arrays.asList("double","single","half","uint8","int8","uint16","int16","uint32","int32","uint64","int64")).windowModality(WindowModality.MODAL).
@@ -186,6 +257,12 @@ routine createAndRegisterBooleanParameter(cad::BooleanParameter parameter) {
         val mParameter = new simulink::Parameter
     }
     update {
+        // A parameter with the same name may already have been created via the brake system model
+        val sameName = mBlock.parameters.findFirst[name == parameter.name]
+        if (sameName !== null && !TransitiveCorrespondenceUtility.hasDirectlyCorresponding(executionState.correspondenceModel, sameName, typeof(edu.kit.ipd.sdq.metamodels.cad.Parameter))) {
+            addCorrespondenceBetween(parameter, sameName)
+            return
+        }
         mParameter.name = parameter.name
         mParameter.value = parameter.value.toString()
         mParameter.type = "boolean"
@@ -283,7 +360,9 @@ routine updateSimulinkStringParameterValue(cad::StringParameter parameter) {
         val mParameter = retrieve simulink::Parameter corresponding to parameter
     }
     update {
-        mParameter.value = parameter.value
+        if (mParameter.value != parameter.value) {
+            mParameter.value = parameter.value
+        }
     }
 }
 
@@ -291,12 +370,24 @@ reaction NumericParameterValueChanged {
     after attribute replaced at cad::NumericParameter[value]
     call updateSimulinkNumericParameterValue(affectedEObject)
 }
+
+reaction NumericParameterUnitChanged {
+    after attribute replaced at cad::NumericParameter[unit]
+    call updateSimulinkNumericParameterValue(affectedEObject)
+}
+
+// Simulink values hold lengths in millimetres (see ParameterValueUtility). Values that already
+// denote the same number are not rewritten, so a propagated change does not overwrite the
+// user's formatting.
 routine updateSimulinkNumericParameterValue(cad::NumericParameter parameter) {
     match {
         val mParameter = retrieve simulink::Parameter corresponding to parameter
     }
     update {
-        mParameter.value = parameter.value.toString()
+        val value = ParameterValueUtility.cadToSimulinkValue(parameter.value, parameter.unit)
+        if (!ParameterValueUtility.denotesNumber(mParameter.value, value)) {
+            mParameter.value = ParameterValueUtility.formatNumber(value)
+        }
     }
 }
 
@@ -309,6 +400,8 @@ routine updateSimulinkBooleanParameterValue(cad::BooleanParameter parameter) {
         val mParameter = retrieve simulink::Parameter corresponding to parameter
     }
     update {
-        mParameter.value = parameter.value.toString()
+        if (!ParameterValueUtility.denotesBoolean(mParameter.value, parameter.value)) {
+            mParameter.value = parameter.value.toString()
+        }
     }
 }       

@@ -2,9 +2,15 @@ import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
 import java.util.Arrays
 
 import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
+import edu.kit.ipd.sdq.metamodels.cad.Unit;
 import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
 import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
 import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
+
+import tools.vitruv.casestudies.brakesystem.consistency.ParameterValueUtility;
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility;
+import edu.kit.ipd.sdq.metamodels.cad.Namespace;
+import brakesystem.BrakeComponent;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/cad" as cad
@@ -20,6 +26,21 @@ reaction SimulinkModelInsertedAsRoot {
 }
 
 routine createAndRegisterRoot(simulink::SimulinkModel model) {
+    match {
+        require absence of cad::CAD_Model corresponding to model
+    }
+    update {
+        // Another model may already have created the counterpart; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, model, CAD_Model)
+        if (existing !== null) {
+            addCorrespondenceBetween(model, existing)
+        } else {
+            createRoot(model)
+        }
+    }
+}
+
+routine createRoot(simulink::SimulinkModel model) {
     match {
         require absence of cad::CAD_Model corresponding to model
     }
@@ -39,6 +60,29 @@ reaction SimulinkBlockInserted {
 }
 
 routine createCADNamespace(simulink::Block block) {
+    match {
+        val mCad = retrieve cad::CAD_Model corresponding to block.eContainer()
+        require absence of cad::Namespace corresponding to block
+    }
+    update {
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, Namespace)
+        if (existing !== null) {
+            addCorrespondenceBetween(block, existing)
+        } else {
+            // CAD only describes physical parts. Brake components are physical; for other blocks
+            // (e.g. software or further hardware) the user decides.
+            val isBrakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, BrakeComponent) !== null
+            if (isBrakeComponent || userInteractor.confirmationDialogBuilder.message(
+                    "Does the Simulink block '" + block.name + "' represent a physical part? Only physical parts get a CAD namespace.").
+                    windowModality(WindowModality.MODAL).startInteraction) {
+                createCADNamespaceDirectly(block)
+            }
+        }
+    }
+}
+
+routine createCADNamespaceDirectly(simulink::Block block) {
     match {
         val mCad = retrieve cad::CAD_Model corresponding to block.eContainer()
         require absence of cad::Namespace corresponding to block
@@ -63,6 +107,29 @@ routine createCADNamespaceInSubSystem(simulink::SubSystem subSystem, simulink::B
         val mParentNamespace = retrieve cad::Namespace corresponding to subSystem
         require absence of cad::Namespace corresponding to block
     }
+    update {
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, Namespace)
+        if (existing !== null) {
+            addCorrespondenceBetween(block, existing)
+        } else {
+            // CAD only describes physical parts. Brake components are physical; for other blocks
+            // (e.g. software or further hardware) the user decides.
+            val isBrakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, BrakeComponent) !== null
+            if (isBrakeComponent || userInteractor.confirmationDialogBuilder.message(
+                    "Does the Simulink block '" + block.name + "' represent a physical part? Only physical parts get a CAD namespace.").
+                    windowModality(WindowModality.MODAL).startInteraction) {
+                createCADNamespaceInSubSystemDirectly(subSystem, block)
+            }
+        }
+    }
+}
+
+routine createCADNamespaceInSubSystemDirectly(simulink::SubSystem subSystem, simulink::Block block) {
+    match {
+        val mParentNamespace = retrieve cad::Namespace corresponding to subSystem
+        require absence of cad::Namespace corresponding to block
+    }
     create {
         val namespace = new cad::Namespace
     }
@@ -83,8 +150,15 @@ reaction ParameterInserted {
 routine createCADParameter(simulink::Parameter parameter) {
     match {
         val mNamespace = retrieve cad::Namespace corresponding to parameter.eContainer()
+        require absence of cad::Parameter corresponding to parameter
     }
     update {
+        // A parameter with the same name may already have been created via the brake system model
+        val sameName = mNamespace.parameters.findFirst[name == parameter.name]
+        if (sameName !== null && !TransitiveCorrespondenceUtility.hasDirectlyCorresponding(executionState.correspondenceModel, sameName, typeof(simulink.Parameter))) {
+            addCorrespondenceBetween(parameter, sameName)
+            return
+        }
 
         if (parameter.type === null) {
             val parameterType = userInteractor.singleSelectionDialogBuilder.message(
@@ -132,10 +206,15 @@ routine createCADNumericParameter(simulink::Parameter parameter, cad::Namespace 
         val cadParameter = new cad::NumericParameter
     }
     update {
-        val valueAsFloat = Float.parseFloat(parameter.value)
+        // Values that are not numeric (e.g. MATLAB expressions) are left at the default
+        val valueAsFloat = ParameterValueUtility.toFloat(parameter.value)
 
         cadParameter.name = parameter.name
-        cadParameter.value = valueAsFloat
+        // Simulink holds lengths in millimetres (see ParameterValueUtility)
+        cadParameter.unit = Unit.MM
+        if (valueAsFloat !== null) {
+            cadParameter.value = valueAsFloat
+        }
         mNamespace.parameters.add(cadParameter)
         addCorrespondenceBetween(parameter, cadParameter)
     }
@@ -158,10 +237,12 @@ routine createCADBooleanParameter(simulink::Parameter parameter, cad::Namespace 
         val cadParameter = new cad::BooleanParameter
     }
     update {
-        val valueAsBoolean = Boolean.parseBoolean(parameter.value)
+        val valueAsBoolean = ParameterValueUtility.toBoolean(parameter.value)
 
         cadParameter.name = parameter.name
-        cadParameter.value = valueAsBoolean
+        if (valueAsBoolean !== null) {
+            cadParameter.value = valueAsBoolean
+        }
         mNamespace.parameters.add(cadParameter)
         addCorrespondenceBetween(parameter, cadParameter)
     }
@@ -296,7 +377,15 @@ routine updateCADNumericParameterValue(simulink::Parameter parameter) {
         val cadParameter = retrieve cad::NumericParameter corresponding to parameter
     }
     update {
-        cadParameter.value = Float.parseFloat(parameter.value)
+        val valueAsFloat = ParameterValueUtility.toFloat(parameter.value)
+        if (valueAsFloat === null) {
+            return
+        }
+        // Simulink holds lengths in millimetres; keep the unit the CAD user chose
+        val value = ParameterValueUtility.simulinkToCadValue(valueAsFloat, cadParameter.unit)
+        if (!ParameterValueUtility.sameNumber(cadParameter.value, value)) {
+            cadParameter.value = value
+        }
     }
 }
 
@@ -305,7 +394,9 @@ routine updateCADStringParameterValue(simulink::Parameter parameter) {
         val cadParameter = retrieve cad::StringParameter corresponding to parameter
     }
     update {
-        cadParameter.value = parameter.value
+        if (cadParameter.value != parameter.value) {
+            cadParameter.value = parameter.value
+        }
     }
 }
 
@@ -314,6 +405,9 @@ routine updateCADBooleanParameterValue(simulink::Parameter parameter) {
         val cadParameter = retrieve cad::BooleanParameter corresponding to parameter
     }
     update {
-        cadParameter.value = Boolean.parseBoolean(parameter.value)
+        val valueAsBoolean = ParameterValueUtility.toBoolean(parameter.value)
+        if (valueAsBoolean !== null && cadParameter.value != valueAsBoolean) {
+            cadParameter.value = valueAsBoolean
+        }
     }
 }

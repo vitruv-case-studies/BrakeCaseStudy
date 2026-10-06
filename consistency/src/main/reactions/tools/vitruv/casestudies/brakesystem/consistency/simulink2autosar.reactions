@@ -4,6 +4,12 @@ import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality;
 import simulink.SubSystem;
 import autosar.AUTOSAR;
 import autosar.SDG;
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility;
+import autosar.SwComponentType;
+import brakesystem.BrakeComponent;
+import brakesystem.ABSSensor;
+import autosar.ARPackage;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/autosar" as autosar
@@ -19,6 +25,21 @@ reaction SimulinkModelInsertedAsRoot {
 }
 
 routine createAndRegisterRoot(simulink::SimulinkModel model) {
+    match {
+        require absence of autosar::AUTOSAR corresponding to model
+    }
+    update {
+        // Another model may already have created the counterpart; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, model, AUTOSAR)
+        if (existing !== null) {
+            addCorrespondenceBetween(model, existing)
+        } else {
+            createRoot(model)
+        }
+    }
+}
+
+routine createRoot(simulink::SimulinkModel model) {
     match {
         require absence of autosar::AUTOSAR corresponding to model
     }
@@ -58,20 +79,44 @@ routine createCorrespondingAutoSarComponent(simulink::Block block) {
         require absence of autosar::SwComponentType corresponding to block
     }
     update {
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, SwComponentType)
+        if (existing !== null) {
+            addCorrespondenceBetween(block, existing)
+        } else {
+            createCorrespondingAutoSarComponentDirectly(block)
+        }
+    }
+}
+
+routine createCorrespondingAutoSarComponentDirectly(simulink::Block block) {
+    match {
+        val mAutosarModel = retrieve autosar::AUTOSAR corresponding to block.eContainer()
+        require absence of autosar::SwComponentType corresponding to block
+    }
+    update {
         createCorrespondingAutoSarComponentForBlock(mAutosarModel, block)
     }
 }
 
 routine createCorrespondingAutoSarComponentForBlock(autosar::AUTOSAR model, simulink::Block block) {
     update {
-        if (block instanceof SubSystem) {
+        // The brake system already decides whether the block is a sensor (ABSSensor <-> SensorActuatorSwComponentType),
+        // so the user cannot give a contradicting answer here
+        val brakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, BrakeComponent)
+        if (brakeComponent instanceof ABSSensor) {
+            createSensorActuatorSwComponentType(model, block)
+        } else if (block instanceof SubSystem) {
             createCompositionSwComponentType(model, block)
         } else {
+            val choices = newArrayList("ApplicationSwComponentType", "ServiceProxySwComponentType", "EcuAbstractionSwComponentType",
+                "ComplexDeviceDriverSwComponentType", "NvBlockSwComponentType", "ServiceSwComponentType")
+            if (brakeComponent === null) {
+                choices += "SensorActuatorSwComponentType"
+            }
             val componentType = userInteractor.singleSelectionDialogBuilder.message(
                 "What AutoSAR component do you want to add to be correspondent to this block?").choices(
-                Arrays.asList("ApplicationSwComponentType", "ServiceProxySwComponentType", "EcuAbstractionSwComponentType",
-                    "ComplexDeviceDriverSwComponentType", "NvBlockSwComponentType", "ServiceSwComponentType",
-                    "SensorActuatorSwComponentType")).windowModality(WindowModality.MODAL).startInteraction
+                choices).windowModality(WindowModality.MODAL).startInteraction
             switch (componentType) {
                 case 0:
                     createApplicationSwComponentType(model, block)
@@ -85,6 +130,8 @@ routine createCorrespondingAutoSarComponentForBlock(autosar::AUTOSAR model, simu
                     createNvBlockSwComponentType(model, block)
                 case 5:
                     createServiceSwComponentType(model, block)
+                case 6:
+                    createSensorActuatorSwComponentType(model, block)
             }
         }
     }
@@ -153,12 +200,22 @@ routine createServiceSwComponentType(autosar::AUTOSAR model, simulink::Block blo
     }
 }
 
+routine createSensorActuatorSwComponentType(autosar::AUTOSAR model, simulink::Block block) {
+    create {
+        val component = new autosar::SensorActuatorSwComponentType
+    }
+    update {
+        initializeAutoSarComponent(model, component, block)
+    }
+}
+
 routine initializeAutoSarComponent(autosar::AUTOSAR model, autosar::SwComponentType component, simulink::Block block) {
     update {
         if (model.arpackage.size == 0) {
             createDefaultARPackageIfNotExists(model)
         }
         val mARPackage = model.arpackage.get(0)
+        component.shortName = block.name
         mARPackage.elements.add(component)
         addCorrespondenceBetween(block, component)
     }
@@ -206,9 +263,29 @@ routine createAndInsertCorrespondingComponent(simulink::SubSystem parentSubsyste
         require absence of autosar::SwComponentType corresponding to block
     }
     update {
-        val mAutosarModel = parentComposition.eContainer().eContainer() as AUTOSAR
-        createCorrespondingAutoSarComponentForBlock(mAutosarModel, block)
-        insertCorrespondingComponent(parentSubsystem, block)
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, SwComponentType)
+        if (existing !== null) {
+            addCorrespondenceBetween(block, existing)
+            insertCorrespondingComponent(parentSubsystem, block)
+        } else {
+            createAndInsertCorrespondingComponentDirectly(parentSubsystem, block)
+        }
+    }
+}
+
+routine createAndInsertCorrespondingComponentDirectly(simulink::SubSystem parentSubsystem, simulink::Block block) {
+    match {
+        val parentComposition = retrieve autosar::CompositionSwComponentType corresponding to parentSubsystem
+        require absence of autosar::SwComponentType corresponding to block
+    }
+    update {
+        // The composition may be in any (sub-)package
+        val mAutosarModel = EcoreUtil.getRootContainer(parentComposition)
+        if (mAutosarModel instanceof AUTOSAR) {
+            createCorrespondingAutoSarComponentForBlock(mAutosarModel, block)
+            insertCorrespondingComponent(parentSubsystem, block)
+        }
     }
 }
 
@@ -240,9 +317,11 @@ routine deleteComponent(simulink::Block block) {
         val component = retrieve autosar::SwComponentType corresponding to block
     }
     update {
-        val mAutosarModel = component.eContainer().eContainer() as AUTOSAR
-        val mARPackage = mAutosarModel.arpackage.get(0)
-        mARPackage.elements.remove(component)
+        // Remove the component from the package it actually is in, not just the first package
+        val mARPackage = component.eContainer()
+        if (mARPackage instanceof ARPackage) {
+            mARPackage.elements.remove(component)
+        }
         removeCorrespondenceBetween(block, component)
     }
 }

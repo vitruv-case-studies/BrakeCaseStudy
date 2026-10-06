@@ -3,6 +3,12 @@ import autosar.AUTOSAR;
 import autosar.SDG;
 import autosar.SensorActuatorSwComponentType;
 
+import tools.vitruv.casestudies.brakesystem.consistency.ParameterValueUtility;
+import brakesystem.Brakesystem;
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility;
+import brakesystem.ABSSensor;
+import brakesystem.BrakeComponent;
+
 import "http://www.example.org/brakesystem" as brakesystem
 import "http://www.example.org/autosar" as autosar
 
@@ -21,6 +27,21 @@ routine createAndRegisterRoot(autosar::AUTOSAR mAutosar) {
     match {
         require absence of brakesystem::Brakesystem corresponding to mAutosar
     }
+    update {
+        // Another model may already have created the counterpart; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, mAutosar, Brakesystem)
+        if (existing !== null) {
+            addCorrespondenceBetween(mAutosar, existing)
+        } else {
+            createRoot(mAutosar)
+        }
+    }
+}
+
+routine createRoot(autosar::AUTOSAR mAutosar) {
+    match {
+        require absence of brakesystem::Brakesystem corresponding to mAutosar
+    }
     create {
         val mBrakesystem = new brakesystem::Brakesystem
     }
@@ -30,11 +51,11 @@ routine createAndRegisterRoot(autosar::AUTOSAR mAutosar) {
             if (generalInformation !== null) {
                 val instanceName = generalInformation.sd.findFirst[it.key == "instanceName"]
                 if (instanceName !== null) {
-                    mBrakesystem.instanceName = instanceName.value as String
+                    mBrakesystem.instanceName = ParameterValueUtility.toStringOrNull(instanceName.value)
                 }
                 val specificationType = generalInformation.sd.findFirst[it.key == "specificationType"]
                 if (specificationType !== null) {
-                    mBrakesystem.specificationType = specificationType.value as String
+                    mBrakesystem.specificationType = ParameterValueUtility.toStringOrNull(specificationType.value)
                 }
             }
         }
@@ -71,6 +92,27 @@ routine createCorrespondingBrakesystemElement(autosar::SensorActuatorSwComponent
         val mBrakesystem = retrieve brakesystem::Brakesystem corresponding to component.eContainer().eContainer()
         require absence of brakesystem::ABSSensor corresponding to component
     }
+    update {
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, component, BrakeComponent)
+        if (existing instanceof ABSSensor) {
+            addCorrespondenceBetween(component, existing)
+        } else if (existing !== null) {
+            // Never create a second brake component for the same element
+            userInteractor.notificationDialogBuilder.message(
+                "The sensor/actuator component '" + component.shortName + "' corresponds to the brake component '" + existing.id +
+                    "', which is no ABS sensor. No ABS sensor is created for it.").startInteraction
+        } else {
+            createCorrespondingBrakesystemElementDirectly(component)
+        }
+    }
+}
+
+routine createCorrespondingBrakesystemElementDirectly(autosar::SensorActuatorSwComponentType component) {
+    match {
+        val mBrakesystem = retrieve brakesystem::Brakesystem corresponding to component.eContainer().eContainer()
+        require absence of brakesystem::ABSSensor corresponding to component
+    }
     create {
         val absSensor = new brakesystem::ABSSensor
     }
@@ -82,31 +124,34 @@ routine createCorrespondingBrakesystemElement(autosar::SensorActuatorSwComponent
             if (generalInformation !== null) {
                 val specificationType = generalInformation.sd.findFirst[it.key == "specificationType"]
                 if (specificationType !== null) {
-                    absSensor.specificationType = specificationType.value as String
+                    absSensor.specificationType = ParameterValueUtility.toStringOrNull(specificationType.value)
                 }
                 val OEM_number = generalInformation.sd.findFirst[it.key == "OEM_number"]
                 if (OEM_number !== null) {
-                    absSensor.OEM_number = OEM_number.value as String
+                    absSensor.OEM_number = ParameterValueUtility.toStringOrNull(OEM_number.value)
                 }
                 val fittingPosition = generalInformation.sd.findFirst[it.key == "fittingPosition"]
                 if (fittingPosition !== null) {
-                    absSensor.fittingPosition = fittingPosition.value as String
+                    absSensor.fittingPosition = ParameterValueUtility.toStringOrNull(fittingPosition.value)
                 }
                 val sensorType = generalInformation.sd.findFirst[it.key == "sensorType"]
                 if (sensorType !== null) {
-                    absSensor.sensorType = sensorType.value as String
+                    absSensor.sensorType = ParameterValueUtility.toStringOrNull(sensorType.value)
                 }
                 val fittingDepth = generalInformation.sd.findFirst[it.key == "fittingDepth"]
-                if (fittingDepth !== null) {
-                    absSensor.fittingDepth = fittingDepth.value as Integer
+                val fittingDepthValue = ParameterValueUtility.toInteger(fittingDepth?.value)
+                if (fittingDepthValue !== null) {
+                    absSensor.fittingDepth = fittingDepthValue
                 }
                 val numberOfPins = generalInformation.sd.findFirst[it.key == "numberOfPins"]
-                if (numberOfPins !== null) {
-                    absSensor.numberOfPins = numberOfPins.value as Integer
+                val numberOfPinsValue = ParameterValueUtility.toInteger(numberOfPins?.value)
+                if (numberOfPinsValue !== null) {
+                    absSensor.numberOfPins = numberOfPinsValue
                 }
                 val lengthInMM = generalInformation.sd.findFirst[it.key == "lengthInMM"]
-                if (lengthInMM !== null) {
-                    absSensor.lengthInMM = lengthInMM.value as Integer
+                val lengthInMMValue = ParameterValueUtility.toInteger(lengthInMM?.value)
+                if (lengthInMMValue !== null) {
+                    absSensor.lengthInMM = lengthInMMValue
                 }
             }
         }
@@ -176,9 +221,9 @@ routine updateCorrespondingBrakesystemRoot(autosar::SD sd) {
         if (sdg.gid == "generalInformation") {
             switch (sd.key) {
                 case "instanceName":
-                    mBrakesystem.instanceName = sd.value as String
+                    mBrakesystem.instanceName = ParameterValueUtility.toStringOrNull(sd.value)
                 case "specificationType":
-                    mBrakesystem.specificationType = sd.value as String
+                    mBrakesystem.specificationType = ParameterValueUtility.toStringOrNull(sd.value)
                 default:
                     return
             }
@@ -195,19 +240,31 @@ routine updateCorrespondingBrakesystemSensor(autosar::SD sd) {
         if (sdg.gid == "generalInformation") {
             switch (sd.key) {
                 case "specificationType":
-                    absSensor.specificationType = sd.value as String
+                    absSensor.specificationType = ParameterValueUtility.toStringOrNull(sd.value)
                 case "OEM_number":
-                    absSensor.OEM_number = sd.value as String
+                    absSensor.OEM_number = ParameterValueUtility.toStringOrNull(sd.value)
                 case "fittingPosition":
-                    absSensor.fittingPosition = sd.value as String
+                    absSensor.fittingPosition = ParameterValueUtility.toStringOrNull(sd.value)
                 case "sensorType":
-                    absSensor.sensorType = sd.value as String
-                case "fittingDepth":
-                    absSensor.fittingDepth = sd.value as Integer
-                case "numberOfPins":
-                    absSensor.numberOfPins = sd.value as Integer
-                case "lengthInMM":
-                    absSensor.lengthInMM = sd.value as Integer
+                    absSensor.sensorType = ParameterValueUtility.toStringOrNull(sd.value)
+                case "fittingDepth": {
+                    val value = ParameterValueUtility.toInteger(sd.value)
+                    if (value !== null) {
+                        absSensor.fittingDepth = value
+                    }
+                }
+                case "numberOfPins": {
+                    val value = ParameterValueUtility.toInteger(sd.value)
+                    if (value !== null) {
+                        absSensor.numberOfPins = value
+                    }
+                }
+                case "lengthInMM": {
+                    val value = ParameterValueUtility.toInteger(sd.value)
+                    if (value !== null) {
+                        absSensor.lengthInMM = value
+                    }
+                }
                 default:
                     return
             }

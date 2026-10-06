@@ -3,6 +3,10 @@ import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality;
 
 import brakesystem.BrakeCaliper;
 import brakesystem.BrakePad;
+import simulink.SimulinkModel;
+import tools.vitruv.casestudies.brakesystem.consistency.ParameterValueUtility;
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility;
+import simulink.Block;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/brakesystem" as brakesystem
@@ -19,6 +23,21 @@ reaction BrakesystemInsertedAsRoot {
 }
 
 routine createAndRegisterRoot(brakesystem::Brakesystem model) {
+    match {
+        require absence of simulink::SimulinkModel corresponding to model
+    }
+    update {
+        // Another model may already have created the counterpart; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, model, SimulinkModel)
+        if (existing !== null) {
+            addCorrespondenceBetween(model, existing)
+        } else {
+            createRoot(model)
+        }
+    }
+}
+
+routine createRoot(brakesystem::Brakesystem model) {
     match {
         require absence of simulink::SimulinkModel corresponding to model
     }
@@ -75,6 +94,22 @@ routine createCorrespondingSimulinkBlock(brakesystem::BrakeComponent brakeCompon
         require absence of simulink::Block corresponding to brakeComponent
     }
     update {
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, brakeComponent, Block)
+        if (existing !== null) {
+            addCorrespondenceBetween(brakeComponent, existing)
+        } else {
+            createCorrespondingSimulinkBlockDirectly(brakeComponent)
+        }
+    }
+}
+
+routine createCorrespondingSimulinkBlockDirectly(brakesystem::BrakeComponent brakeComponent) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to brakeComponent.eContainer()
+        require absence of simulink::Block corresponding to brakeComponent
+    }
+    update {
         createSimulinkBlockOrSubSystem(brakeComponent, mSimulink)
     }
 }
@@ -84,14 +119,12 @@ routine createSimulinkBlockOrSubSystem(brakesystem::BrakeComponent brakeComponen
         var createSubSystem = false
         if (brakeComponent instanceof BrakeCaliper) {
             createSubSystem = true
-        } else if (brakeComponent instanceof BrakePad) {
+        } else {
+            // val chosen = userInteractor.singleSelectionDialogBuilder.message(
+            //    "Should the Brake Component by a Simulink Block or SubSystem?").choices(
+            //        Arrays.asList("Block", "SubSystem")).windowModality(WindowModality.MODAL).startInteraction
+            //createSubSystem = chosen == 1
             createSubSystem = false
-        }
-        else {
-            val chosen = userInteractor.singleSelectionDialogBuilder.message(
-                "Should the Brake Component by a Simulink Block or SubSystem?").choices(
-                    Arrays.asList("Block", "SubSystem")).windowModality(WindowModality.MODAL).startInteraction
-            createSubSystem = chosen == 1
         }
         if (createSubSystem) {
             createSimulinkSubSystem(brakeComponent, model)
@@ -129,6 +162,23 @@ reaction BrakePadInserted {
 }
 
 routine createSimulinkBlockForBrakePad(brakesystem::BrakeCaliper brakeCaliper, brakesystem::BrakePad brakePad) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to brakePad.eContainer().eContainer()
+        val subSystem = retrieve simulink::SubSystem corresponding to brakeCaliper
+        require absence of simulink::Block corresponding to brakePad
+    }
+    update {
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, brakePad, Block)
+        if (existing !== null) {
+            addCorrespondenceBetween(brakePad, existing)
+        } else {
+            createSimulinkBlockForBrakePadDirectly(brakeCaliper, brakePad)
+        }
+    }
+}
+
+routine createSimulinkBlockForBrakePadDirectly(brakesystem::BrakeCaliper brakeCaliper, brakesystem::BrakePad brakePad) {
     match {
         val mSimulink = retrieve simulink::SimulinkModel corresponding to brakePad.eContainer().eContainer()
         val subSystem = retrieve simulink::SubSystem corresponding to brakeCaliper
@@ -532,7 +582,9 @@ routine updateOrCreateStringParameter(simulink::Block block, String parameterNam
     update {
         val parameter = block.parameters.findFirst[it.name == parameterName]
         if (parameter !== null) {
-            parameter.value = parameterValue
+            if (parameter.value != parameterValue) {
+                parameter.value = parameterValue
+            }
         } else {
             newParameter.name = parameterName
             newParameter.value = parameterValue
@@ -549,7 +601,10 @@ routine updateOrCreateBooleanParameter(simulink::Block block, String parameterNa
     update {
         val parameter = block.parameters.findFirst[it.name == parameterName]
         if (parameter !== null) {
-            parameter.value = parameterValue.toString()
+            // Do not overwrite an equivalent value, e.g. "TRUE" set by the user
+            if (!ParameterValueUtility.denotesBoolean(parameter.value, parameterValue)) {
+                parameter.value = parameterValue.toString()
+            }
         } else {
             newParameter.name = parameterName
             newParameter.value = parameterValue.toString()
@@ -566,7 +621,10 @@ routine updateOrCreateIntegerParameter(simulink::Block block, String parameterNa
     update {
         val parameter = block.parameters.findFirst[it.name == parameterName]
         if (parameter !== null) {
-            parameter.value = parameterValue.toString()
+            // Do not overwrite an equivalent value, e.g. "120.0" set by the user
+            if (!ParameterValueUtility.denotesNumber(parameter.value, parameterValue)) {
+                parameter.value = parameterValue.toString()
+            }
         } else {
             newParameter.name = parameterName
             newParameter.value = parameterValue.toString()

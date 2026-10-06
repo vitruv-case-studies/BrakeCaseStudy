@@ -1,4 +1,7 @@
 import java.lang.Object;
+import autosar.AUTOSAR;
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility;
+import autosar.SensorActuatorSwComponentType;
 
 import "http://www.example.org/brakesystem" as brakesystem
 import "http://www.example.org/autosar" as autosar
@@ -15,6 +18,21 @@ reaction BrakesystemInsertedAsRoot {
 }
 
 routine createAndRegisterRoot(brakesystem::Brakesystem mBrakesystem) {
+    match {
+        require absence of autosar::AUTOSAR corresponding to mBrakesystem
+    }
+    update {
+        // Another model may already have created the counterpart; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, mBrakesystem, AUTOSAR)
+        if (existing !== null) {
+            addCorrespondenceBetween(mBrakesystem, existing)
+        } else {
+            createRoot(mBrakesystem)
+        }
+    }
+}
+
+routine createRoot(brakesystem::Brakesystem mBrakesystem) {
     match {
         require absence of autosar::AUTOSAR corresponding to mBrakesystem
     }
@@ -101,6 +119,22 @@ reaction ABSSensorInserted {
 }
 
 routine createCorrespondingAutosarComponent(brakesystem::ABSSensor absSensor) {
+    match {
+        val mAutosar = retrieve autosar::AUTOSAR corresponding to absSensor.eContainer()
+        require absence of autosar::SensorActuatorSwComponentType corresponding to absSensor
+    }
+    update {
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, absSensor, SensorActuatorSwComponentType)
+        if (existing !== null) {
+            addCorrespondenceBetween(absSensor, existing)
+        } else {
+            createCorrespondingAutosarComponentDirectly(absSensor)
+        }
+    }
+}
+
+routine createCorrespondingAutosarComponentDirectly(brakesystem::ABSSensor absSensor) {
     match {
         val mAutosar = retrieve autosar::AUTOSAR corresponding to absSensor.eContainer()
         require absence of autosar::SensorActuatorSwComponentType corresponding to absSensor
