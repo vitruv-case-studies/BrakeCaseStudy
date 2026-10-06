@@ -1,0 +1,128 @@
+import java.util.Objects
+
+import bom.BOM
+import bom.Item
+import tools.vitruv.casestudies.brakesystem.consistency.BomUtility
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility
+
+import "http://www.example.org/simulink" as simulink
+import "http://example.org/bom" as bom
+
+reactions: simulink2bom
+in reaction to changes in simulink
+execute actions in bom
+
+reaction SimulinkModelInsertedAsRoot {
+    after element simulink::SimulinkModel inserted as root
+    call createBOM(newValue)
+}
+
+routine createBOM(simulink::SimulinkModel source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    update {
+        // Another model may already have created the BOM; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, source, BOM)
+        if (existing !== null) {
+            addCorrespondenceBetween(source, existing)
+        } else {
+            createBOMDirectly(source)
+        }
+    }
+}
+
+routine createBOMDirectly(simulink::SimulinkModel source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    create {
+        val target = new bom::BOM
+    }
+    update {
+        target.name = source.name
+        persistProjectRelative(source, target, "example.bom")
+        addCorrespondenceBetween(source, target)
+    }
+}
+
+reaction SimulinkModelNameChanged {
+    after attribute replaced at simulink::SimulinkModel[name]
+    call updateBOMName(affectedEObject)
+}
+
+routine updateBOMName(simulink::SimulinkModel source) {
+    match {
+        val target = retrieve bom::BOM corresponding to source
+    }
+    update {
+        if (!Objects.equals(target.name, source.name)) target.name = source.name
+    }
+}
+
+// A block is listed in the BOM only if it models a physical part. Whether it does is decided via
+// the brake system (brake components) and CAD (other physical parts), which also create the items.
+// So a block only gets the item of its part, if there is one; blocks of software get none.
+reaction BlockInserted {
+    after element simulink::Block inserted in simulink::SimulinkModel[contains]
+    call linkItem(newValue)
+}
+
+reaction BlockInsertedInSubSystem {
+    after element simulink::Block inserted in simulink::SubSystem[subBlocks]
+    call linkItem(newValue)
+}
+
+routine linkItem(simulink::Block block) {
+    match {
+        require absence of bom::Item corresponding to block
+    }
+    update {
+        // An item can count several blocks, so it may already correspond to other blocks
+        val item = TransitiveCorrespondenceUtility.findSharedTransitivelyCorresponding(executionState.correspondenceModel, block, Item)
+        if (item !== null) {
+            addCorrespondenceBetween(block, item)
+        }
+    }
+}
+
+// Parameters are identified by their name. Values the item does not have are created via the
+// brake system or CAD, so only existing values are updated here.
+reaction ParameterInserted {
+    after element simulink::Parameter inserted in simulink::Block[parameters]
+    call updateItemValue(newValue)
+}
+
+reaction ParameterValueChanged {
+    after attribute replaced at simulink::Parameter[value]
+    call updateItemValue(affectedEObject)
+}
+
+// Simulink holds lengths in millimetres (see ParameterValueUtility); texts that are no valid
+// value, e.g. MATLAB expressions, are ignored
+routine updateItemValue(simulink::Parameter parameter) {
+    match {
+        val item = retrieve bom::Item corresponding to parameter.eContainer()
+    }
+    update {
+        val value = BomUtility.findValue(item, parameter.name)
+        if (value !== null) {
+            BomUtility.setFromSimulink(value, parameter.value)
+        }
+    }
+}
+
+// The quantity of the item is maintained via the brake system and CAD, which delete their instances as well
+reaction BlockDeleted {
+    after element simulink::Block deleted
+    call unlinkItem(affectedEObject)
+}
+
+routine unlinkItem(simulink::Block block) {
+    match {
+        val item = retrieve bom::Item corresponding to block
+    }
+    update {
+        removeCorrespondenceBetween(block, item)
+    }
+}

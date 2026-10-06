@@ -1,0 +1,239 @@
+import java.util.Objects
+
+import bom.BOM
+import bom.Item
+import bom.StringParameterValue
+import bom.NumericParameterValue
+import bom.BoolParameterValue
+import brakesystem.BrakeComponent
+import edu.kit.ipd.sdq.metamodels.cad.StringParameter
+import edu.kit.ipd.sdq.metamodels.cad.NumericParameter
+import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter
+import edu.kit.ipd.sdq.metamodels.cad.Namespace
+import edu.kit.ipd.sdq.metamodels.cad.Parameter
+import tools.vitruv.casestudies.brakesystem.consistency.BomUtility
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility
+
+import "http://www.example.org/cad" as cad
+import "http://example.org/bom" as bom
+
+reactions: cad2bom
+in reaction to changes in cad
+execute actions in bom
+
+reaction CADModelInsertedAsRoot {
+    after element cad::CAD_Model inserted as root
+    call createBOM(newValue)
+}
+
+routine createBOM(cad::CAD_Model source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    update {
+        // Another model may already have created the BOM; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, source, BOM)
+        if (existing !== null) {
+            addCorrespondenceBetween(source, existing)
+        } else {
+            createBOMDirectly(source)
+        }
+    }
+}
+
+routine createBOMDirectly(cad::CAD_Model source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    create {
+        val target = new bom::BOM
+    }
+    update {
+        target.name = source.name
+        persistProjectRelative(source, target, "example.bom")
+        addCorrespondenceBetween(source, target)
+    }
+}
+
+reaction CADModelNameChanged {
+    after attribute replaced at cad::CAD_Model[name]
+    call updateBOMName(affectedEObject)
+}
+
+routine updateBOMName(cad::CAD_Model source) {
+    match {
+        val target = retrieve bom::BOM corresponding to source
+    }
+    update {
+        if (!Objects.equals(target.name, source.name)) target.name = source.name
+    }
+}
+
+// Every CAD namespace describes a physical part and is therefore listed in the BOM. Like the brake
+// components and Simulink blocks, a namespace describes one instance: Namespace.id and
+// Namespace.name are instance names, not the kind of the part.
+reaction NamespaceInserted {
+    after element cad::Namespace inserted in cad::CAD_Model[namespaces]
+    call createItem(newValue)
+}
+
+routine createItem(cad::Namespace namespace) {
+    match {
+        val target = retrieve bom::BOM corresponding to namespace.eContainer()
+        require absence of bom::Item corresponding to namespace
+    }
+    update {
+        // The item may already exist via another model, e.g. for the brake component of the namespace.
+        // An item can count several namespaces, so it may already correspond to other namespaces.
+        val existing = TransitiveCorrespondenceUtility.findSharedTransitivelyCorresponding(executionState.correspondenceModel, namespace, Item)
+        if (existing !== null) {
+            addCorrespondenceBetween(namespace, existing)
+        } else {
+            createItemDirectly(namespace)
+        }
+        for (parameter : namespace.parameters) createParameterValue(parameter)
+    }
+}
+
+routine createItemDirectly(cad::Namespace namespace) {
+    match {
+        val target = retrieve bom::BOM corresponding to namespace.eContainer()
+        require absence of bom::Item corresponding to namespace
+    }
+    create {
+        val item = new bom::Item
+    }
+    update {
+        // The brake system decides the kind of brake components (also later, see brakesystem2bom).
+        // Until then, or for other parts, the item is an unclassified "Part" that can be classified in the BOM.
+        val component = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, BrakeComponent)
+        val kind = if (component !== null) component.eClass.name else null
+        item.type = BomUtility.findOrCreateItemType(target, kind)
+        if (item.type.description === null) item.type.description = namespace.description
+        // Namespaces created from Simulink only have a name, which is the instance name as well
+        item.id = if (namespace.id !== null) namespace.id else namespace.name
+        item.numberOfItems = 1
+        target.items.add(item)
+        addCorrespondenceBetween(namespace, item)
+    }
+}
+
+// An item may count several namespaces. Only an item of a single namespace takes over its
+// identifier; otherwise the identifiers of the instances are derived from the item.
+reaction NamespaceIdChanged {
+    after attribute replaced at cad::Namespace[id]
+    call updateItemId(affectedEObject)
+}
+
+routine updateItemId(cad::Namespace namespace) {
+    match {
+        val item = retrieve bom::Item corresponding to namespace
+    }
+    update {
+        if (item.numberOfItems == 1 && !Objects.equals(item.id, namespace.id)) item.id = namespace.id
+    }
+}
+
+reaction ParameterInserted {
+    after element cad::Parameter inserted in cad::Namespace[parameters]
+    call createParameterValue(newValue)
+}
+
+// Parameters are identified by their name. The item may already have the value, e.g. from the
+// brake system or from another instance of the item, so it is reused.
+routine createParameterValue(cad::Parameter parameter) {
+    match {
+        val item = retrieve bom::Item corresponding to parameter.eContainer()
+        require absence of bom::ParameterValue corresponding to parameter
+    }
+    update {
+        if (parameter.name === null || item.type === null) {
+            return
+        }
+        val value = BomUtility.findOrCreateValue(item, parameter.name, BomUtility.dataTypeOf(parameter))
+        addCorrespondenceBetween(parameter, value)
+        updateParameterValue(parameter)
+    }
+}
+
+reaction ParameterDescriptionChanged {
+    after attribute replaced at cad::Parameter[description]
+    call updateParameterValue(affectedEObject)
+}
+reaction StringValueChanged {
+    after attribute replaced at cad::StringParameter[value]
+    call updateParameterValue(affectedEObject)
+}
+reaction NumericValueChanged {
+    after attribute replaced at cad::NumericParameter[value]
+    call updateParameterValue(affectedEObject)
+}
+reaction NumericUnitChanged {
+    after attribute replaced at cad::NumericParameter[unit]
+    call updateParameterValue(affectedEObject)
+}
+reaction BooleanValueChanged {
+    after attribute replaced at cad::BooleanParameter[value]
+    call updateParameterValue(affectedEObject)
+}
+
+// Numbers are written in the unit of the BOM value (see BomUtility). Parameter names are the
+// keys of the values and shared by all items of a type, so renaming a CAD parameter is not
+// propagated to the BOM.
+routine updateParameterValue(cad::Parameter parameter) {
+    match {
+        val value = retrieve bom::ParameterValue corresponding to parameter
+    }
+    update {
+        if (!Objects.equals(value.description, parameter.description)) value.description = parameter.description
+        if (parameter instanceof StringParameter && value instanceof StringParameterValue) {
+            val text = (parameter as StringParameter).value
+            if (!Objects.equals((value as StringParameterValue).value, text)) (value as StringParameterValue).value = text
+        } else if (parameter instanceof NumericParameter && value instanceof NumericParameterValue) {
+            val numeric = parameter as NumericParameter
+            BomUtility.setFromCad(value as NumericParameterValue, numeric.value, numeric.unit)
+        } else if (parameter instanceof BooleanParameter && value instanceof BoolParameterValue) {
+            val flag = (parameter as BooleanParameter).value
+            if ((value as BoolParameterValue).value != flag) (value as BoolParameterValue).value = flag
+        }
+    }
+}
+
+reaction ParameterDeleted {
+    after element cad::Parameter deleted
+    call deleteParameterValue(affectedEObject)
+}
+
+// A value corresponds to the parameter of every instance of the item; it is only deleted with the last one
+routine deleteParameterValue(cad::Parameter parameter) {
+    match {
+        val value = retrieve bom::ParameterValue corresponding to parameter
+    }
+    update {
+        removeCorrespondenceBetween(parameter, value)
+        if (TransitiveCorrespondenceUtility.getLiveCorresponding(executionState.correspondenceModel, value, Parameter).empty) {
+            removeObject(value)
+        }
+    }
+}
+
+reaction NamespaceDeleted {
+    after element cad::Namespace deleted
+    call deleteItem(affectedEObject)
+}
+
+routine deleteItem(cad::Namespace namespace) {
+    match {
+        val item = retrieve bom::Item corresponding to namespace
+    }
+    update {
+        removeCorrespondenceBetween(namespace, item)
+        // Other namespaces of the item may have been deleted in the same change, so only live ones count
+        val remaining = TransitiveCorrespondenceUtility.getLiveCorresponding(executionState.correspondenceModel, item, Namespace).size
+        if (remaining == 0) {
+            removeObject(item)
+        } else if (item.numberOfItems != remaining) {
+            item.numberOfItems = remaining
+        }
+    }
+}

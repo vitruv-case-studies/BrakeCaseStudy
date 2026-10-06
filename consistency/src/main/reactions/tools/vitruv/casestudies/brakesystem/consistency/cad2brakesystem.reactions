@@ -17,6 +17,8 @@ import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondence
 import brakesystem.BrakeComponent;
 import simulink.Block;
 import autosar.SensorActuatorSwComponentType;
+import bom.Item;
+import tools.vitruv.casestudies.brakesystem.consistency.BomUtility;
 
 import "http://www.example.org/brakesystem" as brakesystem
 import "http://www.example.org/cad" as cad
@@ -103,6 +105,11 @@ routine createAndRegisterNamespaceDirectly(cad::Namespace namespace) {
         // If the namespace already has a Simulink block, simulink2brakesystem decides about the brake component,
         // so the user is asked only once
         if (TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, Block) !== null) {
+            return
+        }
+        // The BOM already decides whether the part is a brake component (e.g. a bolt is none)
+        val item = TransitiveCorrespondenceUtility.findSharedTransitivelyCorresponding(executionState.correspondenceModel, namespace, Item)
+        if (BomUtility.isNoBrakeComponent(item)) {
             return
         }
         // AUTOSAR already decides whether the namespace is a sensor

@@ -15,6 +15,8 @@ import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondence
 import brakesystem.BrakeComponent;
 import autosar.SwComponentType;
 import autosar.SensorActuatorSwComponentType;
+import bom.Item;
+import tools.vitruv.casestudies.brakesystem.consistency.BomUtility;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/brakesystem" as brakesystem
@@ -118,6 +120,11 @@ routine createAndRegisterBrakeComponentDirectly(simulink::SimulinkModel mSimulin
         require absence of brakesystem::BrakeComponent corresponding to block
     }
     update {
+        // The BOM already decides whether the part is a brake component (e.g. a bolt is none)
+        val item = TransitiveCorrespondenceUtility.findSharedTransitivelyCorresponding(executionState.correspondenceModel, block, Item)
+        if (BomUtility.isNoBrakeComponent(item)) {
+            return
+        }
         // AUTOSAR already decides whether the block is a sensor (SensorActuatorSwComponentType <-> ABSSensor),
         // so the user cannot give a contradicting answer here
         val swComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, SwComponentType)

@@ -78,7 +78,8 @@ routine createAndRegisterNamespaceDirectly(cad::Namespace namespace) {
         require absence of simulink::Block corresponding to namespace
     }
     update {
-        // A known brake component determines the kind of block: calipers contain their pads
+        // A known brake component determines the kind of block: calipers contain their pads.
+        // Other physical parts are not necessarily simulated (e.g. bolts), so the user may choose "None".
         val brakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, BrakeComponent)
         val componentType = if (brakeComponent instanceof BrakeCaliper) {
             1
@@ -87,7 +88,7 @@ routine createAndRegisterNamespaceDirectly(cad::Namespace namespace) {
         } else {
             userInteractor.singleSelectionDialogBuilder.message(
                 "What Simulink component do you want to add to be correspondent to this namespace?").choices(
-                Arrays.asList("SimulinkBlock","SimulinkSubsystem")).windowModality(WindowModality.MODAL).
+                Arrays.asList("SimulinkBlock","SimulinkSubsystem","None")).windowModality(WindowModality.MODAL).
                 startInteraction
         }
         switch (componentType) {

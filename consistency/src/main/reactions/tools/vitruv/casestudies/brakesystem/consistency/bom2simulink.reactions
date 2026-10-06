@@ -1,0 +1,132 @@
+import java.util.Objects
+
+import simulink.Block
+import simulink.SimulinkModel
+import tools.vitruv.casestudies.brakesystem.consistency.BomUtility
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility
+
+import "http://example.org/bom" as bom
+import "http://www.example.org/simulink" as simulink
+
+reactions: bom2simulink
+in reaction to changes in bom
+execute actions in simulink
+
+reaction BOMInsertedAsRoot {
+    after element bom::BOM inserted as root
+    call createSimulinkModel(newValue)
+}
+
+routine createSimulinkModel(bom::BOM source) {
+    match {
+        require absence of simulink::SimulinkModel corresponding to source
+    }
+    update {
+        // Another model may already have created the Simulink model; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, source, SimulinkModel)
+        if (existing !== null) {
+            addCorrespondenceBetween(source, existing)
+        } else {
+            createSimulinkModelDirectly(source)
+        }
+    }
+}
+
+routine createSimulinkModelDirectly(bom::BOM source) {
+    match {
+        require absence of simulink::SimulinkModel corresponding to source
+    }
+    create {
+        val target = new simulink::SimulinkModel
+    }
+    update {
+        target.name = source.name
+        target.version = "1.0"
+        persistProjectRelative(source, target, "example.simulink")
+        addCorrespondenceBetween(source, target)
+    }
+}
+
+reaction BOMNameChanged {
+    after attribute replaced at bom::BOM[name]
+    call updateSimulinkModelName(affectedEObject)
+}
+
+routine updateSimulinkModelName(bom::BOM source) {
+    match {
+        val target = retrieve simulink::SimulinkModel corresponding to source
+    }
+    update {
+        if (!Objects.equals(target.name, source.name)) target.name = source.name
+    }
+}
+
+// Not every part is simulated (e.g. bolts), so items create no blocks. Blocks of parts are created
+// via the brake system and CAD (where the user decides); here the item is only linked to them.
+reaction ItemInserted {
+    after element bom::Item inserted in bom::BOM[items]
+    call linkBlocks(newValue)
+}
+
+reaction NumberOfItemsChanged {
+    after attribute replaced at bom::Item[numberOfItems]
+    call linkBlocks(affectedEObject)
+}
+
+routine linkBlocks(bom::Item item) {
+    update {
+        var block = TransitiveCorrespondenceUtility.findFurtherTransitivelyCorresponding(executionState.correspondenceModel, item, Block)
+        while (block !== null) {
+            addCorrespondenceBetween(item, block)
+            block = TransitiveCorrespondenceUtility.findFurtherTransitivelyCorresponding(executionState.correspondenceModel, item, Block)
+        }
+    }
+}
+
+// Parameters are identified by their name. Parameters a block does not have are created via the
+// brake system or CAD, so only existing parameters are updated here.
+reaction ParameterValueInserted {
+    after element bom::ParameterValue inserted in bom::Item[parameterValues]
+    call updateParameters(newValue)
+}
+
+reaction StringValueChanged {
+    after attribute replaced at bom::StringParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+
+reaction IntegerValueChanged {
+    after attribute replaced at bom::IntegerParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+
+reaction DoubleValueChanged {
+    after attribute replaced at bom::DoubleParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+
+reaction NumericUnitChanged {
+    after attribute replaced at bom::NumericParameterValue[unit]
+    call updateParameters(affectedEObject)
+}
+
+reaction BooleanValueChanged {
+    after attribute replaced at bom::BoolParameterValue[value]
+    call updateParameters(affectedEObject)
+}
+
+// Simulink holds lengths in millimetres (see ParameterValueUtility). Texts that already denote the
+// value are not rewritten, so a propagated change does not overwrite the user's formatting.
+routine updateParameters(bom::ParameterValue value) {
+    update {
+        if (value.definition === null) {
+            return
+        }
+        for (block : TransitiveCorrespondenceUtility.getLiveCorresponding(executionState.correspondenceModel, value.eContainer(), Block)) {
+            val parameter = block.parameters.findFirst[name == value.definition.name]
+            if (parameter !== null && !BomUtility.representedBySimulinkText(value, parameter.value)) {
+                parameter.value = BomUtility.toSimulinkText(value)
+            }
+        }
+    }
+}

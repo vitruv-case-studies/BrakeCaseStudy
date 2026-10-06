@@ -11,6 +11,7 @@ import tools.vitruv.casestudies.brakesystem.consistency.ParameterValueUtility;
 import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility;
 import edu.kit.ipd.sdq.metamodels.cad.Namespace;
 import brakesystem.BrakeComponent;
+import bom.Item;
 
 import "http://www.example.org/simulink" as simulink
 import "http://www.example.org/cad" as cad
@@ -70,10 +71,11 @@ routine createCADNamespace(simulink::Block block) {
         if (existing !== null) {
             addCorrespondenceBetween(block, existing)
         } else {
-            // CAD only describes physical parts. Brake components are physical; for other blocks
-            // (e.g. software or further hardware) the user decides.
+            // CAD only describes physical parts. Brake components and parts listed in the BOM are physical;
+            // for other blocks (e.g. software or further hardware) the user decides.
             val isBrakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, BrakeComponent) !== null
-            if (isBrakeComponent || userInteractor.confirmationDialogBuilder.message(
+            val isListedPart = TransitiveCorrespondenceUtility.findSharedTransitivelyCorresponding(executionState.correspondenceModel, block, Item) !== null
+            if (isBrakeComponent || isListedPart || userInteractor.confirmationDialogBuilder.message(
                     "Does the Simulink block '" + block.name + "' represent a physical part? Only physical parts get a CAD namespace.").
                     windowModality(WindowModality.MODAL).startInteraction) {
                 createCADNamespaceDirectly(block)
@@ -113,10 +115,11 @@ routine createCADNamespaceInSubSystem(simulink::SubSystem subSystem, simulink::B
         if (existing !== null) {
             addCorrespondenceBetween(block, existing)
         } else {
-            // CAD only describes physical parts. Brake components are physical; for other blocks
-            // (e.g. software or further hardware) the user decides.
+            // CAD only describes physical parts. Brake components and parts listed in the BOM are physical;
+            // for other blocks (e.g. software or further hardware) the user decides.
             val isBrakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, block, BrakeComponent) !== null
-            if (isBrakeComponent || userInteractor.confirmationDialogBuilder.message(
+            val isListedPart = TransitiveCorrespondenceUtility.findSharedTransitivelyCorresponding(executionState.correspondenceModel, block, Item) !== null
+            if (isBrakeComponent || isListedPart || userInteractor.confirmationDialogBuilder.message(
                     "Does the Simulink block '" + block.name + "' represent a physical part? Only physical parts get a CAD namespace.").
                     windowModality(WindowModality.MODAL).startInteraction) {
                 createCADNamespaceInSubSystemDirectly(subSystem, block)

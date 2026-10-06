@@ -123,6 +123,30 @@ public final class ParameterValueUtility {
         return isLengthUnit(unit) ? (float) (value / millimetresPerUnit(unit)) : value;
     }
 
+    /**
+     * Converts a value between two units. Only lengths are converted; if one of the units is no
+     * length unit, the value is returned unchanged. An unset unit is interpreted as millimetres.
+     */
+    public static double convert(double value, Unit from, Unit to) {
+        if (!isLengthUnit(from) || !isLengthUnit(to)) {
+            return value;
+        }
+        return value * millimetresPerUnit(from) / millimetresPerUnit(to);
+    }
+
+    /** Parses a unit given by its literal (e.g. "mm") or name (e.g. "MM"), ignoring case. */
+    public static Unit parseUnit(String text) {
+        if (text == null) {
+            return null;
+        }
+        for (Unit unit : Unit.VALUES) {
+            if (unit.getLiteral().equalsIgnoreCase(text.trim()) || unit.getName().equalsIgnoreCase(text.trim())) {
+                return unit;
+            }
+        }
+        return null;
+    }
+
     /** Formats a number without a trailing ".0" for whole numbers. */
     public static String formatNumber(float value) {
         if (value == Math.rint(value) && Math.abs(value) < 1e15) {

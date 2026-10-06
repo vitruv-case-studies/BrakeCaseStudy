@@ -1,0 +1,310 @@
+import java.util.Objects
+
+import org.eclipse.emf.ecore.util.EcoreUtil
+
+import brakesystem.ABSSensor
+import brakesystem.BrakeCaliper
+import brakesystem.BrakeComponent
+import brakesystem.BrakeDisk
+import brakesystem.BrakeHose
+import brakesystem.BrakePad
+import bom.BOM
+import bom.Item
+import tools.vitruv.casestudies.brakesystem.consistency.BomUtility
+import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility
+
+import "http://www.example.org/brakesystem" as brakesystem
+import "http://example.org/bom" as bom
+
+reactions: brakesystem2bom
+in reaction to changes in brakesystem
+execute actions in bom
+
+reaction BrakesystemInsertedAsRoot {
+    after element brakesystem::Brakesystem inserted as root
+    call createBOM(newValue)
+}
+
+routine createBOM(brakesystem::Brakesystem source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    update {
+        // Another model may already have created the BOM; reuse it instead of creating a second root
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, source, BOM)
+        if (existing !== null) {
+            addCorrespondenceBetween(source, existing)
+        } else {
+            createBOMDirectly(source)
+        }
+    }
+}
+
+routine createBOMDirectly(brakesystem::Brakesystem source) {
+    match {
+        require absence of bom::BOM corresponding to source
+    }
+    create {
+        val target = new bom::BOM
+    }
+    update {
+        target.name = source.instanceName
+        persistProjectRelative(source, target, "example.bom")
+        addCorrespondenceBetween(source, target)
+    }
+}
+
+reaction BrakesystemNameChanged {
+    after attribute replaced at brakesystem::Brakesystem[instanceName]
+    call updateBOMName(affectedEObject)
+}
+
+routine updateBOMName(brakesystem::Brakesystem source) {
+    match {
+        val target = retrieve bom::BOM corresponding to source
+    }
+    update {
+        if (!Objects.equals(target.name, source.instanceName)) target.name = source.instanceName
+    }
+}
+
+// Every brake component is a physical part and therefore listed in the BOM, including the pads
+// contained in a caliper. A component created from a BOM item already has a correspondence.
+reaction BrakeComponentInserted {
+    after element brakesystem::BrakeComponent inserted in brakesystem::Brakesystem[brakeComponents]
+    call createBOMItem(newValue)
+}
+
+reaction BrakePadInserted {
+    after element brakesystem::BrakePad inserted in brakesystem::BrakeCaliper[brakePads]
+    call createBOMItem(newValue)
+}
+
+routine createBOMItem(brakesystem::BrakeComponent component) {
+    match {
+        val target = retrieve bom::BOM corresponding to EcoreUtil.getRootContainer(component)
+        require absence of bom::Item corresponding to component
+    }
+    update {
+        // The item may already exist via another model, e.g. for the CAD namespace of the component.
+        // An item can count several components, so it may already correspond to other components.
+        val existing = TransitiveCorrespondenceUtility.findSharedTransitivelyCorresponding(executionState.correspondenceModel, component, Item)
+        if (existing !== null) {
+            addCorrespondenceBetween(component, existing)
+        } else {
+            createBOMItemDirectly(component)
+        }
+        synchronizeItemType(component)
+        synchronizeParameters(component)
+    }
+}
+
+routine createBOMItemDirectly(brakesystem::BrakeComponent component) {
+    match {
+        val target = retrieve bom::BOM corresponding to EcoreUtil.getRootContainer(component)
+        require absence of bom::Item corresponding to component
+    }
+    create {
+        val item = new bom::Item
+    }
+    update {
+        item.id = component.id
+        item.numberOfItems = 1
+        item.type = BomUtility.findOrCreateItemType(target, component.eClass.name)
+        target.items.add(item)
+        addCorrespondenceBetween(component, item)
+    }
+}
+
+// The brake system decides the kind of its components: the item type is named after the
+// component class and shared by all items of that kind.
+routine synchronizeItemType(brakesystem::BrakeComponent component) {
+    match {
+        val item = retrieve bom::Item corresponding to component
+    }
+    update {
+        val bom = item.eContainer
+        if (bom instanceof BOM) {
+            BomUtility.setItemType(item, BomUtility.findOrCreateItemType(bom, component.eClass.name))
+        }
+    }
+}
+
+// An item may count several brake components. Only an item of a single component takes over
+// its identifier; otherwise the identifiers of the instances are derived from the item.
+reaction BrakeComponentIdChanged {
+    after attribute replaced at brakesystem::BrakeComponent[id]
+    call updateBOMItemId(affectedEObject)
+}
+
+routine updateBOMItemId(brakesystem::BrakeComponent component) {
+    match {
+        val item = retrieve bom::Item corresponding to component
+    }
+    update {
+        if (item.numberOfItems == 1 && !Objects.equals(item.id, component.id)) {
+            item.id = component.id
+        }
+    }
+}
+
+// Every feature mapped by bom2brakesystem calls the same routine. It writes
+// the full current state, making insertion and later attribute changes agree.
+reaction SpecificationTypeChanged {
+    after attribute replaced at brakesystem::BrakeComponent[specificationType]
+    call synchronizeParameters(affectedEObject)
+}
+reaction OEMNumberChanged {
+    after attribute replaced at brakesystem::BrakeComponent[OEM_number]
+    call synchronizeParameters(affectedEObject)
+}
+reaction FittingPositionChanged {
+    after attribute replaced at brakesystem::BrakeComponent[fittingPosition]
+    call synchronizeParameters(affectedEObject)
+}
+reaction SensorTypeChanged {
+    after attribute replaced at brakesystem::ABSSensor[sensorType]
+    call synchronizeParameters(affectedEObject)
+}
+reaction FittingDepthChanged {
+    after attribute replaced at brakesystem::ABSSensor[fittingDepth]
+    call synchronizeParameters(affectedEObject)
+}
+reaction NumberOfPinsChanged {
+    after attribute replaced at brakesystem::ABSSensor[numberOfPins]
+    call synchronizeParameters(affectedEObject)
+}
+reaction SensorLengthChanged {
+    after attribute replaced at brakesystem::ABSSensor[lengthInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction PistonDiameterChanged {
+    after attribute replaced at brakesystem::BrakeCaliper[pistonDiameterInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction CaliperDiskThicknessChanged {
+    after attribute replaced at brakesystem::BrakeCaliper[brakeDiskThickness]
+    call synchronizeParameters(affectedEObject)
+}
+reaction ThreadSize1Changed {
+    after attribute replaced at brakesystem::BrakeHose[threadSize1]
+    call synchronizeParameters(affectedEObject)
+}
+reaction ThreadSize2Changed {
+    after attribute replaced at brakesystem::BrakeHose[threadSize2]
+    call synchronizeParameters(affectedEObject)
+}
+reaction HoseLengthChanged {
+    after attribute replaced at brakesystem::BrakeHose[lengthInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction DiameterChanged {
+    after attribute replaced at brakesystem::BrakeDisk[diameterInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction CenteringDiameterChanged {
+    after attribute replaced at brakesystem::BrakeDisk[centeringDiameterInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction RimHoleNumberChanged {
+    after attribute replaced at brakesystem::BrakeDisk[rimHoleNumber]
+    call synchronizeParameters(affectedEObject)
+}
+reaction HoleArrangementNumberChanged {
+    after attribute replaced at brakesystem::BrakeDisk[holeArrangementNumber]
+    call synchronizeParameters(affectedEObject)
+}
+reaction BoltHoleCircleChanged {
+    after attribute replaced at brakesystem::BrakeDisk[boltHoleCircleInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction DiskThicknessChanged {
+    after attribute replaced at brakesystem::BrakeDisk[brakeDiskThicknessInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction MinimumThicknessChanged {
+    after attribute replaced at brakesystem::BrakeDisk[minimumThicknessInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction VentilatedChanged {
+    after attribute replaced at brakesystem::BrakeDisk[ventilated]
+    call synchronizeParameters(affectedEObject)
+}
+reaction WearWarningChanged {
+    after attribute replaced at brakesystem::BrakePad[wearWarning]
+    call synchronizeParameters(affectedEObject)
+}
+reaction PadHeightChanged {
+    after attribute replaced at brakesystem::BrakePad[heightInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction PadWidthChanged {
+    after attribute replaced at brakesystem::BrakePad[widthInMM]
+    call synchronizeParameters(affectedEObject)
+}
+reaction PadThicknessChanged {
+    after attribute replaced at brakesystem::BrakePad[thicknessInMM]
+    call synchronizeParameters(affectedEObject)
+}
+
+// The parameter names are the ones used for CAD and Simulink as well. Lengths are written in
+// millimetres, but values that already represent the attribute in another unit are kept.
+// Attributes that were never set are not listed (see BomUtility).
+routine synchronizeParameters(brakesystem::BrakeComponent component) {
+    match {
+        val item = retrieve bom::Item corresponding to component
+    }
+    update {
+        if (BomUtility.isListed(item, "Specification Type", component, "specificationType")) BomUtility.putString(item, "Specification Type", component.specificationType)
+        if (BomUtility.isListed(item, "OEM Number", component, "OEM_number")) BomUtility.putString(item, "OEM Number", component.OEM_number)
+        if (BomUtility.isListed(item, "Fitting Position", component, "fittingPosition")) BomUtility.putString(item, "Fitting Position", component.fittingPosition)
+        if (component instanceof ABSSensor) {
+            if (BomUtility.isListed(item, "Sensor Type", component, "sensorType")) BomUtility.putString(item, "Sensor Type", component.sensorType)
+            if (BomUtility.isListed(item, "Fitting Depth", component, "fittingDepth")) BomUtility.putLength(item, "Fitting Depth", component.fittingDepth)
+            if (BomUtility.isListed(item, "Number of Pins", component, "numberOfPins")) BomUtility.putCount(item, "Number of Pins", component.numberOfPins)
+            if (BomUtility.isListed(item, "Length", component, "lengthInMM")) BomUtility.putLength(item, "Length", component.lengthInMM)
+        } else if (component instanceof BrakeCaliper) {
+            if (BomUtility.isListed(item, "Piston Diameter", component, "pistonDiameterInMM")) BomUtility.putLength(item, "Piston Diameter", component.pistonDiameterInMM)
+            if (BomUtility.isListed(item, "Brake Disk Thickness", component, "brakeDiskThickness")) BomUtility.putLength(item, "Brake Disk Thickness", component.brakeDiskThickness)
+        } else if (component instanceof BrakeHose) {
+            if (BomUtility.isListed(item, "Thread 1", component, "threadSize1")) BomUtility.putString(item, "Thread 1", component.threadSize1)
+            if (BomUtility.isListed(item, "Thread 2", component, "threadSize2")) BomUtility.putString(item, "Thread 2", component.threadSize2)
+            if (BomUtility.isListed(item, "Length", component, "lengthInMM")) BomUtility.putLength(item, "Length", component.lengthInMM)
+        } else if (component instanceof BrakeDisk) {
+            if (BomUtility.isListed(item, "Diameter", component, "diameterInMM")) BomUtility.putLength(item, "Diameter", component.diameterInMM)
+            if (BomUtility.isListed(item, "Centering Diameter", component, "centeringDiameterInMM")) BomUtility.putLength(item, "Centering Diameter", component.centeringDiameterInMM)
+            if (BomUtility.isListed(item, "Rim Hole Number", component, "rimHoleNumber")) BomUtility.putCount(item, "Rim Hole Number", component.rimHoleNumber)
+            if (BomUtility.isListed(item, "Hole Arrangement Number", component, "holeArrangementNumber")) BomUtility.putCount(item, "Hole Arrangement Number", component.holeArrangementNumber)
+            if (BomUtility.isListed(item, "Bolt Hole Circle", component, "boltHoleCircleInMM")) BomUtility.putLength(item, "Bolt Hole Circle", component.boltHoleCircleInMM)
+            if (BomUtility.isListed(item, "Brake Disk Thickness", component, "brakeDiskThicknessInMM")) BomUtility.putLength(item, "Brake Disk Thickness", component.brakeDiskThicknessInMM)
+            if (BomUtility.isListed(item, "Minimum Thickness", component, "minimumThicknessInMM")) BomUtility.putLength(item, "Minimum Thickness", component.minimumThicknessInMM)
+            if (BomUtility.isListed(item, "Ventilated", component, "ventilated")) BomUtility.putBoolean(item, "Ventilated", component.ventilated)
+        } else if (component instanceof BrakePad) {
+            if (BomUtility.isListed(item, "Height", component, "heightInMM")) BomUtility.putLength(item, "Height", component.heightInMM)
+            if (BomUtility.isListed(item, "Width", component, "widthInMM")) BomUtility.putLength(item, "Width", component.widthInMM)
+            if (BomUtility.isListed(item, "Thickness", component, "thicknessInMM")) BomUtility.putLength(item, "Thickness", component.thicknessInMM)
+            if (BomUtility.isListed(item, "Wear Warning", component, "wearWarning")) BomUtility.putBoolean(item, "Wear Warning", component.wearWarning)
+        }
+    }
+}
+
+reaction BrakeComponentDeleted {
+    after element brakesystem::BrakeComponent deleted
+    call deleteBOMItemOrDecreaseQuantity(affectedEObject)
+}
+
+routine deleteBOMItemOrDecreaseQuantity(brakesystem::BrakeComponent component) {
+    match {
+        val item = retrieve bom::Item corresponding to component
+    }
+    update {
+        removeCorrespondenceBetween(component, item)
+        // Other components of the item may have been deleted in the same change, so only live ones count
+        val remaining = TransitiveCorrespondenceUtility.getLiveCorresponding(executionState.correspondenceModel, item, BrakeComponent).size
+        if (remaining == 0) {
+            removeObject(item)
+        } else if (item.numberOfItems != remaining) {
+            item.numberOfItems = remaining
+        }
+    }
+}
