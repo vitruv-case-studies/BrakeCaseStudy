@@ -70,6 +70,8 @@ public class SimuLink2CADTest extends TestBase {
             SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
             simulinkModel.setName("TestSimulinkModel");
 
+            // The block is no brake component, so the user confirms that it is a physical part
+            util.userInteraction.addNextConfirmationInput(true);
             Block block = SimuLinkFactory.eINSTANCE.createBlock();
             block.setName("TestBlock");
 
@@ -321,6 +323,8 @@ public class SimuLink2CADTest extends TestBase {
             SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
             simulinkModel.setName("TestSimulinkModel");
 
+            // The block is no brake component, so the user confirms that it is a physical part
+            util.userInteraction.addNextConfirmationInput(true);
             Block block = SimuLinkFactory.eINSTANCE.createBlock();
             block.setName("TestBlock");
 
@@ -469,6 +473,8 @@ public class SimuLink2CADTest extends TestBase {
         Creates a default Simulink model with a Subsystem and a Parameter and registers it as root object in the given view.
     */
     private void createDefaultSimuLinkModel(CommittableView view, Path filePath) {
+        // The subsystem is no brake component, so the user confirms that it is a physical part
+        util.userInteraction.addNextConfirmationInput(true);
         util.modifyView(view, (CommittableView v) -> {
             SimulinkModel simulinkModel = SimuLinkFactory.eINSTANCE.createSimulinkModel();
             simulinkModel.setName("TestSimulinkModel");

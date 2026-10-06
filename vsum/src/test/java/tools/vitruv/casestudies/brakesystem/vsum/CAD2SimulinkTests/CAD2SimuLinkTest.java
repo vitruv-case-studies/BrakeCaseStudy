@@ -204,7 +204,7 @@ public class CAD2SimuLinkTest extends TestBase {
                     return block.getParameters()
                             .stream()
                             .anyMatch(p -> p.getName().equals("TestNumericParameter") &&
-                                    p.getValue().equals("42.0") &&
+                                    p.getValue().equals("42") &&
                                     p.getType().equals("double"));
                 }));
 
