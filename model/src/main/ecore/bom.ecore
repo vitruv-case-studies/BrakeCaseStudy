@@ -19,6 +19,12 @@
         <details key="documentation" value="Items contained in this BOM.&#xA;&#xA;Each item represents a concrete component or part occurrence and references an `ItemType` that defines its available parameters."/>
       </eAnnotations>
     </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="itemTypes" upperBound="-1"
+        eType="#//ItemType" containment="true">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="Item types available in this BOM.&#xA;&#xA;Items reference their `ItemType`, so all items of the same kind can share one type and its parameter definitions."/>
+      </eAnnotations>
+    </eStructuralFeatures>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="Item">
     <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">

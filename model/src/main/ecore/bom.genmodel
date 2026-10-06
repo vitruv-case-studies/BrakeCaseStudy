@@ -15,6 +15,7 @@
     <genClasses ecoreClass="bom.ecore#//BOM">
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute bom.ecore#//BOM/name"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference bom.ecore#//BOM/items"/>
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference bom.ecore#//BOM/itemTypes"/>
     </genClasses>
     <genClasses ecoreClass="bom.ecore#//Item">
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute bom.ecore#//Item/id"/>
