@@ -21,11 +21,10 @@ import brakesystem.BrakeDisk;
 import brakesystem.BrakePad;
 import brakesystem.Brakesystem;
 import brakesystem.BrakesystemFactory;
-import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
+import edu.kit.ipd.sdq.metamodels.cad.Assembly;
+import edu.kit.ipd.sdq.metamodels.cad.CADDocument;
 import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
-import edu.kit.ipd.sdq.metamodels.cad.Namespace;
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
-import edu.kit.ipd.sdq.metamodels.cad.Unit;
+import edu.kit.ipd.sdq.metamodels.cad.Constraint;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
@@ -54,7 +53,10 @@ import simulink.Parameter;
 import simulink.SimuLinkFactory;
 import simulink.SimulinkModel;
 import simulink.SubSystem;
+import tools.vitruv.casestudies.brakesystem.consistency.CadUtility;
+import tools.vitruv.casestudies.brakesystem.consistency.MeasurementUnit;
 import tools.vitruv.casestudies.brakesystem.consistency.ParameterValueUtility;
+import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import tools.vitruv.casestudies.brakesystem.vsum.TestBase;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
@@ -96,7 +98,7 @@ public class FullNetworkTest extends TestBase {
         assertOneRootPerModel(vsum);
         View view = allModels(vsum);
         Assertions.assertEquals("bs", single(view, SimulinkModel.class).getName());
-        Assertions.assertEquals("bs", single(view, CAD_Model.class).getName());
+        Assertions.assertEquals("bs", single(view, CADDocument.class).getName());
     }
 
     @Test public void simulinkRootIsCreatedOnceInEveryModel(@TempDir Path tempDir) throws Exception {
@@ -140,7 +142,7 @@ public class FullNetworkTest extends TestBase {
         View view = allModels(vsum);
         Assertions.assertTrue(single(view, BOM.class).getItems().isEmpty());
         Assertions.assertTrue(single(view, SimulinkModel.class).getContains().isEmpty());
-        Assertions.assertTrue(single(view, CAD_Model.class).getNamespaces().isEmpty());
+        Assertions.assertTrue(single(view, CADDocument.class).getObjects().isEmpty());
         Assertions.assertTrue(swComponents(single(view, AUTOSAR.class)).isEmpty());
     }
 
@@ -157,7 +159,7 @@ public class FullNetworkTest extends TestBase {
         View view = allModels(vsum);
         Block block = single(single(view, SimulinkModel.class).getContains());
         Assertions.assertEquals("abs1", block.getName());
-        Assertions.assertEquals("abs1", single(single(view, CAD_Model.class).getNamespaces()).getId());
+        Assertions.assertEquals("abs1", single(parts(view)).getName());
         SwComponentType component = single(swComponents(single(view, AUTOSAR.class)));
         Assertions.assertInstanceOf(SensorActuatorSwComponentType.class, component);
         Assertions.assertEquals("abs1", component.getShortName());
@@ -217,25 +219,19 @@ public class FullNetworkTest extends TestBase {
         answerAutosarComponent("ApplicationSwComponentType");
 
         modify(vsum, v -> {
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setId("ns1");
-            namespace.setName("ns1");
-            NumericParameter diameter = CadFactory.eINSTANCE.createNumericParameter();
-            diameter.setName("Diameter");
-            diameter.setValue(12);
-            diameter.setUnit(Unit.CM);
-            namespace.getParameters().add(diameter);
-            single(v, CAD_Model.class).getNamespaces().add(namespace);
+            Assembly part = TestUtil.createPart("ns1");
+            single(v, CADDocument.class).getObjects().add(part);
+            TestUtil.addLength(part, "Diameter", 0.12);
         });
-        assertDiameter(vsum, 120, "120", 12, Unit.CM);
+        assertDiameter(vsum, 120, "120", 0.12);
 
-        // The value written by the user in Simulink is kept as written, the CAD unit is kept as well
+        // The value written by the user in Simulink is kept as written
         modify(vsum, v -> diameterParameter(single(v, SimulinkModel.class)).setValue("130.0"));
-        assertDiameter(vsum, 130, "130.0", 13, Unit.CM);
+        assertDiameter(vsum, 130, "130.0", 0.13);
 
-        // Changing only the unit reinterprets the value
-        modify(vsum, v -> diameterNumericParameter(single(v, CAD_Model.class)).setUnit(Unit.MM));
-        assertDiameter(vsum, 13, "13", 13, Unit.MM);
+        // A CAD value finer than whole millimetres stays in CAD and Simulink; the brake system rounds
+        modify(vsum, v -> diameterConstraint(single(v, CADDocument.class)).setValue(0.1304));
+        assertDiameter(vsum, 130, "130.4", 0.1304);
     }
 
     @Test public void simulinkValuesAreNotOverwrittenByEchoes(@TempDir Path tempDir) throws Exception {
@@ -252,11 +248,11 @@ public class FullNetworkTest extends TestBase {
             diameter.setValue("120");
             single(v, SimulinkModel.class).getContains().get(0).getParameters().add(diameter);
         });
-        assertDiameter(vsum, 120, "120", 120, Unit.MM);
+        assertDiameter(vsum, 120, "120", 0.12);
 
         // Values that are no numbers (e.g. MATLAB expressions) are not propagated, but cause no errors
         modify(vsum, v -> diameterParameter(single(v, SimulinkModel.class)).setValue("diskD"));
-        assertDiameter(vsum, 120, "diskD", 120, Unit.MM);
+        assertDiameter(vsum, 120, "diskD", 0.12);
     }
 
     @Test public void brakePadFromCadIsPlacedInTheSubsystemOfItsCaliper(@TempDir Path tempDir) throws Exception {
@@ -264,7 +260,7 @@ public class FullNetworkTest extends TestBase {
         answerBrakeComponent("BrakeCaliper");
         util.userInteraction.onMultipleChoiceSingleSelection(d -> d.getMessage().startsWith("What Simulink component"))
                 .always().respondWith("SimulinkSubsystem");
-        addNamespace(vsum, "cal1");
+        addPart(vsum, "cal1");
 
         util.userInteraction.clearResponses();
         answerBrakeComponent("BrakePad");
@@ -277,7 +273,26 @@ public class FullNetworkTest extends TestBase {
         util.userInteraction.onMultipleChoiceSingleSelection(d -> d.getMessage().contains("Where do you want to insert"))
                 .always().respondWith("cal1");
         answerAutosarComponent("ApplicationSwComponentType");
-        addNamespace(vsum, "pad1");
+        addPart(vsum, "pad1");
+
+        assertPadInCaliper(vsum);
+    }
+
+    @Test public void partNestedInTheCaliperPartBecomesItsPad(@TempDir Path tempDir) throws Exception {
+        VirtualModel vsum = createCad(tempDir);
+        answerBrakeComponent("BrakeCaliper");
+        util.userInteraction.onMultipleChoiceSingleSelection(d -> d.getMessage().startsWith("What Simulink component"))
+                .always().respondWith("SimulinkSubsystem");
+        addPart(vsum, "cal1");
+
+        // Neither the caliper of the pad nor the subsystem of its block is asked for: the parent part decides.
+        // The kind of block is asked if CAD -> Simulink runs before the brake component exists.
+        util.userInteraction.clearResponses();
+        answerBrakeComponent("BrakePad");
+        util.userInteraction.onMultipleChoiceSingleSelection(d -> d.getMessage().startsWith("What Simulink component"))
+                .always().respondWith("SimulinkBlock");
+        answerAutosarComponent("ApplicationSwComponentType");
+        modify(vsum, v -> TestUtil.findPart(single(v, CADDocument.class), "cal1").getChildren().add(TestUtil.createPart("pad1")));
 
         assertPadInCaliper(vsum);
     }
@@ -298,7 +313,7 @@ public class FullNetworkTest extends TestBase {
         View view = allModels(vsum);
         Assertions.assertEquals("brakeController", single(single(view, SimulinkModel.class).getContains()).getName());
         Assertions.assertTrue(single(view, Brakesystem.class).getBrakeComponents().isEmpty());
-        Assertions.assertTrue(single(view, CAD_Model.class).getNamespaces().isEmpty());
+        Assertions.assertTrue(single(view, CADDocument.class).getObjects().isEmpty());
         Assertions.assertTrue(single(view, BOM.class).getItems().isEmpty());
     }
 
@@ -311,7 +326,7 @@ public class FullNetworkTest extends TestBase {
         addBlock(vsum, "motor");
 
         View view = allModels(vsum);
-        Assertions.assertEquals("motor", single(single(view, CAD_Model.class).getNamespaces()).getName());
+        Assertions.assertEquals("motor", single(parts(view)).getLabel());
         Assertions.assertTrue(single(view, Brakesystem.class).getBrakeComponents().isEmpty());
         Assertions.assertEquals("motor", single(single(view, BOM.class).getItems()).getId());
     }
@@ -327,7 +342,7 @@ public class FullNetworkTest extends TestBase {
 
         View view = allModels(vsum);
         Assertions.assertTrue(single(view, Brakesystem.class).getBrakeComponents().isEmpty());
-        Assertions.assertTrue(single(view, CAD_Model.class).getNamespaces().isEmpty());
+        Assertions.assertTrue(single(view, CADDocument.class).getObjects().isEmpty());
         Assertions.assertTrue(swComponents(single(view, AUTOSAR.class)).isEmpty());
         Assertions.assertTrue(single(view, BOM.class).getItems().isEmpty());
     }
@@ -410,7 +425,7 @@ public class FullNetworkTest extends TestBase {
         Assertions.assertTrue(single(view, Brakesystem.class).getBrakeComponents().isEmpty());
         Assertions.assertTrue(single(view, SimulinkModel.class).getContains().isEmpty());
         Assertions.assertEquals(List.of("bolt", "bolt-2", "bolt-3", "bolt-4"),
-                single(view, CAD_Model.class).getNamespaces().stream().map(Namespace::getId).sorted().toList());
+                parts(view).stream().map(Assembly::getName).sorted().toList());
     }
 
     // Setup
@@ -439,7 +454,7 @@ public class FullNetworkTest extends TestBase {
     private VirtualModel createCad(Path tempDir) throws Exception {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
         modify(vsum, v -> {
-            CAD_Model cadModel = CadFactory.eINSTANCE.createCAD_Model();
+            CADDocument cadModel = CadFactory.eINSTANCE.createCADDocument();
             cadModel.setName("cad");
             v.registerRoot(cadModel, URI.createFileURI(tempDir.resolve("my.cad").toString()));
         });
@@ -501,13 +516,8 @@ public class FullNetworkTest extends TestBase {
         });
     }
 
-    private void addNamespace(VirtualModel vsum, String id) {
-        modify(vsum, v -> {
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setId(id);
-            namespace.setName(id);
-            single(v, CAD_Model.class).getNamespaces().add(namespace);
-        });
+    private void addPart(VirtualModel vsum, String id) {
+        modify(vsum, v -> single(v, CADDocument.class).getObjects().add(TestUtil.createPart(id)));
     }
 
     private void modify(VirtualModel vsum, Consumer<CommittableView> modification) {
@@ -515,7 +525,7 @@ public class FullNetworkTest extends TestBase {
     }
 
     private View allModels(VirtualModel vsum) {
-        return util.getDefaultView(vsum, List.of(Brakesystem.class, SimulinkModel.class, CAD_Model.class, AUTOSAR.class, BOM.class));
+        return util.getDefaultView(vsum, List.of(Brakesystem.class, SimulinkModel.class, CADDocument.class, AUTOSAR.class, BOM.class));
     }
 
     private void answerBrakeComponent(String choice) {
@@ -538,7 +548,7 @@ public class FullNetworkTest extends TestBase {
         View view = allModels(vsum);
         single(view, Brakesystem.class);
         single(view, SimulinkModel.class);
-        single(view, CAD_Model.class);
+        single(view, CADDocument.class);
         single(view, AUTOSAR.class);
         single(view, BOM.class);
     }
@@ -553,12 +563,12 @@ public class FullNetworkTest extends TestBase {
         Assertions.assertEquals(id, block.getName());
         Assertions.assertEquals(diameterInMM, Float.parseFloat(single(block.getParameters()).getValue()));
 
-        Namespace namespace = single(single(view, CAD_Model.class).getNamespaces());
-        Assertions.assertEquals(id, namespace.getId());
-        Assertions.assertEquals(id, namespace.getName());
-        NumericParameter diameter = (NumericParameter) single(namespace.getParameters());
-        Assertions.assertEquals(diameterInMM, diameter.getValue());
-        Assertions.assertEquals(Unit.MM, diameter.getUnit());
+        Assembly part = single(parts(view));
+        Assertions.assertEquals(id, part.getName());
+        Assertions.assertEquals(id, part.getLabel());
+        Constraint diameter = single(CadUtility.parameters(part));
+        Assertions.assertEquals("Diameter", diameter.getName());
+        Assertions.assertEquals(diameterInMM / 1000.0, diameter.getValue(), 1e-12);
 
         Assertions.assertEquals(id, single(swComponents(single(view, AUTOSAR.class))).getShortName());
 
@@ -591,13 +601,12 @@ public class FullNetworkTest extends TestBase {
         Assertions.assertEquals(expectedIds, components.stream().map(BrakeComponent::getId).sorted().toList());
         Assertions.assertTrue(components.stream().allMatch(component -> ((BrakeDisk) component).getDiameterInMM() == 120));
 
-        List<Namespace> namespaces = single(view, CAD_Model.class).getNamespaces();
-        Assertions.assertEquals(expectedIds, namespaces.stream().map(Namespace::getId).sorted().toList());
-        Assertions.assertEquals(expectedIds, namespaces.stream().map(Namespace::getName).sorted().toList());
-        for (Namespace namespace : namespaces) {
-            NumericParameter cadDiameter = (NumericParameter) single(namespace.getParameters());
-            Assertions.assertEquals(12, cadDiameter.getValue(), 1e-4);
-            Assertions.assertEquals(Unit.CM, cadDiameter.getUnit());
+        List<Assembly> parts = parts(view);
+        Assertions.assertEquals(expectedIds, parts.stream().map(Assembly::getName).sorted().toList());
+        Assertions.assertEquals(expectedIds, parts.stream().map(Assembly::getLabel).sorted().toList());
+        for (Assembly part : parts) {
+            Constraint cadDiameter = single(CadUtility.parameters(part));
+            Assertions.assertEquals(0.12, cadDiameter.getValue(), 1e-9);
         }
 
         List<Block> blocks = single(view, SimulinkModel.class).getContains();
@@ -616,19 +625,19 @@ public class FullNetworkTest extends TestBase {
                 .orElseThrow();
     }
 
-    private void assertDiameter(VirtualModel vsum, int brakesystemValue, String simulinkValue, float cadValue, Unit cadUnit) {
+    private void assertDiameter(VirtualModel vsum, int brakesystemValue, String simulinkValue, double cadMetres) {
         View view = allModels(vsum);
         BrakeDisk disk = (BrakeDisk) single(single(view, Brakesystem.class).getBrakeComponents());
         Assertions.assertEquals(brakesystemValue, disk.getDiameterInMM());
         Assertions.assertEquals(simulinkValue, diameterParameter(single(view, SimulinkModel.class)).getValue());
-        NumericParameter cadDiameter = diameterNumericParameter(single(view, CAD_Model.class));
-        Assertions.assertEquals(cadValue, cadDiameter.getValue(), 1e-4);
-        Assertions.assertEquals(cadUnit, cadDiameter.getUnit());
+        Assertions.assertEquals(cadMetres, diameterConstraint(single(view, CADDocument.class)).getValue(), 1e-9);
 
         // The BOM keeps its own unit, but denotes the same length
         bom.NumericParameterValue bomDiameter = (bom.NumericParameterValue) parameterValue(single(single(view, BOM.class).getItems()), "Diameter");
         double bomValue = bomDiameter instanceof DoubleParameterValue decimal ? decimal.getValue() : ((bom.IntegerParameterValue) bomDiameter).getValue();
-        Assertions.assertEquals(brakesystemValue, ParameterValueUtility.convert(bomValue, ParameterValueUtility.parseUnit(bomDiameter.getUnit()), Unit.MM), 1e-3);
+        // A decimal BOM value keeps the precision of CAD, an integer one the whole millimetres of the brake system
+        double expected = bomDiameter instanceof DoubleParameterValue ? cadMetres * 1000 : brakesystemValue;
+        Assertions.assertEquals(expected, ParameterValueUtility.convert(bomValue, ParameterValueUtility.parseUnit(bomDiameter.getUnit()), MeasurementUnit.MM), 1e-3);
     }
 
     private void assertPadInCaliper(VirtualModel vsum) {
@@ -640,7 +649,10 @@ public class FullNetworkTest extends TestBase {
         Assertions.assertEquals("cal1", subSystem.getName());
         Assertions.assertEquals("pad1", single(subSystem.getSubBlocks()).getName());
 
-        Assertions.assertEquals(2, single(view, CAD_Model.class).getNamespaces().size());
+        // The part of the pad is nested in the part of the caliper
+        Assembly caliperPart = single(single(view, CADDocument.class).getObjects().stream().map(Assembly.class::cast).toList());
+        Assertions.assertEquals("cal1", caliperPart.getName());
+        Assertions.assertEquals("pad1", single(caliperPart.getChildren().stream().filter(Assembly.class::isInstance).toList()).getName());
 
         // Parts of unknown kind are unclassified until the brake system decides their kind
         BOM bom = single(view, BOM.class);
@@ -662,8 +674,13 @@ public class FullNetworkTest extends TestBase {
         return single(single(simulinkModel.getContains()).getParameters());
     }
 
-    private static NumericParameter diameterNumericParameter(CAD_Model cadModel) {
-        return (NumericParameter) single(single(cadModel.getNamespaces()).getParameters());
+    private static Constraint diameterConstraint(CADDocument document) {
+        return single(CadUtility.parameters(single(CadUtility.allParts(document))));
+    }
+
+    /** All parts of the CAD document, including nested ones. */
+    private static List<Assembly> parts(View view) {
+        return CadUtility.allParts(single(view, CADDocument.class));
     }
 
     private static List<SwComponentType> swComponents(AUTOSAR autosar) {
