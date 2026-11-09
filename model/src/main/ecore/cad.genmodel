@@ -14,51 +14,130 @@
   <genPackages prefix="Cad" basePackage="edu.kit.ipd.sdq.metamodels"
     disposableProviderFactory="true"
     ecorePackage="cad.ecore#/">
-    <genEnums typeSafeEnumCompatible="false" ecoreEnum="cad.ecore#//Unit">
-      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/MM" />
-      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/CM" />
-      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/NM" />
-      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/UM" />
-      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/M" />
-      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/INCH" />
-      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/FT" />
-      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//Unit/COUNT" />
+    <genEnums typeSafeEnumCompatible="false" ecoreEnum="cad.ecore#//ConstraintType">
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//ConstraintType/Distance" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//ConstraintType/Radius" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//ConstraintType/Diameter" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//ConstraintType/Angle" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//ConstraintType/Coincident" />
     </genEnums>
-    <genClasses ecoreClass="cad.ecore#//CAD_Model">
-      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//CAD_Model/id" />
-      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//CAD_Model/name" />
+    <genEnums typeSafeEnumCompatible="false" ecoreEnum="cad.ecore#//PointPos">
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//PointPos/none" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//PointPos/start" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//PointPos/end" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//PointPos/mid" />
+    </genEnums>
+    <genEnums typeSafeEnumCompatible="false" ecoreEnum="cad.ecore#//BooleanType">
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//BooleanType/Fuse" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//BooleanType/Cut" />
+      <genEnumLiterals ecoreEnumLiteral="cad.ecore#//BooleanType/Common" />
+    </genEnums>
+    <genClasses ecoreClass="cad.ecore#//CADDocument">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//CADDocument/name" />
       <genFeatures property="None" children="true" createChild="true"
-        ecoreFeature="ecore:EReference cad.ecore#//CAD_Model/namespaces" />
-    </genClasses>
-    <genClasses ecoreClass="cad.ecore#//Namespace">
-      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Namespace/id" />
-      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Namespace/name" />
-      <genFeatures createChild="false"
-        ecoreFeature="ecore:EAttribute cad.ecore#//Namespace/description" />
+        ecoreFeature="ecore:EReference cad.ecore#//CADDocument/objects" />
       <genFeatures property="None" children="true" createChild="true"
-        ecoreFeature="ecore:EReference cad.ecore#//Namespace/parameters" />
+        ecoreFeature="ecore:EReference cad.ecore#//CADDocument/materials" />
     </genClasses>
-    <genClasses ecoreClass="cad.ecore#//Parameter">
-      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Parameter/id" />
-      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Parameter/name" />
-      <genFeatures createChild="false"
-        ecoreFeature="ecore:EAttribute cad.ecore#//Parameter/description" />
+    <genClasses ecoreClass="cad.ecore#//Object">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/name" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/label" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/visible" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/x" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/y" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/z" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/rotationAxisX" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/rotationAxisY" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/rotationAxisZ" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Object/rotationAngle" />
     </genClasses>
-    <genClasses ecoreClass="cad.ecore#//NumericParameter">
-      <genFeatures createChild="false"
-        ecoreFeature="ecore:EAttribute cad.ecore#//NumericParameter/value" />
-      <genFeatures createChild="false"
-        ecoreFeature="ecore:EAttribute cad.ecore#//NumericParameter/unit" />
+    <genClasses ecoreClass="cad.ecore#//Assembly">
+      <genFeatures property="None" children="true" createChild="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Assembly/children" />
     </genClasses>
-    <genClasses ecoreClass="cad.ecore#//StringParameter">
-      <genFeatures createChild="false"
-        ecoreFeature="ecore:EAttribute cad.ecore#//StringParameter/value" />
-      <genFeatures createChild="false"
-        ecoreFeature="ecore:EAttribute cad.ecore#//StringParameter/unit" />
+    <genClasses ecoreClass="cad.ecore#//Sketch">
+      <genFeatures property="None" children="true" createChild="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Sketch/geometries" />
+      <genFeatures property="None" children="true" createChild="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Sketch/constraints" />
     </genClasses>
-    <genClasses ecoreClass="cad.ecore#//BooleanParameter">
-      <genFeatures createChild="false"
-        ecoreFeature="ecore:EAttribute cad.ecore#//BooleanParameter/value" />
+    <genClasses ecoreClass="cad.ecore#//Geometry2D">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Geometry2D/construction" />
     </genClasses>
+    <genClasses ecoreClass="cad.ecore#//LineSegment">
+      <genFeatures property="None" children="true" createChild="true"
+        ecoreFeature="ecore:EReference cad.ecore#//LineSegment/start" />
+      <genFeatures property="None" children="true" createChild="true"
+        ecoreFeature="ecore:EReference cad.ecore#//LineSegment/end" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Circle">
+      <genFeatures property="None" children="true" createChild="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Circle/center" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Circle/radius" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Circle/startAngle" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Circle/endAngle" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Constraint">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Constraint/name" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Constraint/type" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Constraint/value" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Constraint/driving" />
+      <genFeatures notify="false" createChild="false" propertySortChoices="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Constraint/first" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Constraint/firstPos" />
+      <genFeatures notify="false" createChild="false" propertySortChoices="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Constraint/second" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Constraint/secondPos" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Solid">
+      <genFeatures notify="false" createChild="false" propertySortChoices="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Solid/material" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Primitive" />
+    <genClasses ecoreClass="cad.ecore#//Box">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Box/length" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Box/width" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Box/height" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Cylinder">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Cylinder/radius" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Cylinder/height" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Cone">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Cone/radius1" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Cone/radius2" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Cone/height" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Sphere">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Sphere/radius" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Extrusion">
+      <genFeatures notify="false" createChild="false" propertySortChoices="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Extrusion/profile" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Extrusion/length" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Extrusion/symmetric" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Extrusion/reversed" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Revolution">
+      <genFeatures notify="false" createChild="false" propertySortChoices="true"
+        ecoreFeature="ecore:EReference cad.ecore#//Revolution/profile" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Revolution/angle" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//BooleanOperation">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//BooleanOperation/operation" />
+      <genFeatures notify="false" createChild="false" propertySortChoices="true"
+        ecoreFeature="ecore:EReference cad.ecore#//BooleanOperation/base" />
+      <genFeatures notify="false" createChild="false" propertySortChoices="true"
+        ecoreFeature="ecore:EReference cad.ecore#//BooleanOperation/tools" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Material">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Material/name" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Material/density" />
+    </genClasses>
+    <genClasses ecoreClass="cad.ecore#//Vector2">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Vector2/x" />
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute cad.ecore#//Vector2/y" />
+    </genClasses>
+
   </genPackages>
 </genmodel:GenModel>

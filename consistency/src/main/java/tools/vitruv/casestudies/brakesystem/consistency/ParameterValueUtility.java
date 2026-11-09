@@ -1,10 +1,8 @@
 package tools.vitruv.casestudies.brakesystem.consistency;
 
-import edu.kit.ipd.sdq.metamodels.cad.Unit;
-
 /**
  * Lenient conversion of loosely typed parameter values (Simulink parameter strings, AUTOSAR
- * AnySimpleType values) and of CAD units. All parse methods return null instead of
+ * AnySimpleType values) and of units (see {@link MeasurementUnit}). All parse methods return null instead of
  * throwing if the value is missing or cannot be interpreted, so callers can skip the update.
  */
 public final class ParameterValueUtility {
@@ -75,15 +73,15 @@ public final class ParameterValueUtility {
      * Whether the unit describes a length. An unset unit is interpreted as millimetres, the
      * convention of the brake system model.
      */
-    public static boolean isLengthUnit(Unit unit) {
-        return unit != Unit.COUNT;
+    public static boolean isLengthUnit(MeasurementUnit unit) {
+        return unit != MeasurementUnit.COUNT && unit != MeasurementUnit.DEG;
     }
 
     /**
-     * Converts a CAD length into whole millimetres, or returns {@code null} if the unit is not a
+     * Converts a length into whole millimetres, or returns {@code null} if the unit is not a
      * length unit.
      */
-    public static Integer toMillimetres(float value, Unit unit) {
+    public static Integer toMillimetres(double value, MeasurementUnit unit) {
         if (!isLengthUnit(unit)) {
             return null;
         }
@@ -91,43 +89,43 @@ public final class ParameterValueUtility {
     }
 
     /**
-     * Converts millimetres into the given CAD length unit.
+     * Converts millimetres into the given length unit.
      */
-    public static float fromMillimetres(int millimetres, Unit unit) {
+    public static double fromMillimetres(int millimetres, MeasurementUnit unit) {
         if (!isLengthUnit(unit)) {
             throw new IllegalArgumentException("Not a length unit: " + unit);
         }
-        return (float) (millimetres / millimetresPerUnit(unit));
+        return millimetres / millimetresPerUnit(unit);
     }
 
     /**
-     * Whether the CAD value already represents the given number of whole millimetres, so writing
-     * it again would only change the user's representation (e.g. 1.25 cm vs. 1.3 cm).
+     * Whether the value already represents the given number of whole millimetres, so writing it
+     * again would only change the user's representation (e.g. 0.0125 m vs. 0.013 m).
      */
-    public static boolean representsMillimetres(float value, Unit unit, int millimetres) {
+    public static boolean representsMillimetres(double value, MeasurementUnit unit, int millimetres) {
         Integer current = toMillimetres(value, unit);
         return current != null && current == millimetres;
     }
 
     // Simulink parameters have no unit. By convention they hold lengths in millimetres, like the
     // brake system model, so that the path CAD -> Simulink gives the same result as
-    // CAD -> brake system -> Simulink.
+    // CAD -> brake system -> Simulink. CAD holds lengths in metres (see CadUtility).
 
-    /** Converts a CAD value into the Simulink convention (lengths in millimetres, counts unchanged). */
-    public static float cadToSimulinkValue(float value, Unit unit) {
-        return isLengthUnit(unit) ? (float) (value * millimetresPerUnit(unit)) : value;
+    /** Converts a CAD value into the Simulink convention (lengths in millimetres, angles unchanged). */
+    public static double cadToSimulinkValue(double value, MeasurementUnit unit) {
+        return isLengthUnit(unit) ? value * millimetresPerUnit(unit) : value;
     }
 
     /** Converts a Simulink value (lengths in millimetres) into the given CAD unit. */
-    public static float simulinkToCadValue(float value, Unit unit) {
-        return isLengthUnit(unit) ? (float) (value / millimetresPerUnit(unit)) : value;
+    public static double simulinkToCadValue(double value, MeasurementUnit unit) {
+        return isLengthUnit(unit) ? value / millimetresPerUnit(unit) : value;
     }
 
     /**
      * Converts a value between two units. Only lengths are converted; if one of the units is no
      * length unit, the value is returned unchanged. An unset unit is interpreted as millimetres.
      */
-    public static double convert(double value, Unit from, Unit to) {
+    public static double convert(double value, MeasurementUnit from, MeasurementUnit to) {
         if (!isLengthUnit(from) || !isLengthUnit(to)) {
             return value;
         }
@@ -135,12 +133,12 @@ public final class ParameterValueUtility {
     }
 
     /** Parses a unit given by its literal (e.g. "mm") or name (e.g. "MM"), ignoring case. */
-    public static Unit parseUnit(String text) {
+    public static MeasurementUnit parseUnit(String text) {
         if (text == null) {
             return null;
         }
-        for (Unit unit : Unit.VALUES) {
-            if (unit.getLiteral().equalsIgnoreCase(text.trim()) || unit.getName().equalsIgnoreCase(text.trim())) {
+        for (MeasurementUnit unit : MeasurementUnit.values()) {
+            if (unit.getLiteral().equalsIgnoreCase(text.trim()) || unit.name().equalsIgnoreCase(text.trim())) {
                 return unit;
             }
         }
@@ -155,6 +153,14 @@ public final class ParameterValueUtility {
         return Float.toString(value);
     }
 
+    /**
+     * Formats a number with float precision, so that rounding noise of unit conversions
+     * (e.g. 0.03 m = 30.000000000000004 mm) does not show up.
+     */
+    public static String formatNumber(double value) {
+        return formatNumber((float) value);
+    }
+
     /** Whether the textual value already denotes the given number. */
     public static boolean denotesNumber(String text, float value) {
         Float current = toFloat(text);
@@ -167,11 +173,21 @@ public final class ParameterValueUtility {
         return current != null && current == value;
     }
 
+    /** Whether the textual value already denotes the given number (compared with float precision). */
+    public static boolean denotesNumber(String text, double value) {
+        return denotesNumber(text, (float) value);
+    }
+
     public static boolean sameNumber(float a, float b) {
         return Math.abs(a - b) <= 1e-6f * Math.max(1f, Math.max(Math.abs(a), Math.abs(b)));
     }
 
-    private static double millimetresPerUnit(Unit unit) {
+    /** Whether two numbers are equal up to float precision, relative to their magnitude. */
+    public static boolean sameNumber(double a, double b) {
+        return Math.abs(a - b) <= 1e-6 * Math.max(Math.abs(a), Math.abs(b)) || a == b;
+    }
+
+    private static double millimetresPerUnit(MeasurementUnit unit) {
         if (unit == null) {
             return 1;
         }
@@ -183,7 +199,7 @@ public final class ParameterValueUtility {
             case NM -> 1e-6;
             case INCH -> 25.4;
             case FT -> 304.8;
-            case COUNT -> throw new IllegalArgumentException("Not a length unit: " + unit);
+            case COUNT, DEG -> throw new IllegalArgumentException("Not a length unit: " + unit);
         };
     }
 
