@@ -3,449 +3,217 @@ package tools.vitruv.casestudies.brakesystem.vsum.CAD2SimulinkTests;
 import java.nio.file.Path;
 import java.util.List;
 
-import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.eclipse.emf.common.util.URI;
-import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
-import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
+import edu.kit.ipd.sdq.metamodels.cad.Assembly;
+import edu.kit.ipd.sdq.metamodels.cad.CADDocument;
 import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
-import edu.kit.ipd.sdq.metamodels.cad.Namespace;
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
-import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
-import edu.kit.ipd.sdq.metamodels.cad.Parameter;
+import edu.kit.ipd.sdq.metamodels.cad.Constraint;
+import edu.kit.ipd.sdq.metamodels.cad.ConstraintType;
 import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
+import tools.vitruv.casestudies.brakesystem.consistency.CadUtility;
 import tools.vitruv.casestudies.brakesystem.vsum.TestBase;
+import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
-import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
 
 import simulink.SimulinkModel;
 import simulink.SubSystem;
 import simulink.Block;
 
+/**
+ * CAD parts (Assemblies) become Simulink blocks named by their label; named dimensional constraints
+ * become numeric block parameters with lengths in millimetres.
+ */
 public class CAD2SimuLinkTest extends TestBase {
+    private static final String PART = "TestPart";
+    private static final String LENGTH = "TestLength";
+
     @Override protected List<ChangePropagationSpecification> createCPS() {
         return List.of(new Cad2simulinkChangePropagationSpecification());
     }
 
     @Test public void testCreateAndRegisterRoot(@TempDir Path tempDir) throws Exception {
-        // Create a new virtual model
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-
-        // Create a CAD_Model in the CAD view
-        CommittableView
-                cadView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-
-        util.modifyView(cadView, (CommittableView v) -> {
-            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
-            cad_Model.setName("TestCADModel");
-            v.registerRoot(cad_Model, URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        util.modifyView(cadView(vsum), (CommittableView v) -> {
+            CADDocument document = CadFactory.eINSTANCE.createCADDocument();
+            document.setName("TestCADModel");
+            v.registerRoot(document, URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
         });
 
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(SimulinkModel.class)),
-                (View v) -> {
-                    SimulinkModel
-                            simulinkModel =
-                            v.getRootObjects(SimulinkModel.class)
-                                    .stream()
-                                    .findFirst()
-                                    .orElseThrow();
-                    return simulinkModel.getName().equals("TestCADModel");
-                }));
-
+        Assertions.assertEquals("TestCADModel", simulinkModel(vsum).getName());
     }
 
-    @Test public void testCADNamespaceToSimuLinkBlock(@TempDir Path tempDir) throws Exception {
-        // Create a new virtual model
+    @Test public void testCADPartToSimuLinkBlock(@TempDir Path tempDir) throws Exception {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.userInteraction.addNextSingleSelection(0);
+        util.userInteraction.addNextSingleSelection(0); // Block
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
 
-        // Create a CAD_Model in the CAD view
-        CommittableView
-                cadView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-        createDefaultCADModel(cadView, tempDir);
-
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(SimulinkModel.class)),
-                (View v) -> {
-                    SimulinkModel
-                            simulinkModel =
-                            v.getRootObjects(SimulinkModel.class)
-                                    .stream()
-                                    .findFirst()
-                                    .orElseThrow();
-                    Block
-                            block =
-                            simulinkModel.getContains()
-                                    .stream()
-                                    .filter(b -> b.getName().equals("TestNamespace"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return block.getName().equals("TestNamespace");
-                }));
-
+        Block block = block(simulinkModel(vsum), PART);
+        Assertions.assertFalse(block instanceof SubSystem);
     }
 
-    @Test public void testCADNamespaceToSimuLinkSubsystem(@TempDir Path tempDir) throws Exception {
-        // Create a new virtual model
+    @Test public void testCADPartLabelIsBlockName(@TempDir Path tempDir) throws Exception {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.userInteraction.addNextSingleSelection(1);
+        util.userInteraction.addNextSingleSelection(0); // Block
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
 
-        // Create a CAD_Model in the CAD view
-        CommittableView
-                cadView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-        createDefaultCADModel(cadView, tempDir);
+        util.modifyView(cadView(vsum), (CommittableView v) -> part(v).setLabel("Renamed"));
 
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(SimulinkModel.class)),
-                (View v) -> {
-                    SimulinkModel
-                            simulinkModel =
-                            v.getRootObjects(SimulinkModel.class)
-                                    .stream()
-                                    .findFirst()
-                                    .orElseThrow();
-                    SubSystem
-                            subSystem =
-                            (SubSystem) simulinkModel.getContains()
-                                    .stream()
-                                    .filter(b -> b.getName().equals("TestNamespace"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return subSystem.getName().equals("TestNamespace");
-                }));
-
+        Assertions.assertEquals("Renamed", single(simulinkModel(vsum).getContains()).getName());
     }
 
-    @Test public void testCADStringParameterToSimuLinkParameter(@TempDir Path tempDir) throws
-            Exception {
-        // Create a new virtual model
+    @Test public void testCADPartToSimuLinkSubsystem(@TempDir Path tempDir) throws Exception {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.userInteraction.addNextSingleSelection(0);
+        util.userInteraction.addNextSingleSelection(1); // SubSystem
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
 
-        // Create a CAD_Model in the CAD view
-        CommittableView
-                cadView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-        createDefaultCADModel(cadView, tempDir);
-
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(SimulinkModel.class)),
-                (View v) -> {
-                    SimulinkModel
-                            simulinkModel =
-                            v.getRootObjects(SimulinkModel.class)
-                                    .stream()
-                                    .findFirst()
-                                    .orElseThrow();
-                    Block
-                            block =
-                            simulinkModel.getContains()
-                                    .stream()
-                                    .filter(b -> b.getName().equals("TestNamespace"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return block.getParameters()
-                            .stream()
-                            .anyMatch(p -> p.getName().equals("TestStringParameter") &&
-                                    p.getValue().equals("TestValue") &&
-                                    p.getType().equals("string"));
-                }));
-
+        Assertions.assertInstanceOf(SubSystem.class, block(simulinkModel(vsum), PART));
     }
 
-    @Test public void testCADNumericParameterToSimuLinkParameter(@TempDir Path tempDir) throws
-            Exception {
-        // Create a new virtual model
+    @Test public void testCADLengthToSimuLinkParameterInMillimetres(@TempDir Path tempDir) throws Exception {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        //selects BLock
-        util.userInteraction.addNextSingleSelection(0);
-        // selects Parameter type double
-        util.userInteraction.addNextSingleSelection(0);
-        // Create a CAD_Model in the CAD view
-        CommittableView
-                cadView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-        util.modifyView(cadView, (CommittableView v) -> {
-            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
-            cad_Model.setName("TestCADModel");
+        util.userInteraction.addNextSingleSelection(0); // Block
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
 
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setName("TestNamespace");
+        Assertions.assertTrue(TestUtil.expectParameter(block(simulinkModel(vsum), PART), LENGTH, "double", "42"));
+    }
 
-            NumericParameter numericParameter = CadFactory.eINSTANCE.createNumericParameter();
-            numericParameter.setName("TestNumericParameter");
-            numericParameter.setValue(42);
-            namespace.getParameters().add(numericParameter);
+    @Test public void testCADAngleToSimuLinkParameterInDegrees(@TempDir Path tempDir) throws Exception {
+        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
+        util.userInteraction.addNextSingleSelection(0); // Block
+        util.userInteraction.addNextSingleSelection(0); // double
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
 
-            cad_Model.getNamespaces().add(namespace);
+        util.modifyView(cadView(vsum), (CommittableView v) -> TestUtil.addDimension(part(v), "Tilt", ConstraintType.ANGLE, 30));
 
-            v.registerRoot(cad_Model, URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
+        Assertions.assertTrue(TestUtil.expectParameter(block(simulinkModel(vsum), PART), "Tilt", "double", "30"));
+    }
+
+    @Test public void testConstraintsThatAreNoDimensionsAreIgnored(@TempDir Path tempDir) throws Exception {
+        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
+        util.userInteraction.addNextSingleSelection(0); // Block
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
+
+        util.modifyView(cadView(vsum), (CommittableView v) -> {
+            Constraint length = CadUtility.findParameter(part(v), LENGTH);
+            // An unnamed dimension and a coincidence are no parameters
+            Constraint unnamed = CadFactory.eINSTANCE.createConstraint();
+            unnamed.setType(ConstraintType.DISTANCE);
+            unnamed.setValue(1);
+            unnamed.setFirst(length.getFirst());
+            Constraint coincident = CadFactory.eINSTANCE.createConstraint();
+            coincident.setName("Joint");
+            coincident.setType(ConstraintType.COINCIDENT);
+            coincident.setFirst(length.getFirst());
+            CadUtility.findParameterSketch(part(v)).getConstraints().addAll(List.of(unnamed, coincident));
         });
 
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(SimulinkModel.class)),
-                (View v) -> {
-                    SimulinkModel
-                            simulinkModel =
-                            v.getRootObjects(SimulinkModel.class)
-                                    .stream()
-                                    .findFirst()
-                                    .orElseThrow();
-                    Block
-                            block =
-                            simulinkModel.getContains()
-                                    .stream()
-                                    .filter(b -> b.getName().equals("TestNamespace"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return block.getParameters()
-                            .stream()
-                            .anyMatch(p -> p.getName().equals("TestNumericParameter") &&
-                                    p.getValue().equals("42") &&
-                                    p.getType().equals("double"));
-                }));
-
-    }
-
-    @Test public void testCADBooleanParameterToSimuLinkParameter(@TempDir Path tempDir) throws
-            Exception {
-        // Create a new virtual model
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.userInteraction.addNextSingleSelection(0);
-
-        // Create a CAD_Model in the CAD view
-        CommittableView
-                cadView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-        util.modifyView(cadView, (CommittableView v) -> {
-            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
-            cad_Model.setName("TestCADModel");
-
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setName("TestNamespace");
-
-            BooleanParameter booleanParameter = CadFactory.eINSTANCE.createBooleanParameter();
-            booleanParameter.setName("TestBooleanParameter");
-            booleanParameter.setValue(true);
-            namespace.getParameters().add(booleanParameter);
-
-            cad_Model.getNamespaces().add(namespace);
-
-            v.registerRoot(cad_Model, URI.createFileURI(tempDir.resolve("cad.xmi").toString()));
-        });
-
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(SimulinkModel.class)),
-                (View v) -> {
-                    SimulinkModel
-                            simulinkModel =
-                            v.getRootObjects(SimulinkModel.class)
-                                    .stream()
-                                    .findFirst()
-                                    .orElseThrow();
-                    Block
-                            block =
-                            simulinkModel.getContains()
-                                    .stream()
-                                    .filter(b -> b.getName().equals("TestNamespace"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return block.getParameters()
-                            .stream()
-                            .anyMatch(p -> p.getName().equals("TestBooleanParameter") &&
-                                    p.getValue().equals("true") &&
-                                    p.getType().equals("boolean"));
-                }));
-
+        Assertions.assertEquals(List.of(LENGTH), block(simulinkModel(vsum), PART).getParameters().stream().map(simulink.Parameter::getName).toList());
     }
 
     @Test public void testParameterDeletion(@TempDir Path tempDir) throws Exception {
-        // Create a new virtual model
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
+        util.userInteraction.addNextSingleSelection(0); // Block
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
 
-        util.userInteraction.addNextSingleSelection(0);
-        util.userInteraction.addNextSingleSelection(0);
+        util.modifyView(cadView(vsum), (CommittableView v) -> CadUtility.removeParameter(CadUtility.findParameter(part(v), LENGTH)));
 
-        // Create a CAD_Model in the CAD view
-        CommittableView
-                cadView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-        createDefaultCADModel(cadView, tempDir);
-
-        CommittableView
-                deletecadView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-
-        // Now delete the parameter
-        util.modifyView(deletecadView, (CommittableView v) -> {
-            CAD_Model
-                    cadModel =
-                    v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
-            Namespace
-                    namespace =
-                    cadModel.getNamespaces()
-                            .stream()
-                            .filter(n -> n.getName().equals("TestNamespace"))
-                            .findFirst()
-                            .orElseThrow();
-            Parameter
-                    parameterToDelete =
-                    namespace.getParameters()
-                            .stream()
-                            .filter(p -> p.getName().equals("TestStringParameter"))
-                            .findFirst()
-                            .orElseThrow();
-            EcoreUtil.delete(parameterToDelete);
-            //namespace.getParameters().remove(parameterToDelete);
-
-        });
-
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    CAD_Model
-                            cad_Model =
-                            v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
-                    Namespace
-                            namespace =
-                            cad_Model.getNamespaces()
-                                    .stream()
-                                    .filter(b -> b.getName().equals("TestNamespace"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return namespace.getParameters().stream().noneMatch(p -> {
-                        System.out.println(p.getName());
-                        return p.getName().equals("TestStringParameter");
-                    });
-                }));
-
-        // Assert that the corresponding Simulink Parameter is also deleted
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(SimulinkModel.class)),
-                (View v) -> {
-                    SimulinkModel
-                            simulinkModel =
-                            v.getRootObjects(SimulinkModel.class)
-                                    .stream()
-                                    .findFirst()
-                                    .orElseThrow();
-                    Block
-                            block =
-                            simulinkModel.getContains()
-                                    .stream()
-                                    .filter(b -> b.getName().equals("TestNamespace"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return block.getParameters().stream().noneMatch(p -> {
-                        System.out.println(p.getName());
-                        return p.getName().equals("TestStringParameter");
-                    });
-                }));
+        Assertions.assertNull(CadUtility.findParameter(part(cadView(vsum)), LENGTH));
+        Assertions.assertTrue(block(simulinkModel(vsum), PART).getParameters().isEmpty());
     }
 
     @Test public void testParameterModification(@TempDir Path tempDir) throws Exception {
-        // Create a new virtual model
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
+        util.userInteraction.addNextSingleSelection(0); // Block
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
 
-        util.userInteraction.addNextSingleSelection(0);
-        util.userInteraction.addNextSingleSelection(0);
+        util.modifyView(cadView(vsum), (CommittableView v) -> CadUtility.findParameter(part(v), LENGTH).setValue(0.0125));
 
-        // Create a CAD_Model in the CAD view
-        CommittableView
-                cadView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-        createDefaultCADModel(cadView, tempDir);
-
-        CommittableView
-                updateCADView =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeDerivingTrait();
-
-        // Now modify the parameter value
-        util.modifyView(updateCADView, (CommittableView v) -> {
-            CAD_Model
-                    cadModel =
-                    v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
-            Namespace
-                    namespace =
-                    cadModel.getNamespaces()
-                            .stream()
-                            .filter(n -> n.getName().equals("TestNamespace"))
-                            .findFirst()
-                            .orElseThrow();
-            StringParameter
-                    parameterToModify =
-                    (StringParameter) namespace.getParameters()
-                            .stream()
-                            .filter(p -> p.getName().equals("TestStringParameter"))
-                            .findFirst()
-                            .orElseThrow();
-            //parameterToModify.setName("ModifiedName");
-            parameterToModify.setValue("ModifiedValue");
-        });
-
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    CAD_Model
-                            cad_Model =
-                            v.getRootObjects(CAD_Model.class).stream().findFirst().orElseThrow();
-                    Namespace
-                            namespace =
-                            cad_Model.getNamespaces()
-                                    .stream()
-                                    .filter(b -> b.getName().equals("TestNamespace"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return namespace.getParameters().stream().anyMatch(p -> {
-                        System.out.println(p.getName());
-                        return p.getName().equals("TestStringParameter") &&
-                                ((StringParameter) p).getValue().equals("ModifiedValue");
-                    });
-                }));
-
-        // Assert that the corresponding Simulink Parameter is also modified
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(SimulinkModel.class)),
-                (View v) -> {
-                    SimulinkModel
-                            simulinkModel =
-                            v.getRootObjects(SimulinkModel.class)
-                                    .stream()
-                                    .findFirst()
-                                    .orElseThrow();
-                    Block
-                            block =
-                            simulinkModel.getContains()
-                                    .stream()
-                                    .filter(b -> b.getName().equals("TestNamespace"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return block.getParameters().stream().anyMatch(p -> {
-                        System.out.println(p.getValue());
-                        return p.getName().equals("TestStringParameter") &&
-                                p.getValue().equals("ModifiedValue");
-                    });
-                }));
+        Assertions.assertTrue(TestUtil.expectParameter(block(simulinkModel(vsum), PART), LENGTH, "double", "12.5"));
     }
 
-    /*
-        Creates a default CAD model with a Namespace and a StringParameter and registers it as root object in the given view.
-    */
-    private void createDefaultCADModel(CommittableView view, Path filePath) {
+    @Test public void testNestedPartIsPlacedInTheSubsystemOfItsParent(@TempDir Path tempDir) throws Exception {
+        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
+        util.userInteraction.addNextSingleSelection(1); // SubSystem
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
 
-        util.modifyView(view, (CommittableView v) -> {
-            CAD_Model cad_Model = CadFactory.eINSTANCE.createCAD_Model();
-            cad_Model.setName("TestCADModel");
+        // No question where to insert the block: the parent part decides
+        util.userInteraction.addNextSingleSelection(0); // Block
+        util.modifyView(cadView(vsum), (CommittableView v) -> part(v).getChildren().add(TestUtil.createPart("Child")));
 
-            Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-            namespace.setName("TestNamespace");
+        SubSystem subSystem = (SubSystem) block(simulinkModel(vsum), PART);
+        Assertions.assertEquals("Child", single(subSystem.getSubBlocks()).getName());
+        Assertions.assertEquals(1, simulinkModel(vsum).getContains().size());
+    }
 
-            StringParameter stringParameter = CadFactory.eINSTANCE.createStringParameter();
-            stringParameter.setName("TestStringParameter");
-            stringParameter.setValue("TestValue");
-            namespace.getParameters().add(stringParameter);
+    @Test public void testMovingAPartMovesItsBlock(@TempDir Path tempDir) throws Exception {
+        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
+        util.userInteraction.addNextSingleSelection(1); // SubSystem
+        util.userInteraction.addNextSingleSelection(0); // double
+        createDefaultCADModel(vsum, tempDir);
+        util.userInteraction.addNextSingleSelection(0); // Block
+        util.userInteraction.addNextSingleSelection(0); // Insert at root level
+        util.modifyView(cadView(vsum), (CommittableView v) -> document(v).getObjects().add(TestUtil.createPart("Other")));
+        Assertions.assertEquals(2, simulinkModel(vsum).getContains().size());
 
-            cad_Model.getNamespaces().add(namespace);
+        // into the part of the subsystem ...
+        util.modifyView(cadView(vsum), (CommittableView v) -> part(v).getChildren().add(TestUtil.findPart(document(v), "Other")));
+        Assertions.assertEquals("Other", single(((SubSystem) block(simulinkModel(vsum), PART)).getSubBlocks()).getName());
+        Assertions.assertEquals(1, simulinkModel(vsum).getContains().size());
 
-            v.registerRoot(cad_Model, URI.createFileURI(filePath.resolve("cad.xmi").toString()));
+        // ... and back to the top level
+        util.modifyView(cadView(vsum), (CommittableView v) -> document(v).getObjects().add(TestUtil.findPart(document(v), "Other")));
+        Assertions.assertTrue(((SubSystem) block(simulinkModel(vsum), PART)).getSubBlocks().isEmpty());
+        Assertions.assertEquals(2, simulinkModel(vsum).getContains().size());
+    }
+
+    /** Creates a CAD document with a part that has a length of 42 mm and registers it as root. */
+    private void createDefaultCADModel(VirtualModel vsum, Path filePath) {
+        util.modifyView(cadView(vsum), (CommittableView v) -> {
+            CADDocument document = CadFactory.eINSTANCE.createCADDocument();
+            document.setName("TestCADModel");
+            Assembly part = TestUtil.createPart(PART);
+            document.getObjects().add(part);
+            TestUtil.addLength(part, LENGTH, 0.042);
+            v.registerRoot(document, URI.createFileURI(filePath.resolve("cad.xmi").toString()));
         });
+    }
+
+    private CommittableView cadView(VirtualModel vsum) {
+        return util.getDefaultView(vsum, List.of(CADDocument.class)).withChangeDerivingTrait();
+    }
+
+    private static CADDocument document(CommittableView view) {
+        return view.getRootObjects(CADDocument.class).iterator().next();
+    }
+
+    private static Assembly part(CommittableView view) {
+        return TestUtil.findPart(document(view), PART);
+    }
+
+    private SimulinkModel simulinkModel(VirtualModel vsum) {
+        return util.getDefaultView(vsum, List.of(SimulinkModel.class)).getRootObjects(SimulinkModel.class).iterator().next();
+    }
+
+    private static Block block(SimulinkModel model, String name) {
+        return model.getContains().stream().filter(b -> name.equals(b.getName())).findFirst().orElseThrow();
+    }
+
+    private static <T> T single(List<T> elements) {
+        Assertions.assertEquals(1, elements.size(), elements.toString());
+        return elements.get(0);
     }
 }

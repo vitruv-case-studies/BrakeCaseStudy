@@ -2,6 +2,7 @@ import tools.vitruv.change.interaction.UserInteractionOptions.WindowModality
 import java.util.Arrays
 
 import tools.vitruv.casestudies.brakesystem.consistency.Cad2SimulinkUtility;
+import tools.vitruv.casestudies.brakesystem.consistency.CadUtility;
 import simulink.SimulinkModel;
 import tools.vitruv.casestudies.brakesystem.consistency.ParameterValueUtility;
 import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility;
@@ -9,125 +10,177 @@ import simulink.Block;
 import brakesystem.BrakeComponent;
 import brakesystem.BrakeCaliper;
 import simulink.SubSystem;
+import edu.kit.ipd.sdq.metamodels.cad.Assembly;
+import edu.kit.ipd.sdq.metamodels.cad.Constraint;
 
 import "http://www.example.org/simulink" as simulink
-import "http://www.example.org/cad" as cad
+import "http://demonstrator.kit.edu/cad" as cad
+
+// A Simulink block of a physical part corresponds to a part of the CAD document, i.e. an Assembly
+// (see CadUtility). The block name is the label of the part. The blocks of a subsystem are the
+// parts nested in the subsystem's part. Only dimensions are part of the overlap: a named
+// dimensional constraint of the part is a numeric parameter of the block, lengths in millimetres.
 
 reactions: cad2simulink
 in reaction to changes in cad
 execute actions in simulink
 
 // Insertion Reactions
-reaction CAD_ModelInsertedAsRoot {
-    after element cad::CAD_Model inserted as root
+reaction CADDocumentInsertedAsRoot {
+    after element cad::CADDocument inserted as root
     call createAndRegisterRoot(newValue)
 }
 
-routine createAndRegisterRoot(cad::CAD_Model model) {
+routine createAndRegisterRoot(cad::CADDocument document) {
     match {
-        require absence of simulink::SimulinkModel corresponding to model
+        require absence of simulink::SimulinkModel corresponding to document
     }
     update {
         // Another model may already have created the counterpart; reuse it instead of creating a second root
-        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, model, SimulinkModel)
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, document, SimulinkModel)
         if (existing !== null) {
-            addCorrespondenceBetween(model, existing)
+            addCorrespondenceBetween(document, existing)
         } else {
-            createRoot(model)
+            createRoot(document)
         }
     }
 }
 
-routine createRoot(cad::CAD_Model model) {
+routine createRoot(cad::CADDocument document) {
     match {
-        require absence of simulink::SimulinkModel corresponding to model
+        require absence of simulink::SimulinkModel corresponding to document
     }
     create {
         val mSimulink = new simulink::SimulinkModel
     }
     update {
-        mSimulink.name = model.name
-        persistProjectRelative(model, mSimulink, "example.simulink")
-        addCorrespondenceBetween(model, mSimulink)
+        mSimulink.name = document.name
+        persistProjectRelative(document, mSimulink, "example.simulink")
+        addCorrespondenceBetween(document, mSimulink)
     }
 }
 
-reaction NameSpaceInserted {
-    after element cad::Namespace inserted in cad::CAD_Model[namespaces]
-    call createAndRegisterNamespace(newValue)
+reaction PartInsertedInDocument {
+    after element cad::Assembly inserted in cad::CADDocument[objects]
+    call createOrPlaceBlock(newValue)
 }
-routine createAndRegisterNamespace(cad::Namespace namespace) {
-    match {
-        val mSimulink = retrieve simulink::SimulinkModel corresponding to namespace.eContainer()
-        require absence of simulink::Block corresponding to namespace
-    }
+
+reaction PartInsertedInPart {
+    after element cad::Assembly inserted in cad::Assembly[children]
+    call createOrPlaceBlock(newValue)
+}
+
+// A part that already has a block was moved: the block follows into the subsystem of the new
+// parent part, or to the top level of the model
+routine createOrPlaceBlock(cad::Assembly part) {
     update {
-        // The counterpart may already exist via another model; then only the missing correspondence is added
-        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, Block)
-        if (existing !== null) {
-            addCorrespondenceBetween(namespace, existing)
+        val block = getCorrespondingElements(part, Block, null, null).head
+        if (block === null) {
+            createAndRegisterPart(part)
         } else {
-            createAndRegisterNamespaceDirectly(namespace)
+            placeBlock(part, block)
         }
     }
 }
 
-routine createAndRegisterNamespaceDirectly(cad::Namespace namespace) {
+routine placeBlock(cad::Assembly part, simulink::Block block) {
     match {
-        val mSimulink = retrieve simulink::SimulinkModel corresponding to namespace.eContainer()
-        require absence of simulink::Block corresponding to namespace
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to CadUtility.documentOf(part)
+    }
+    update {
+        val parent = CadUtility.parentPart(part)
+        if (parent === null) {
+            if (block.eContainer !== mSimulink) mSimulink.contains += block
+            return
+        }
+        val subsystem = getCorrespondingElements(parent, SubSystem, null, null).head
+        if (subsystem !== null && block.eContainer !== subsystem) {
+            subsystem.subBlocks += block
+        }
+    }
+}
+
+routine createAndRegisterPart(cad::Assembly part) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to CadUtility.documentOf(part)
+        require absence of simulink::Block corresponding to part
+    }
+    update {
+        // The counterpart may already exist via another model; then only the missing correspondence is added
+        val existing = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, part, Block)
+        if (existing !== null) {
+            addCorrespondenceBetween(part, existing)
+        } else {
+            createAndRegisterPartDirectly(part)
+        }
+        // Parameters may have been added together with the part
+        for (parameter : CadUtility.parameters(part)) createAndRegisterNumericParameter(parameter)
+    }
+}
+
+routine createAndRegisterPartDirectly(cad::Assembly part) {
+    match {
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to CadUtility.documentOf(part)
+        require absence of simulink::Block corresponding to part
     }
     update {
         // A known brake component determines the kind of block: calipers contain their pads.
         // Other physical parts are not necessarily simulated (e.g. bolts), so the user may choose "None".
-        val brakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, BrakeComponent)
+        val brakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, part, BrakeComponent)
         val componentType = if (brakeComponent instanceof BrakeCaliper) {
             1
         } else if (brakeComponent !== null) {
             0
         } else {
             userInteractor.singleSelectionDialogBuilder.message(
-                "What Simulink component do you want to add to be correspondent to this namespace?").choices(
+                "What Simulink component do you want to add to be correspondent to this part?").choices(
                 Arrays.asList("SimulinkBlock","SimulinkSubsystem","None")).windowModality(WindowModality.MODAL).
                 startInteraction
         }
         switch (componentType) {
             case 0:
-                createSimulinkBlock(namespace, mSimulink)
+                createSimulinkBlock(part, mSimulink)
             case 1:
-                createSimulinkSubsystem(namespace, mSimulink)
+                createSimulinkSubsystem(part, mSimulink)
             default:
                 return // Do nothing
         }
     }
 }
 
-routine createSimulinkBlock(cad::Namespace namespace, simulink::SimulinkModel mSimulink) {
+routine createSimulinkBlock(cad::Assembly part, simulink::SimulinkModel mSimulink) {
     create {
         val mBlock = new simulink::Block
     }
     update {
-        mBlock.name = namespace.name
-        insertSimulinkBlock(namespace, mSimulink, mBlock)
-        addCorrespondenceBetween(namespace, mBlock)
+        mBlock.name = part.label
+        insertSimulinkBlock(part, mSimulink, mBlock)
+        addCorrespondenceBetween(part, mBlock)
     }
 }
 
-routine createSimulinkSubsystem(cad::Namespace namespace, simulink::SimulinkModel mSimulink) {
+routine createSimulinkSubsystem(cad::Assembly part, simulink::SimulinkModel mSimulink) {
     create {
         val mSubsystem = new simulink::SubSystem
     }
     update {
-        mSubsystem.name = namespace.name
-        insertSimulinkBlock(namespace, mSimulink, mSubsystem)
-        addCorrespondenceBetween(namespace, mSubsystem)
+        mSubsystem.name = part.label
+        insertSimulinkBlock(part, mSimulink, mSubsystem)
+        addCorrespondenceBetween(part, mSubsystem)
     }
 }
 
-routine insertSimulinkBlock(cad::Namespace namespace, simulink::SimulinkModel mSimulink, simulink::Block mBlock) {
+routine insertSimulinkBlock(cad::Assembly part, simulink::SimulinkModel mSimulink, simulink::Block mBlock) {
     update {
+        // A part nested in the part of a subsystem belongs into that subsystem
+        val parent = CadUtility.parentPart(part)
+        val parentSubsystem = if (parent !== null) getCorrespondingElements(parent, SubSystem, null, null).head
+        if (parentSubsystem !== null) {
+            parentSubsystem.subBlocks += mBlock
+            return
+        }
         // A known brake component determines the position: a pad belongs into the subsystem of its caliper
-        val brakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, BrakeComponent)
+        val brakeComponent = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, part, BrakeComponent)
         if (brakeComponent !== null) {
             val container = brakeComponent.eContainer
             val caliperSubsystem = if (container instanceof BrakeCaliper) {
@@ -148,7 +201,7 @@ routine insertSimulinkBlock(cad::Namespace namespace, simulink::SimulinkModel mS
                 "Where do you want to insert the new Simulink component?").choices(choices).windowModality(WindowModality.MODAL).
                 startInteraction
         }
-        
+
         if (chosen > 0 && chosen <= subsystems.size) {
             subsystems.get(chosen - 1).subBlocks += mBlock
         } else {
@@ -157,43 +210,47 @@ routine insertSimulinkBlock(cad::Namespace namespace, simulink::SimulinkModel mS
     }
 }
 
-reaction StringParameterInserted {
-    after element cad::StringParameter inserted in cad::Namespace[parameters]
-    call createAndRegisterStringParameter(newValue)
-}
+//
+//// Parameters (named dimensional constraints, see CadUtility)
+//
 
-routine createAndRegisterStringParameter(cad::StringParameter parameter) {
-    match {
-        val mBlock = retrieve simulink::Block corresponding to parameter.eContainer()
-        require absence of simulink::Parameter corresponding to parameter
-    }
-    create {
-        val mParameter = new simulink::Parameter
-    }
-    update {
-        // A parameter with the same name may already have been created via the brake system model
-        val sameName = mBlock.parameters.findFirst[name == parameter.name]
-        if (sameName !== null && !TransitiveCorrespondenceUtility.hasDirectlyCorresponding(executionState.correspondenceModel, sameName, typeof(edu.kit.ipd.sdq.metamodels.cad.Parameter))) {
-            addCorrespondenceBetween(parameter, sameName)
-            return
-        }
-        mParameter.name = parameter.name
-        mParameter.value = parameter.value
-        mParameter.type = "string"
-        mBlock.parameters += mParameter
-        addCorrespondenceBetween(parameter, mParameter)
-    }
-}
-
-
-reaction NumericParameterInserted {
-    after element cad::NumericParameter inserted in cad::Namespace[parameters]
+reaction ParameterInserted {
+    after element cad::Constraint inserted in cad::Sketch[constraints]
     call createAndRegisterNumericParameter(newValue)
 }
 
-routine createAndRegisterNumericParameter(cad::NumericParameter parameter) {
+reaction ParameterSketchInserted {
+    after element cad::Sketch inserted in cad::Assembly[children]
+    call createAndRegisterNumericParameters(newValue)
+}
+
+routine createAndRegisterNumericParameters(cad::Sketch sketch) {
+    update {
+        for (constraint : sketch.constraints) createAndRegisterNumericParameter(constraint)
+    }
+}
+
+// A constraint becomes a parameter once it is named (or gets a dimensional type)
+reaction ParameterTypeChanged {
+    after attribute replaced at cad::Constraint[type]
+    call createAndRegisterNumericParameter(affectedEObject)
+}
+
+routine createAndRegisterNumericParameter(cad::Constraint parameter) {
     match {
-        val mBlock = retrieve simulink::Block corresponding to parameter.eContainer()
+        require absence of simulink::Parameter corresponding to parameter
+    }
+    update {
+        if (!CadUtility.isParameter(parameter)) {
+            return
+        }
+        createAndRegisterNumericParameterOfPart(parameter, CadUtility.partOf(parameter))
+    }
+}
+
+routine createAndRegisterNumericParameterOfPart(cad::Constraint parameter, cad::Assembly part) {
+    match {
+        val mBlock = retrieve simulink::Block corresponding to part
         require absence of simulink::Parameter corresponding to parameter
     }
     create {
@@ -202,14 +259,14 @@ routine createAndRegisterNumericParameter(cad::NumericParameter parameter) {
     update {
         // A parameter with the same name may already have been created via the brake system model
         val sameName = mBlock.parameters.findFirst[name == parameter.name]
-        if (sameName !== null && !TransitiveCorrespondenceUtility.hasDirectlyCorresponding(executionState.correspondenceModel, sameName, typeof(edu.kit.ipd.sdq.metamodels.cad.Parameter))) {
+        if (sameName !== null && !TransitiveCorrespondenceUtility.hasDirectlyCorresponding(executionState.correspondenceModel, sameName, Constraint)) {
             addCorrespondenceBetween(parameter, sameName)
             return
         }
         mParameter.name = parameter.name
-        mParameter.value = ParameterValueUtility.formatNumber(ParameterValueUtility.cadToSimulinkValue(parameter.value, parameter.unit))
+        mParameter.value = ParameterValueUtility.formatNumber(ParameterValueUtility.cadToSimulinkValue(parameter.value, CadUtility.unitOf(parameter)))
         val parametertype = userInteractor.singleSelectionDialogBuilder.message(
-            "What Simulink Parametertype do you want to add to be correspondent to this Numeric CAD Parameter?").choices(
+            "What Simulink Parametertype do you want to add to be correspondent to the CAD dimension '" + parameter.name + "'?").choices(
             Arrays.asList("double","single","half","uint8","int8","uint16","int16","uint32","int32","uint64","int64")).windowModality(WindowModality.MODAL).
             startInteraction
         switch (parametertype) {
@@ -238,35 +295,7 @@ routine createAndRegisterNumericParameter(cad::NumericParameter parameter) {
             default:
                 return // Do nothing
         }
-        
-        mBlock.parameters += mParameter
-        addCorrespondenceBetween(parameter, mParameter)
-    }
-}
 
-reaction BooleanParameterInserted {
-    after element cad::BooleanParameter inserted in cad::Namespace[parameters]
-    call createAndRegisterBooleanParameter(newValue)
-}
-
-routine createAndRegisterBooleanParameter(cad::BooleanParameter parameter) {
-    match {
-        val mBlock = retrieve simulink::Block corresponding to parameter.eContainer()
-        require absence of simulink::Parameter corresponding to parameter
-    }
-    create {
-        val mParameter = new simulink::Parameter
-    }
-    update {
-        // A parameter with the same name may already have been created via the brake system model
-        val sameName = mBlock.parameters.findFirst[name == parameter.name]
-        if (sameName !== null && !TransitiveCorrespondenceUtility.hasDirectlyCorresponding(executionState.correspondenceModel, sameName, typeof(edu.kit.ipd.sdq.metamodels.cad.Parameter))) {
-            addCorrespondenceBetween(parameter, sameName)
-            return
-        }
-        mParameter.name = parameter.name
-        mParameter.value = parameter.value.toString()
-        mParameter.type = "boolean"
         mBlock.parameters += mParameter
         addCorrespondenceBetween(parameter, mParameter)
     }
@@ -275,12 +304,12 @@ routine createAndRegisterBooleanParameter(cad::BooleanParameter parameter) {
 
 // Deletion Reactions
 
-reaction CAD_ParameterDeleted {
-    after element cad::Parameter deleted
+reaction ParameterDeleted {
+    after element cad::Constraint deleted
     call deleteCorrespondingSimulinkParameter(affectedEObject)
 }
 
-routine deleteCorrespondingSimulinkParameter(cad::Parameter parameter) {
+routine deleteCorrespondingSimulinkParameter(cad::Constraint parameter) {
     match {
         val mParameter = retrieve simulink::Parameter corresponding to parameter
     }
@@ -290,18 +319,18 @@ routine deleteCorrespondingSimulinkParameter(cad::Parameter parameter) {
     }
 }
 
-reaction NamespaceDeleted {
-    after element cad::Namespace deleted
+reaction PartDeleted {
+    after element cad::Assembly deleted
     call deleteCorrespondingSimulinkComponent(affectedEObject)
 }
 
-routine deleteCorrespondingSimulinkComponent(cad::Namespace namespace) {
+routine deleteCorrespondingSimulinkComponent(cad::Assembly part) {
     match {
-        val mComponent = retrieve simulink::Block corresponding to namespace
+        val mComponent = retrieve simulink::Block corresponding to part
     }
     update{
         removeObject(mComponent)
-        removeCorrespondenceBetween(namespace, mComponent)
+        removeCorrespondenceBetween(part, mComponent)
     }
 }
 
@@ -309,100 +338,67 @@ routine deleteCorrespondingSimulinkComponent(cad::Namespace namespace) {
 // Update Reactions
 
 
-reaction CAD_ModelNameChanged {
-    after attribute replaced at cad::CAD_Model[name]
+reaction CADDocumentNameChanged {
+    after attribute replaced at cad::CADDocument[name]
     call updateSimulinkModelName(affectedEObject)
 }
 
-routine updateSimulinkModelName(cad::CAD_Model model) {
+routine updateSimulinkModelName(cad::CADDocument document) {
     match {
-        val mSimulink = retrieve simulink::SimulinkModel corresponding to model
+        val mSimulink = retrieve simulink::SimulinkModel corresponding to document
     }
     update {
-        mSimulink.name = model.name
+        mSimulink.name = document.name
     }
 }
 
-reaction NamespaceNameChanged {
-    after attribute replaced at cad::Namespace[name]
+reaction PartLabelChanged {
+    after attribute replaced at cad::Assembly[label]
     call updateSimulinkComponentName(affectedEObject)
 }
 
-routine updateSimulinkComponentName(cad::Namespace namespace) {
+routine updateSimulinkComponentName(cad::Assembly part) {
     match {
-        val mComponent = retrieve simulink::Block corresponding to namespace
+        val mComponent = retrieve simulink::Block corresponding to part
     }
     update {
-        mComponent.name = namespace.name
+        if (mComponent.name != part.label) mComponent.name = part.label
     }
 }
 
+// A constraint that is named only now becomes a parameter
 reaction ParameterNameChanged {
-    after attribute replaced at cad::Parameter[name]
-    call updateSimulinkParameterName(affectedEObject)
+    after attribute replaced at cad::Constraint[name]
+    call updateOrCreateSimulinkParameterName(affectedEObject)
 }
 
-routine updateSimulinkParameterName(cad::Parameter parameter) {
-    match {
-        val mParameter = retrieve simulink::Parameter corresponding to parameter
-    }
+routine updateOrCreateSimulinkParameterName(cad::Constraint parameter) {
     update {
-        mParameter.name = parameter.name
-    }
-}
-
-reaction StringParameterValueChanged {
-    after attribute replaced at cad::StringParameter[value]
-    call updateSimulinkStringParameterValue(affectedEObject)
-}
-
-routine updateSimulinkStringParameterValue(cad::StringParameter parameter) {
-    match {
-        val mParameter = retrieve simulink::Parameter corresponding to parameter
-    }
-    update {
-        if (mParameter.value != parameter.value) {
-            mParameter.value = parameter.value
+        val mParameter = getCorrespondingElements(parameter, typeof(simulink.Parameter), null, null).head
+        if (mParameter === null) {
+            createAndRegisterNumericParameter(parameter)
+        } else if (mParameter.name != parameter.name) {
+            mParameter.name = parameter.name
         }
     }
 }
 
-reaction NumericParameterValueChanged {
-    after attribute replaced at cad::NumericParameter[value]
-    call updateSimulinkNumericParameterValue(affectedEObject)
-}
-
-reaction NumericParameterUnitChanged {
-    after attribute replaced at cad::NumericParameter[unit]
-    call updateSimulinkNumericParameterValue(affectedEObject)
+reaction ParameterValueChanged {
+    after attribute replaced at cad::Constraint[value]
+    call updateSimulinkParameterValue(affectedEObject)
 }
 
 // Simulink values hold lengths in millimetres (see ParameterValueUtility). Values that already
 // denote the same number are not rewritten, so a propagated change does not overwrite the
 // user's formatting.
-routine updateSimulinkNumericParameterValue(cad::NumericParameter parameter) {
+routine updateSimulinkParameterValue(cad::Constraint parameter) {
     match {
         val mParameter = retrieve simulink::Parameter corresponding to parameter
     }
     update {
-        val value = ParameterValueUtility.cadToSimulinkValue(parameter.value, parameter.unit)
+        val value = ParameterValueUtility.cadToSimulinkValue(parameter.value, CadUtility.unitOf(parameter))
         if (!ParameterValueUtility.denotesNumber(mParameter.value, value)) {
             mParameter.value = ParameterValueUtility.formatNumber(value)
         }
     }
 }
-
-reaction BooleanParameterValueChanged {
-    after attribute replaced at cad::BooleanParameter[value]
-    call updateSimulinkBooleanParameterValue(affectedEObject)
-}
-routine updateSimulinkBooleanParameterValue(cad::BooleanParameter parameter) {
-    match {
-        val mParameter = retrieve simulink::Parameter corresponding to parameter
-    }
-    update {
-        if (!ParameterValueUtility.denotesBoolean(mParameter.value, parameter.value)) {
-            mParameter.value = parameter.value.toString()
-        }
-    }
-}       
