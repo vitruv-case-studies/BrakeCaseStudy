@@ -1,32 +1,29 @@
 import java.util.Objects
 
 import bom.BOM
+import bom.DataType
 import bom.Item
-import bom.StringParameterValue
 import bom.NumericParameterValue
-import bom.BoolParameterValue
 import brakesystem.BrakeComponent
-import edu.kit.ipd.sdq.metamodels.cad.StringParameter
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter
-import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter
-import edu.kit.ipd.sdq.metamodels.cad.Namespace
-import edu.kit.ipd.sdq.metamodels.cad.Parameter
+import edu.kit.ipd.sdq.metamodels.cad.Assembly
+import edu.kit.ipd.sdq.metamodels.cad.Constraint
 import tools.vitruv.casestudies.brakesystem.consistency.BomUtility
+import tools.vitruv.casestudies.brakesystem.consistency.CadUtility
 import tools.vitruv.casestudies.brakesystem.consistency.TransitiveCorrespondenceUtility
 
-import "http://www.example.org/cad" as cad
+import "http://demonstrator.kit.edu/cad" as cad
 import "http://example.org/bom" as bom
 
 reactions: cad2bom
 in reaction to changes in cad
 execute actions in bom
 
-reaction CADModelInsertedAsRoot {
-    after element cad::CAD_Model inserted as root
+reaction CADDocumentInsertedAsRoot {
+    after element cad::CADDocument inserted as root
     call createBOM(newValue)
 }
 
-routine createBOM(cad::CAD_Model source) {
+routine createBOM(cad::CADDocument source) {
     match {
         require absence of bom::BOM corresponding to source
     }
@@ -41,7 +38,7 @@ routine createBOM(cad::CAD_Model source) {
     }
 }
 
-routine createBOMDirectly(cad::CAD_Model source) {
+routine createBOMDirectly(cad::CADDocument source) {
     match {
         require absence of bom::BOM corresponding to source
     }
@@ -55,12 +52,12 @@ routine createBOMDirectly(cad::CAD_Model source) {
     }
 }
 
-reaction CADModelNameChanged {
-    after attribute replaced at cad::CAD_Model[name]
+reaction CADDocumentNameChanged {
+    after attribute replaced at cad::CADDocument[name]
     call updateBOMName(affectedEObject)
 }
 
-routine updateBOMName(cad::CAD_Model source) {
+routine updateBOMName(cad::CADDocument source) {
     match {
         val target = retrieve bom::BOM corresponding to source
     }
@@ -69,36 +66,41 @@ routine updateBOMName(cad::CAD_Model source) {
     }
 }
 
-// Every CAD namespace describes a physical part and is therefore listed in the BOM. Like the brake
-// components and Simulink blocks, a namespace describes one instance: Namespace.id and
-// Namespace.name are instance names, not the kind of the part.
-reaction NamespaceInserted {
-    after element cad::Namespace inserted in cad::CAD_Model[namespaces]
+// Every part of the CAD document (an Assembly, see CadUtility), also a nested one, is a physical
+// part and is therefore listed in the BOM. Like the brake components and Simulink blocks, a part
+// describes one instance: its name is the instance name, not the kind of the part.
+reaction PartInsertedInDocument {
+    after element cad::Assembly inserted in cad::CADDocument[objects]
     call createItem(newValue)
 }
 
-routine createItem(cad::Namespace namespace) {
+reaction PartInsertedInPart {
+    after element cad::Assembly inserted in cad::Assembly[children]
+    call createItem(newValue)
+}
+
+routine createItem(cad::Assembly part) {
     match {
-        val target = retrieve bom::BOM corresponding to namespace.eContainer()
-        require absence of bom::Item corresponding to namespace
+        val target = retrieve bom::BOM corresponding to CadUtility.documentOf(part)
+        require absence of bom::Item corresponding to part
     }
     update {
-        // The item may already exist via another model, e.g. for the brake component of the namespace.
-        // An item can count several namespaces, so it may already correspond to other namespaces.
-        val existing = TransitiveCorrespondenceUtility.findSharedTransitivelyCorresponding(executionState.correspondenceModel, namespace, Item)
+        // The item may already exist via another model, e.g. for the brake component of the part.
+        // An item can count several parts, so it may already correspond to other parts.
+        val existing = TransitiveCorrespondenceUtility.findSharedTransitivelyCorresponding(executionState.correspondenceModel, part, Item)
         if (existing !== null) {
-            addCorrespondenceBetween(namespace, existing)
+            addCorrespondenceBetween(part, existing)
         } else {
-            createItemDirectly(namespace)
+            createItemDirectly(part)
         }
-        for (parameter : namespace.parameters) createParameterValue(parameter)
+        for (parameter : CadUtility.parameters(part)) createParameterValue(parameter)
     }
 }
 
-routine createItemDirectly(cad::Namespace namespace) {
+routine createItemDirectly(cad::Assembly part) {
     match {
-        val target = retrieve bom::BOM corresponding to namespace.eContainer()
-        require absence of bom::Item corresponding to namespace
+        val target = retrieve bom::BOM corresponding to CadUtility.documentOf(part)
+        require absence of bom::Item corresponding to part
     }
     create {
         val item = new bom::Item
@@ -106,130 +108,149 @@ routine createItemDirectly(cad::Namespace namespace) {
     update {
         // The brake system decides the kind of brake components (also later, see brakesystem2bom).
         // Until then, or for other parts, the item is an unclassified "Part" that can be classified in the BOM.
-        val component = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, namespace, BrakeComponent)
+        val component = TransitiveCorrespondenceUtility.findTransitivelyCorresponding(executionState.correspondenceModel, part, BrakeComponent)
         val kind = if (component !== null) component.eClass.name else null
         item.type = BomUtility.findOrCreateItemType(target, kind)
-        if (item.type.description === null) item.type.description = namespace.description
-        // Namespaces created from Simulink only have a name, which is the instance name as well
-        item.id = if (namespace.id !== null) namespace.id else namespace.name
+        item.id = part.name
         item.numberOfItems = 1
         target.items.add(item)
-        addCorrespondenceBetween(namespace, item)
+        addCorrespondenceBetween(part, item)
     }
 }
 
-// An item may count several namespaces. Only an item of a single namespace takes over its
+// An item may count several parts. Only an item of a single part takes over its
 // identifier; otherwise the identifiers of the instances are derived from the item.
-reaction NamespaceIdChanged {
-    after attribute replaced at cad::Namespace[id]
+reaction PartNameChanged {
+    after attribute replaced at cad::Assembly[name]
     call updateItemId(affectedEObject)
 }
 
-routine updateItemId(cad::Namespace namespace) {
+routine updateItemId(cad::Assembly part) {
     match {
-        val item = retrieve bom::Item corresponding to namespace
+        val item = retrieve bom::Item corresponding to part
     }
     update {
-        if (item.numberOfItems == 1 && !Objects.equals(item.id, namespace.id)) item.id = namespace.id
+        if (item.numberOfItems == 1 && !Objects.equals(item.id, part.name)) item.id = part.name
     }
 }
 
+//
+//// Parameters (named dimensional constraints, see CadUtility)
+//
+
 reaction ParameterInserted {
-    after element cad::Parameter inserted in cad::Namespace[parameters]
+    after element cad::Constraint inserted in cad::Sketch[constraints]
     call createParameterValue(newValue)
 }
 
+reaction ParameterSketchInserted {
+    after element cad::Sketch inserted in cad::Assembly[children]
+    call createParameterValues(newValue)
+}
+
+routine createParameterValues(cad::Sketch sketch) {
+    update {
+        for (constraint : sketch.constraints) createParameterValue(constraint)
+    }
+}
+
+// A constraint becomes a parameter once it is named (or gets a dimensional type)
+reaction ParameterNameChanged {
+    after attribute replaced at cad::Constraint[name]
+    call createOrUpdateParameterValue(affectedEObject)
+}
+
+reaction ParameterTypeChanged {
+    after attribute replaced at cad::Constraint[type]
+    call createOrUpdateParameterValue(affectedEObject)
+}
+
+reaction ParameterValueChanged {
+    after attribute replaced at cad::Constraint[value]
+    call updateParameterValue(affectedEObject)
+}
+
+routine createOrUpdateParameterValue(cad::Constraint parameter) {
+    update {
+        createParameterValue(parameter)
+        updateParameterValue(parameter)
+    }
+}
+
 // Parameters are identified by their name. The item may already have the value, e.g. from the
-// brake system or from another instance of the item, so it is reused.
-routine createParameterValue(cad::Parameter parameter) {
+// brake system or from another instance of the item, so it is reused. CAD values are numbers.
+routine createParameterValue(cad::Constraint parameter) {
     match {
-        val item = retrieve bom::Item corresponding to parameter.eContainer()
         require absence of bom::ParameterValue corresponding to parameter
     }
     update {
-        if (parameter.name === null || item.type === null) {
+        if (!CadUtility.isParameter(parameter)) {
             return
         }
-        val value = BomUtility.findOrCreateValue(item, parameter.name, BomUtility.dataTypeOf(parameter))
+        createParameterValueOfPart(parameter, CadUtility.partOf(parameter))
+    }
+}
+
+routine createParameterValueOfPart(cad::Constraint parameter, cad::Assembly part) {
+    match {
+        val item = retrieve bom::Item corresponding to part
+        require absence of bom::ParameterValue corresponding to parameter
+    }
+    update {
+        if (item.type === null) {
+            return
+        }
+        val value = BomUtility.findOrCreateValue(item, parameter.name, DataType.EDOUBLE)
         addCorrespondenceBetween(parameter, value)
         updateParameterValue(parameter)
     }
 }
 
-reaction ParameterDescriptionChanged {
-    after attribute replaced at cad::Parameter[description]
-    call updateParameterValue(affectedEObject)
-}
-reaction StringValueChanged {
-    after attribute replaced at cad::StringParameter[value]
-    call updateParameterValue(affectedEObject)
-}
-reaction NumericValueChanged {
-    after attribute replaced at cad::NumericParameter[value]
-    call updateParameterValue(affectedEObject)
-}
-reaction NumericUnitChanged {
-    after attribute replaced at cad::NumericParameter[unit]
-    call updateParameterValue(affectedEObject)
-}
-reaction BooleanValueChanged {
-    after attribute replaced at cad::BooleanParameter[value]
-    call updateParameterValue(affectedEObject)
-}
-
 // Numbers are written in the unit of the BOM value (see BomUtility). Parameter names are the
-// keys of the values and shared by all items of a type, so renaming a CAD parameter is not
+// keys of the values and shared by all items of a type, so renaming a CAD constraint is not
 // propagated to the BOM.
-routine updateParameterValue(cad::Parameter parameter) {
+routine updateParameterValue(cad::Constraint parameter) {
     match {
         val value = retrieve bom::ParameterValue corresponding to parameter
     }
     update {
-        if (!Objects.equals(value.description, parameter.description)) value.description = parameter.description
-        if (parameter instanceof StringParameter && value instanceof StringParameterValue) {
-            val text = (parameter as StringParameter).value
-            if (!Objects.equals((value as StringParameterValue).value, text)) (value as StringParameterValue).value = text
-        } else if (parameter instanceof NumericParameter && value instanceof NumericParameterValue) {
-            val numeric = parameter as NumericParameter
-            BomUtility.setFromCad(value as NumericParameterValue, numeric.value, numeric.unit)
-        } else if (parameter instanceof BooleanParameter && value instanceof BoolParameterValue) {
-            val flag = (parameter as BooleanParameter).value
-            if ((value as BoolParameterValue).value != flag) (value as BoolParameterValue).value = flag
+        if (CadUtility.isParameter(parameter) && value instanceof NumericParameterValue) {
+            BomUtility.setFromCad(value as NumericParameterValue, parameter.value, CadUtility.unitOf(parameter))
         }
     }
 }
 
 reaction ParameterDeleted {
-    after element cad::Parameter deleted
+    after element cad::Constraint deleted
     call deleteParameterValue(affectedEObject)
 }
 
 // A value corresponds to the parameter of every instance of the item; it is only deleted with the last one
-routine deleteParameterValue(cad::Parameter parameter) {
+routine deleteParameterValue(cad::Constraint parameter) {
     match {
         val value = retrieve bom::ParameterValue corresponding to parameter
     }
     update {
         removeCorrespondenceBetween(parameter, value)
-        if (TransitiveCorrespondenceUtility.getLiveCorresponding(executionState.correspondenceModel, value, Parameter).empty) {
+        if (TransitiveCorrespondenceUtility.getLiveCorresponding(executionState.correspondenceModel, value, Constraint).empty) {
             removeObject(value)
         }
     }
 }
 
-reaction NamespaceDeleted {
-    after element cad::Namespace deleted
+reaction PartDeleted {
+    after element cad::Assembly deleted
     call deleteItem(affectedEObject)
 }
 
-routine deleteItem(cad::Namespace namespace) {
+routine deleteItem(cad::Assembly part) {
     match {
-        val item = retrieve bom::Item corresponding to namespace
+        val item = retrieve bom::Item corresponding to part
     }
     update {
-        removeCorrespondenceBetween(namespace, item)
-        // Other namespaces of the item may have been deleted in the same change, so only live ones count
-        val remaining = TransitiveCorrespondenceUtility.getLiveCorresponding(executionState.correspondenceModel, item, Namespace).size
+        removeCorrespondenceBetween(part, item)
+        // Other parts of the item may have been deleted in the same change, so only live ones count
+        val remaining = TransitiveCorrespondenceUtility.getLiveCorresponding(executionState.correspondenceModel, item, Assembly).size
         if (remaining == 0) {
             removeObject(item)
         } else if (item.numberOfItems != remaining) {
