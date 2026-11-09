@@ -3,24 +3,37 @@ package tools.vitruv.casestudies.brakesystem.vsum.BrakeDisk2CADTests;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Consumer;
 
-import brakesystem.*;
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
-import edu.kit.ipd.sdq.metamodels.cad.Namespace;
+import brakesystem.BrakeCaliper;
+import brakesystem.BrakeComponent;
+import brakesystem.BrakeDisk;
+import brakesystem.BrakePad;
+import brakesystem.Brakesystem;
+import brakesystem.BrakesystemFactory;
+import edu.kit.ipd.sdq.metamodels.cad.Assembly;
+import edu.kit.ipd.sdq.metamodels.cad.CADDocument;
+import edu.kit.ipd.sdq.metamodels.cad.Circle;
+import edu.kit.ipd.sdq.metamodels.cad.Constraint;
+import edu.kit.ipd.sdq.metamodels.cad.ConstraintType;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
+import tools.vitruv.casestudies.brakesystem.consistency.CadUtility;
 import tools.vitruv.casestudies.brakesystem.vsum.TestBase;
 import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
-import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
 
+/**
+ * Brake components become CAD parts (Assemblies) named by their id; their length attributes become
+ * named dimensions in metres. Pads are nested in the part of their caliper.
+ */
 public class BrakeDisk2CadTest extends TestBase {
     @Override protected List<ChangePropagationSpecification> createCPS() {
         return List.of(new Cad2brakesystemChangePropagationSpecification(),
@@ -28,472 +41,180 @@ public class BrakeDisk2CadTest extends TestBase {
     }
 
     @Test void brakeDiskInsertionAndPropagationTest(@TempDir Path tempDir) throws IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
+        VirtualModel vsum = createVsum(tempDir);
+        modifyBrakesystem(vsum, brakesystem -> brakesystem.getBrakeComponents().add(createDefaultBrakeDisk()));
 
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
-            BrakeDisk brakeDisk = createDefaultBrakeDisk();
-            brakeDisk.setId("brakeDisk1");
-
-            v.getRootObjects(Brakesystem.class)
-                    .iterator()
-                    .next()
-                    .getBrakeComponents()
-                    .add(brakeDisk);
-        });
-
-        // assert that namespace with parameters as above has been created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    System.out.println(v.getRootObjects(CAD_Model.class)
-                            .iterator()
-                            .next()
-                            .getNamespaces());
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    boolean
-                            isOEMNumber =
-                            TestUtil.expectStringParameter(namespace, "OEM Number", "VW123456");
-                    boolean
-                            isDiameterInMM =
-                            TestUtil.expectNumericParameter(namespace, "Diameter", 120.0f);
-                    boolean
-                            isCenteringDiameterInMM =
-                            TestUtil.expectNumericParameter(namespace, "Centering Diameter", 20.0f);
-                    boolean
-                            isRimHoleNumber =
-                            TestUtil.expectNumericParameter(namespace, "Rim Hole Number", 1.0f);
-                    boolean
-                            isHoleArrangementNumber =
-                            TestUtil.expectNumericParameter(namespace,
-                                    "Hole Arrangement Number",
-                                    20.0f);
-                    boolean
-                            isBoltHoleCircleInMM =
-                            TestUtil.expectNumericParameter(namespace, "Bolt Hole Circle", 60.0f);
-                    boolean
-                            isBrakeDiskThicknessInMM =
-                            TestUtil.expectNumericParameter(namespace, "Brake Disk Thickness", 30);
-                    boolean
-                            isMinimumThicknessInMM =
-                            TestUtil.expectNumericParameter(namespace, "Minimum Thickness", 25);
-                    boolean
-                            isVentilated =
-                            TestUtil.expectBooleanParameter(namespace, "Ventilated", true);
-
-                    return isOEMNumber &&
-                            isDiameterInMM & isCenteringDiameterInMM &&
-                            isRimHoleNumber &&
-                            isHoleArrangementNumber &&
-                            isBoltHoleCircleInMM &&
-                            isBrakeDiskThicknessInMM &&
-                            isMinimumThicknessInMM &&
-                            isVentilated;
-                }));
-
+        Assembly part = part(vsum, "brakeDisk1");
+        Assertions.assertEquals("brakeDisk1", part.getLabel());
+        Assertions.assertTrue(TestUtil.expectDimension(part, "Diameter", 0.12));
+        Assertions.assertTrue(TestUtil.expectDimension(part, "Centering Diameter", 0.02));
+        Assertions.assertTrue(TestUtil.expectDimension(part, "Bolt Hole Circle", 0.06));
+        Assertions.assertTrue(TestUtil.expectDimension(part, "Brake Disk Thickness", 0.03));
+        Assertions.assertTrue(TestUtil.expectDimension(part, "Minimum Thickness", 0.025));
+        // Texts, flags and counts (OEM number, ventilated, rim hole number, ...) are no CAD dimensions
+        Assertions.assertEquals(5, CadUtility.parameters(part).size());
+        Assertions.assertEquals(ConstraintType.DIAMETER, CadUtility.findParameter(part, "Diameter").getType());
+        Assertions.assertEquals(ConstraintType.DISTANCE, CadUtility.findParameter(part, "Brake Disk Thickness").getType());
     }
 
-    @Test void brakePadInsertionAndPropagationTest(@TempDir Path tempDir) throws IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
+    @Test void unsetLengthsGetNoDimension(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
+        modifyBrakesystem(vsum, brakesystem -> {
+            BrakeDisk brakeDisk = BrakesystemFactory.eINSTANCE.createBrakeDisk();
+            brakeDisk.setId("brakeDisk1");
+            brakeDisk.setDiameterInMM(120);
+            brakesystem.getBrakeComponents().add(brakeDisk);
+        });
 
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
+        Assertions.assertEquals(List.of("Diameter"), CadUtility.parameters(part(vsum, "brakeDisk1")).stream().map(Constraint::getName).toList());
+    }
+
+    @Test void brakePadIsNestedInThePartOfItsCaliper(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
+        modifyBrakesystem(vsum, brakesystem -> {
             BrakeCaliper brakeCaliper = BrakesystemFactory.eINSTANCE.createBrakeCaliper();
             brakeCaliper.setId("brakeCaliper1");
             brakeCaliper.setPistonDiameterInMM(50);
-
             BrakePad brakePad = BrakesystemFactory.eINSTANCE.createBrakePad();
             brakePad.setId("brakePad1");
             brakePad.setWearWarning(true);
+            brakePad.setThicknessInMM(12);
             brakeCaliper.getBrakePads().add(brakePad);
-
-            v.getRootObjects(Brakesystem.class)
-                    .iterator()
-                    .next()
-                    .getBrakeComponents()
-                    .add(brakeCaliper);
+            brakesystem.getBrakeComponents().add(brakeCaliper);
         });
 
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    System.out.println(v.getRootObjects(CAD_Model.class)
-                            .iterator()
-                            .next()
-                            .getNamespaces());
-                    Namespace
-                            caliperNamespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeCaliper1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    boolean
-                            isPistonDiameterInMM =
-                            TestUtil.expectNumericParameter(caliperNamespace,
-                                    "Piston Diameter",
-                                    50.0f);
+        CADDocument document = document(vsum);
+        Assembly caliper = TestUtil.findPart(document, "brakeCaliper1");
+        Assembly pad = TestUtil.findPart(document, "brakePad1");
+        Assertions.assertTrue(TestUtil.expectDimension(caliper, "Piston Diameter", 0.05));
+        Assertions.assertSame(caliper, pad.eContainer()); // same view
+        Assertions.assertTrue(TestUtil.expectDimension(pad, "Thickness", 0.012));
+        Assertions.assertEquals(1, CadUtility.parameters(pad).size());
+    }
 
-                    Namespace
-                            padNamespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakePad1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    boolean
-                            isWearWarning =
-                            TestUtil.expectBooleanParameter(padNamespace, "Wear Warning", true);
+    @Test void movingABrakePadMovesItsPart(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
+        modifyBrakesystem(vsum, brakesystem -> {
+            BrakeCaliper first = BrakesystemFactory.eINSTANCE.createBrakeCaliper();
+            first.setId("brakeCaliper1");
+            BrakeCaliper second = BrakesystemFactory.eINSTANCE.createBrakeCaliper();
+            second.setId("brakeCaliper2");
+            BrakePad brakePad = BrakesystemFactory.eINSTANCE.createBrakePad();
+            brakePad.setId("brakePad1");
+            first.getBrakePads().add(brakePad);
+            brakesystem.getBrakeComponents().addAll(List.of(first, second));
+        });
 
-                    return isPistonDiameterInMM && isWearWarning;
-                }));
+        modifyBrakesystem(vsum, brakesystem -> ((BrakeCaliper) component(brakesystem, "brakeCaliper2"))
+                .getBrakePads().add(((BrakeCaliper) component(brakesystem, "brakeCaliper1")).getBrakePads().get(0)));
+        Assertions.assertEquals("brakeCaliper2", ((Assembly) part(vsum, "brakePad1").eContainer()).getName());
 
+        modifyBrakesystem(vsum, brakesystem -> brakesystem.getBrakeComponents()
+                .add(((BrakeCaliper) component(brakesystem, "brakeCaliper2")).getBrakePads().get(0)));
+        Assertions.assertInstanceOf(CADDocument.class, part(vsum, "brakePad1").eContainer());
     }
 
     @Test void changeDiameterTest(@TempDir Path tempDir) throws IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
-
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
+        VirtualModel vsum = createVsum(tempDir);
+        modifyBrakesystem(vsum, brakesystem -> {
             BrakeDisk brakeDisk = BrakesystemFactory.eINSTANCE.createBrakeDisk();
             brakeDisk.setId("brakeDisk1");
             brakeDisk.setDiameterInMM(120);
-            v.getRootObjects(Brakesystem.class)
-                    .iterator()
-                    .next()
-                    .getBrakeComponents()
-                    .add(brakeDisk);
+            brakesystem.getBrakeComponents().add(brakeDisk);
         });
+        Assertions.assertTrue(TestUtil.expectDimension(part(vsum, "brakeDisk1"), "Diameter", 0.12));
 
-        // assert that namespace with parameters as above has been created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return TestUtil.expectNumericParameter(namespace, "Diameter", 120);
-                }));
+        modifyBrakesystem(vsum, brakesystem -> ((BrakeDisk) component(brakesystem, "brakeDisk1")).setDiameterInMM(130));
 
-        // change diameter
-        util.modifyView(view, (CommittableView v) -> {
-            BrakeDisk
-                    brakeDisk =
-                    v.getRootObjects(Brakesystem.class)
-                            .iterator()
-                            .next()
-                            .getBrakeComponents()
-                            .stream()
-                            .filter(BrakeDisk.class::isInstance)
-                            .map(BrakeDisk.class::cast)
-                            .findFirst()
-                            .orElseThrow();
-            brakeDisk.setDiameterInMM(130);
-        });
-
-        // assert that namespace with parameters as above has been created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return TestUtil.expectNumericParameter(namespace, "Diameter", 130);
-                }));
+        Constraint diameter = CadUtility.findParameter(part(vsum, "brakeDisk1"), "Diameter");
+        Assertions.assertEquals(0.13, diameter.getValue(), 1e-12);
+        // The constrained construction circle follows, as the sketch solver would do
+        Assertions.assertEquals(0.065, ((Circle) diameter.getFirst()).getRadius(), 1e-12);
     }
 
-    @Test void changeNumericParameterTest(@TempDir Path tempDir) throws IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
-
-        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class))
-                .withChangeRecordingTrait(), (CommittableView v) -> {
+    @Test void changeDimensionInCadTest(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
+        modifyBrakesystem(vsum, brakesystem -> {
             BrakeDisk brakeDisk = BrakesystemFactory.eINSTANCE.createBrakeDisk();
             brakeDisk.setId("brakeDisk1");
             brakeDisk.setDiameterInMM(120);
-            v.getRootObjects(Brakesystem.class)
-                    .iterator()
-                    .next()
-                    .getBrakeComponents()
-                    .add(brakeDisk);
+            brakesystem.getBrakeComponents().add(brakeDisk);
         });
 
-        util.modifyView(util.getDefaultView(vsum, List.of(CAD_Model.class))
-                .withChangeRecordingTrait(), (CommittableView v) -> {
-            Namespace
-                    namespace =
-                    v.getRootObjects(CAD_Model.class)
-                            .iterator()
-                            .next()
-                            .getNamespaces()
-                            .stream()
-                            .filter(ns -> ns.getId().equals("brakeDisk1"))
-                            .findFirst()
-                            .orElseThrow();
-            NumericParameter
-                    parameter =
-                    (NumericParameter) namespace.getParameters()
-                            .stream()
-                            .filter(p -> p.getName().equals("Diameter"))
-                            .findFirst()
-                            .orElseThrow();
-            parameter.setValue(130);
-        });
+        util.modifyView(cadView(vsum), (CommittableView v) -> CadUtility.findParameter(
+                TestUtil.findPart(v.getRootObjects(CADDocument.class).iterator().next(), "brakeDisk1"), "Diameter").setValue(0.13));
 
-        // assert that namespace with parameters as above has been created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> {
-                    BrakeDisk
-                            brakeDisk =
-                            v.getRootObjects(Brakesystem.class)
-                                    .iterator()
-                                    .next()
-                                    .getBrakeComponents()
-                                    .stream()
-                                    .filter(BrakeDisk.class::isInstance)
-                                    .map(BrakeDisk.class::cast)
-                                    .findFirst()
-                                    .orElseThrow();
-                    return brakeDisk.getDiameterInMM() == 130;
-                }));
+        Assertions.assertEquals(130, ((BrakeDisk) component(brakesystem(vsum), "brakeDisk1")).getDiameterInMM());
     }
 
     @Test void changeIdTest(@TempDir Path tempDir) throws IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
+        VirtualModel vsum = createVsum(tempDir);
+        modifyBrakesystem(vsum, brakesystem -> brakesystem.getBrakeComponents().add(createDefaultBrakeDisk()));
 
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
-            BrakeDisk brakeDisk = createDefaultBrakeDisk();
-            v.getRootObjects(Brakesystem.class)
-                    .iterator()
-                    .next()
-                    .getBrakeComponents()
-                    .add(brakeDisk);
-        });
+        modifyBrakesystem(vsum, brakesystem -> component(brakesystem, "brakeDisk1").setId("newId"));
 
-        // assert that namespace with parameters as above has been created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return namespace.getId().equals("brakeDisk1") &&
-                            TestUtil.expectStringParameter(namespace, "OEM Number", "VW123456");
-                }));
-
-        // change id
-        util.modifyView(view, (CommittableView v) -> {
-            BrakeDisk
-                    brakeDisk =
-                    v.getRootObjects(Brakesystem.class)
-                            .iterator()
-                            .next()
-                            .getBrakeComponents()
-                            .stream()
-                            .filter(BrakeDisk.class::isInstance)
-                            .map(BrakeDisk.class::cast)
-                            .findFirst()
-                            .orElseThrow();
-            brakeDisk.setId("newId");
-        });
-
-        // assert that namespace with parameters as above has been created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("newId"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return TestUtil.expectStringParameter(namespace, "OEM Number", "VW123456");
-                }));
+        Assembly part = part(vsum, "newId");
+        Assertions.assertTrue(TestUtil.expectDimension(part, "Diameter", 0.12));
+        Assertions.assertEquals("newId_Parameters", CadUtility.findParameterSketch(part).getName());
+        Assertions.assertNull(TestUtil.findPart(document(vsum), "brakeDisk1"));
     }
 
-    @Test void changeVentilatedTest(@TempDir Path tempDir) throws IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
+    @Test void deleteBrakeComponentTest(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
+        modifyBrakesystem(vsum, brakesystem -> brakesystem.getBrakeComponents().add(createDefaultBrakeDisk()));
 
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
-            BrakeDisk brakeDisk = createDefaultBrakeDisk();
-            v.getRootObjects(Brakesystem.class)
-                    .iterator()
-                    .next()
-                    .getBrakeComponents()
-                    .add(brakeDisk);
-        });
+        modifyBrakesystem(vsum, brakesystem -> EcoreUtil.delete(component(brakesystem, "brakeDisk1")));
 
-        // assert that namespace with parameters as above has been created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return TestUtil.expectBooleanParameter(namespace, "Ventilated", true);
-                }));
-
-        // change ventilated
-        util.modifyView(view, (CommittableView v) -> {
-            BrakeDisk
-                    brakeDisk =
-                    v.getRootObjects(Brakesystem.class)
-                            .iterator()
-                            .next()
-                            .getBrakeComponents()
-                            .stream()
-                            .filter(BrakeDisk.class::isInstance)
-                            .map(BrakeDisk.class::cast)
-                            .findFirst()
-                            .orElseThrow();
-            brakeDisk.setVentilated(false);
-        });
-
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return TestUtil.expectBooleanParameter(namespace, "Ventilated", false);
-                }));
+        Assertions.assertTrue(document(vsum).getObjects().isEmpty());
     }
 
-    @Test void changeOEMNumberTest(@TempDir Path tempDir) throws IOException {
+    private VirtualModel createVsum(Path tempDir) throws IOException {
         VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
         util.registerRootObjects(vsum, tempDir);
-
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
-            BrakeDisk brakeDisk = createDefaultBrakeDisk();
-            v.getRootObjects(Brakesystem.class)
-                    .iterator()
-                    .next()
-                    .getBrakeComponents()
-                    .add(brakeDisk);
-        });
-
-        // assert that namespace with parameters as above has been created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return TestUtil.expectStringParameter(namespace, "OEM Number", "VW123456");
-                }));
-
-        // change OEM number
-        util.modifyView(view, (CommittableView v) -> {
-            BrakeDisk
-                    brakeDisk =
-                    v.getRootObjects(Brakesystem.class)
-                            .iterator()
-                            .next()
-                            .getBrakeComponents()
-                            .stream()
-                            .filter(BrakeDisk.class::isInstance)
-                            .map(BrakeDisk.class::cast)
-                            .findFirst()
-                            .orElseThrow();
-            brakeDisk.setOEM_number("VW654321");
-        });
-
-        // assert that namespace with parameters as above has been created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElseThrow();
-                    return TestUtil.expectStringParameter(namespace, "OEM Number", "VW654321");
-                }));
-
+        return vsum;
     }
 
-    private BrakeDisk createDefaultBrakeDisk() {
+    private void modifyBrakesystem(VirtualModel vsum, Consumer<Brakesystem> modification) {
+        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait(),
+                (CommittableView v) -> modification.accept(v.getRootObjects(Brakesystem.class).iterator().next()));
+    }
+
+    private CommittableView cadView(VirtualModel vsum) {
+        return util.getDefaultView(vsum, List.of(CADDocument.class)).withChangeRecordingTrait();
+    }
+
+    private Brakesystem brakesystem(VirtualModel vsum) {
+        return util.getDefaultView(vsum, List.of(Brakesystem.class)).getRootObjects(Brakesystem.class).iterator().next();
+    }
+
+    private CADDocument document(VirtualModel vsum) {
+        return util.getDefaultView(vsum, List.of(CADDocument.class)).getRootObjects(CADDocument.class).iterator().next();
+    }
+
+    private Assembly part(VirtualModel vsum, String name) {
+        Assembly part = TestUtil.findPart(document(vsum), name);
+        Assertions.assertNotNull(part, "no CAD part " + name);
+        return part;
+    }
+
+    /** The component with the given id, also a pad of a caliper. */
+    private static BrakeComponent component(Brakesystem brakesystem, String id) {
+        for (BrakeComponent component : brakesystem.getBrakeComponents()) {
+            if (id.equals(component.getId())) {
+                return component;
+            }
+            if (component instanceof BrakeCaliper caliper) {
+                for (BrakePad pad : caliper.getBrakePads()) {
+                    if (id.equals(pad.getId())) {
+                        return pad;
+                    }
+                }
+            }
+        }
+        throw new AssertionError("no brake component " + id);
+    }
+
+    private static BrakeDisk createDefaultBrakeDisk() {
         BrakeDisk brakeDisk = BrakesystemFactory.eINSTANCE.createBrakeDisk();
         brakeDisk.setId("brakeDisk1");
         brakeDisk.setOEM_number("VW123456");
