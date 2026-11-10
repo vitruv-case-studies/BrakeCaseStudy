@@ -1,56 +1,213 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="cad" nsURI="http://www.example.org/cad"
-  nsPrefix="cad">
-  <eClassifiers xsi:type="ecore:EClass" name="CAD_Model">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="id"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" />
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" />
-    <eStructuralFeatures xsi:type="ecore:EReference" name="namespaces" upperBound="-1"
-      eType="#//Namespace" containment="true" />
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="cad" nsURI="http://demonstrator.kit.edu/cad" nsPrefix="cad">
+  <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+    <details key="documentation" value="Generic CAD metamodel (mockup).&#xA;&#xA;Follows the document structure of FreeCAD (App::Document, Sketcher, Part/PartDesign), which itself sits on OCCT, so every class maps onto a FreeCAD object type.&#xA;&#xA;Units: lengths in metres, angles in degrees, density in kg/m³. A tool adapter converts (FreeCAD works in mm)."/>
+  </eAnnotations>
+  <eClassifiers xsi:type="ecore:EClass" name="CADDocument">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Root element. Corresponds to a FreeCAD App::Document (one .FCStd file)."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="objects" upperBound="-1"
+        eType="#//Object" containment="true">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="Top-level objects. Objects inside an Assembly are contained there instead."/>
+      </eAnnotations>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="materials" upperBound="-1"
+        eType="#//Material" containment="true"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="Namespace">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="id"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" />
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" />
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="description"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" />
-    <eStructuralFeatures xsi:type="ecore:EReference" name="parameters" upperBound="-1"
-      eType="#//Parameter" containment="true" />
+  <eClassifiers xsi:type="ecore:EClass" name="Object" abstract="true">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Anything in the document tree. Corresponds to App::DocumentObject."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="Internal name, unique in the document and stable (FreeCAD: Name)."/>
+      </eAnnotations>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="label" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="User-visible name, may be renamed (FreeCAD: Label)."/>
+      </eAnnotations>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="visible" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"
+        defaultValueLiteral="true"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="x" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="0.0">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="Placement (Base.Placement, OCCT gp_Trsf) relative to the parent: translation x, y, z, then rotation by rotationAngle around the rotation axis. Defaults are the identity."/>
+      </eAnnotations>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="y" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="0.0"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="z" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="0.0"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="rotationAxisX" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="0.0"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="rotationAxisY" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="0.0"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="rotationAxisZ" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="1.0"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="rotationAngle" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="0.0"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="Parameter">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="id"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" />
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" />
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="description"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" />
+  <eClassifiers xsi:type="ecore:EClass" name="Assembly" eSuperTypes="#//Object">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Groups objects into a (sub-)assembly with its own placement (x, y, z, rotation). Corresponds to App::Part, or a product in STEP."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="children" upperBound="-1"
+        eType="#//Object" containment="true"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="NumericParameter" eSuperTypes="#//Parameter">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="value"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EFloat" />
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="unit" eType="#//Unit" />
+  <eClassifiers xsi:type="ecore:EClass" name="Sketch" eSuperTypes="#//Object">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="A 2D figure in the local XY plane given by its placement. Corresponds to Sketcher::SketchObject."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="geometries" upperBound="-1"
+        eType="#//Geometry2D" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="constraints" upperBound="-1"
+        eType="#//Constraint" containment="true"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="StringParameter" eSuperTypes="#//Parameter">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="value"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" />
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="unit" eType="#//Unit" />
+  <eClassifiers xsi:type="ecore:EClass" name="Geometry2D" abstract="true">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="A sketch element. Corresponds to an entry of SketchObject.Geometry (Part::Geom2d*)."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="construction" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"
+        defaultValueLiteral="false">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="Construction geometry helps constraining but is not part of the profile."/>
+      </eAnnotations>
+    </eStructuralFeatures>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="BooleanParameter" eSuperTypes="#//Parameter">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="value"
-      eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean" />
+  <eClassifiers xsi:type="ecore:EClass" name="LineSegment" eSuperTypes="#//Geometry2D">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="start" lowerBound="1" eType="#//Vector2"
+        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="end" lowerBound="1" eType="#//Vector2"
+        containment="true"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EEnum" name="Unit">
-    <eLiterals name="MM" literal="mm" />
-    <eLiterals name="CM" value="1" literal="cm" />
-    <eLiterals name="NM" value="2" literal="nm" />
-    <eLiterals name="UM" value="3" literal="um" />
-    <eLiterals name="M" value="4" literal="m" />
-    <eLiterals name="INCH" value="10" literal="in" />
-    <eLiterals name="FT" value="11" literal="ft" />
-    <eLiterals name="COUNT" value="20" />
+  <eClassifiers xsi:type="ecore:EClass" name="Circle" eSuperTypes="#//Geometry2D">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="A circle, or an arc counter-clockwise from startAngle to endAngle (FreeCAD: Part::GeomCircle if 0..360, else Part::GeomArcOfCircle)."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="center" lowerBound="1"
+        eType="#//Vector2" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="radius" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="startAngle" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="0.0"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="endAngle" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="360.0"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Constraint">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="A sketch constraint (Sketcher::Constraint): a type, up to two referenced geometries with the point on each, and a value for the dimensional types (Distance, Radius, Diameter, Angle).&#xA;Coincident joins first/firstPos and second/secondPos (e.g. the end of one LineSegment and the start of the next) and has no value."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="Named constraints can be addressed from outside (FreeCAD: Sketch.setDatum(name, value)), e.g. as a design parameter."/>
+      </eAnnotations>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="type" lowerBound="1" eType="#//ConstraintType"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="value" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="driving" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"
+        defaultValueLiteral="true">
+      <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+        <details key="documentation" value="false: a reference dimension, measured but not enforced."/>
+      </eAnnotations>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="first" lowerBound="1" eType="#//Geometry2D"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="firstPos" eType="#//PointPos"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="second" eType="#//Geometry2D"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="secondPos" eType="#//PointPos"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="ConstraintType">
+    <eLiterals name="Distance"/>
+    <eLiterals name="Radius" value="1"/>
+    <eLiterals name="Diameter" value="2"/>
+    <eLiterals name="Angle" value="3"/>
+    <eLiterals name="Coincident" value="4"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="PointPos">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Which point of a geometry a constraint refers to (Sketcher::PointPos)."/>
+    </eAnnotations>
+    <eLiterals name="none"/>
+    <eLiterals name="start" value="1"/>
+    <eLiterals name="end" value="2"/>
+    <eLiterals name="mid" value="3"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Solid" abstract="true" eSuperTypes="#//Object">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="An object producing a 3D shape (Part::Feature, an OCCT TopoDS_Solid)."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="material" eType="#//Material"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Primitive" abstract="true" eSuperTypes="#//Solid"/>
+  <eClassifiers xsi:type="ecore:EClass" name="Box" eSuperTypes="#//Primitive">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Part::Box, a corner at the placement origin."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="length" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="width" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="height" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Cylinder" eSuperTypes="#//Primitive">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Part::Cylinder along the local z axis."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="radius" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="height" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Cone" eSuperTypes="#//Primitive">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="radius1" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="radius2" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="height" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Sphere" eSuperTypes="#//Primitive">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="radius" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Extrusion" eSuperTypes="#//Solid">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Extrudes a closed sketch along its normal (PartDesign::Pad / Part::Extrusion)."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="profile" lowerBound="1" eType="#//Sketch"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="length" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="symmetric" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"
+        defaultValueLiteral="false"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="reversed" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"
+        defaultValueLiteral="false"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Revolution" eSuperTypes="#//Solid">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Revolves a sketch around the sketch's vertical axis (PartDesign::Revolution with ReferenceAxis = V_Axis)."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="profile" lowerBound="1" eType="#//Sketch"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="angle" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="360.0"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="BooleanOperation" eSuperTypes="#//Solid">
+    <eAnnotations source="http://www.eclipse.org/emf/2002/GenModel">
+      <details key="documentation" value="Combines solids (Part::Fuse / Part::Cut / Part::Common, OCCT BRepAlgoAPI_*). The operands stay in the tree, usually hidden."/>
+    </eAnnotations>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="operation" lowerBound="1"
+        eType="#//BooleanType"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="base" lowerBound="1" eType="#//Solid"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="tools" lowerBound="1" upperBound="-1"
+        eType="#//Solid"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="BooleanType">
+    <eLiterals name="Fuse"/>
+    <eLiterals name="Cut" value="1"/>
+    <eLiterals name="Common" value="2"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Material">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" lowerBound="1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="density" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Vector2">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="x" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="0.0"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="y" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"
+        defaultValueLiteral="0.0"/>
   </eClassifiers>
 </ecore:EPackage>

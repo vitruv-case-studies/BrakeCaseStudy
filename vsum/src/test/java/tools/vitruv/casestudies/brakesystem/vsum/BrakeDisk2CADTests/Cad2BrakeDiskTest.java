@@ -3,33 +3,37 @@ package tools.vitruv.casestudies.brakesystem.vsum.BrakeDisk2CADTests;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Consumer;
 
-import brakesystem.BrakeCaliper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import brakesystem.ABSSensor;
+import brakesystem.BrakeCaliper;
+import brakesystem.BrakeComponent;
 import brakesystem.BrakeDisk;
+import brakesystem.BrakePad;
 import brakesystem.Brakesystem;
-import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
-import edu.kit.ipd.sdq.metamodels.cad.CAD_Model;
-import edu.kit.ipd.sdq.metamodels.cad.CadFactory;
-import edu.kit.ipd.sdq.metamodels.cad.Namespace;
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
-import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
-import edu.kit.ipd.sdq.metamodels.cad.Unit;
+import edu.kit.ipd.sdq.metamodels.cad.Assembly;
+import edu.kit.ipd.sdq.metamodels.cad.CADDocument;
+import edu.kit.ipd.sdq.metamodels.cad.ConstraintType;
 import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
 import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
+import tools.vitruv.casestudies.brakesystem.consistency.CadUtility;
 import tools.vitruv.casestudies.brakesystem.vsum.TestBase;
 import tools.vitruv.casestudies.brakesystem.vsum.TestUtil;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.framework.views.CommittableView;
-import tools.vitruv.framework.views.View;
 import tools.vitruv.framework.vsum.VirtualModel;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * CAD parts (Assemblies) become brake components chosen by the user; named dimensions (in metres)
+ * become the length attributes (in whole millimetres). A part nested in the part of a caliper is
+ * a brake pad of that caliper.
+ */
 public class Cad2BrakeDiskTest extends TestBase {
     @Override protected List<ChangePropagationSpecification> createCPS() {
         return List.of(new Cad2brakesystemChangePropagationSpecification(),
@@ -37,383 +41,170 @@ public class Cad2BrakeDiskTest extends TestBase {
     }
 
     @Test void brakeDiskInsertionAndPropagationTest(@TempDir Path tempDir) throws IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
-        // Setting the user interaction to 0, thus an ABSSensor should be created
-        util.userInteraction.addNextSingleSelection(0);
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
-            namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-        });
+        VirtualModel vsum = createVsum(tempDir);
+        util.userInteraction.addNextSingleSelection(0); // ABSSensor
+        modifyCad(vsum, document -> document.getObjects().add(TestUtil.createPart("brakeDisk1")));
 
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> !v.getRootObjects(Brakesystem.class)
-                        .iterator()
-                        .next()
-                        .getBrakeComponents()
-                        .isEmpty() &&
-                        v.getRootObjects(Brakesystem.class)
-                                .iterator()
-                                .next()
-                                .getBrakeComponents()
-                                .get(0) instanceof ABSSensor));
+        BrakeComponent component = single(brakesystem(vsum).getBrakeComponents());
+        assertInstanceOf(ABSSensor.class, component);
+        assertEquals("brakeDisk1", component.getId());
     }
 
     @Test void nochoice(@TempDir Path tempDir) throws IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeRecordingTrait();
-        assertThrows(RuntimeException.class, () -> util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
-            namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-        }));
+        VirtualModel vsum = createVsum(tempDir);
+        assertThrows(RuntimeException.class,
+                () -> modifyCad(vsum, document -> document.getObjects().add(TestUtil.createPart("brakeDisk1"))));
     }
 
-    @Test void parameterInsertionAndPropagationTestForABSSensor(@TempDir Path tempDir) throws
-            IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
-        // Setting the user interaction to 0, thus an ABSSensor should be created
-        util.userInteraction.addNextSingleSelection(0);
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
-            namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-            namespace.getParameters().add(CadFactory.eINSTANCE.createStringParameter());
-
-            StringParameter parameter = CadFactory.eINSTANCE.createStringParameter();
-            parameter.setName("Specification Type");
-            parameter.setValue("some example specification");
-            namespace.getParameters().add(parameter);
-
-            NumericParameter numericParameter = CadFactory.eINSTANCE.createNumericParameter();
-            numericParameter.setName("Length");
-            numericParameter.setValue(100);
-            namespace.getParameters().add(numericParameter);
+    @Test void parameterInsertionAndPropagationTestForABSSensor(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
+        util.userInteraction.addNextSingleSelection(0); // ABSSensor
+        modifyCad(vsum, document -> {
+            Assembly part = TestUtil.createPart("sensor1");
+            document.getObjects().add(part);
+            TestUtil.addLength(part, "Length", 0.1);
+            TestUtil.addLength(part, "Fitting Depth", 0.0125);
         });
 
-        // Assert that the ABSSensor was created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> !v.getRootObjects(Brakesystem.class)
-                        .iterator()
-                        .next()
-                        .getBrakeComponents()
-                        .isEmpty() &&
-                        v.getRootObjects(Brakesystem.class)
-                                .iterator()
-                                .next()
-                                .getBrakeComponents()
-                                .get(0) instanceof ABSSensor));
-
-        // Assert that the parameters were propagated correctly
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> {
-                    ABSSensor
-                            sensor =
-                            (ABSSensor) v.getRootObjects(Brakesystem.class)
-                                    .iterator()
-                                    .next()
-                                    .getBrakeComponents()
-                                    .get(0);
-                    return sensor.getSpecificationType().equals("some example specification") &&
-                            sensor.getLengthInMM() == 100;
-                }));
-
+        ABSSensor sensor = (ABSSensor) single(brakesystem(vsum).getBrakeComponents());
+        assertEquals(100, sensor.getLengthInMM());
+        // Whole millimetres in the brake system
+        assertEquals(13, sensor.getFittingDepth());
+        // The more precise CAD value is not overwritten by the propagated whole millimetres
+        assertTrue(TestUtil.expectDimension(part(vsum, "sensor1"), "Fitting Depth", 0.0125));
     }
 
-    @Test void parameterInsertionAndPropagationForBrakeDiskTest(@TempDir Path tempDir) throws
-            IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
-        // Setting the user interaction to 0, thus an ABSSensor should be created
-        util.userInteraction.addNextSingleSelection(3);
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
-            namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-            namespace.getParameters().add(CadFactory.eINSTANCE.createStringParameter());
-
-            BooleanParameter parameter = CadFactory.eINSTANCE.createBooleanParameter();
-            parameter.setName("Ventilated");
-            parameter.setValue(true);
-            namespace.getParameters().add(parameter);
-
-            NumericParameter numericParameter = CadFactory.eINSTANCE.createNumericParameter();
-            numericParameter.setName("Brake Disk Thickness");
-            numericParameter.setValue(30);
-            numericParameter.setUnit(Unit.MM);
-            namespace.getParameters().add(numericParameter);
+    @Test void parameterInsertionAndPropagationForBrakeDiskTest(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
+        util.userInteraction.addNextSingleSelection(3); // BrakeDisk
+        modifyCad(vsum, document -> {
+            Assembly part = TestUtil.createPart("brakeDisk1");
+            document.getObjects().add(part);
+            TestUtil.addLength(part, "Brake Disk Thickness", 0.03);
+            TestUtil.addLength(part, "Diameter", 0.28);
+            // An angle is no length and is ignored
+            TestUtil.addDimension(part, "Minimum Thickness", ConstraintType.ANGLE, 45);
         });
 
-        // Assert that the ABSSensor was created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> !v.getRootObjects(Brakesystem.class)
-                        .iterator()
-                        .next()
-                        .getBrakeComponents()
-                        .isEmpty() &&
-                        v.getRootObjects(Brakesystem.class)
-                                .iterator()
-                                .next()
-                                .getBrakeComponents()
-                                .get(0) instanceof BrakeDisk));
-
-        // Assert that the parameters were propagated correctly
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> {
-                    BrakeDisk
-                            disk =
-                            (BrakeDisk) v.getRootObjects(Brakesystem.class)
-                                    .iterator()
-                                    .next()
-                                    .getBrakeComponents()
-                                    .get(0);
-                    return disk.isVentilated() && disk.getBrakeDiskThicknessInMM() == 30;
-                }));
-
+        BrakeDisk disk = (BrakeDisk) single(brakesystem(vsum).getBrakeComponents());
+        assertEquals(30, disk.getBrakeDiskThicknessInMM());
+        assertEquals(280, disk.getDiameterInMM());
+        assertEquals(0, disk.getMinimumThicknessInMM());
     }
 
-    @Test void parameterInsertionAndPropagationForBrakePadTest(@TempDir Path tempDir) throws
-            IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
-
+    @Test void parameterInsertionAndPropagationForBrakePadTest(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
         util.userInteraction.addNextSingleSelection(1); // Caliper
-        util.modifyView(util.getDefaultView(vsum, List.of(CAD_Model.class))
-                .withChangeRecordingTrait(), (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
-            namespace.setId("brakeCaliper1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-        });
-
+        modifyCad(vsum, document -> document.getObjects().add(TestUtil.createPart("brakeCaliper1")));
         util.userInteraction.addNextSingleSelection(1); // Caliper
-        util.modifyView(util.getDefaultView(vsum, List.of(CAD_Model.class))
-                .withChangeRecordingTrait(), (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
-            namespace.setId("brakeCaliper2");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-        });
+        modifyCad(vsum, document -> document.getObjects().add(TestUtil.createPart("brakeCaliper2")));
 
-        util.userInteraction.addNextSingleSelection(4); // Break Pad
+        util.userInteraction.addNextSingleSelection(4); // Brake Pad
         util.userInteraction.addNextSingleSelection(1); // Second caliper
-        util.modifyView(util.getDefaultView(vsum, List.of(CAD_Model.class))
-                .withChangeRecordingTrait(), (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
-            namespace.setId("brakePad1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-        });
+        modifyCad(vsum, document -> document.getObjects().add(TestUtil.createPart("brakePad1")));
 
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> {
-                    Brakesystem brakesystem = v.getRootObjects(Brakesystem.class).iterator().next();
-                    BrakeCaliper
-                            caliper1 =
-                            brakesystem.getBrakeComponents()
-                                    .stream()
-                                    .filter(c -> c instanceof BrakeCaliper &&
-                                            c.getId().equals("brakeCaliper1"))
-                                    .map(BrakeCaliper.class::cast)
-                                    .findFirst()
-                                    .orElseThrow();
-                    BrakeCaliper
-                            caliper2 =
-                            brakesystem.getBrakeComponents()
-                                    .stream()
-                                    .filter(c -> c instanceof BrakeCaliper &&
-                                            c.getId().equals("brakeCaliper2"))
-                                    .map(BrakeCaliper.class::cast)
-                                    .findFirst()
-                                    .orElseThrow();
-
-                    return caliper1.getBrakePads().isEmpty() &&
-                            caliper2.getBrakePads().size() == 1 &&
-                            caliper2.getBrakePads().getFirst().getId().equals("brakePad1");
-                }));
+        Brakesystem brakesystem = brakesystem(vsum);
+        assertTrue(caliper(brakesystem, "brakeCaliper1").getBrakePads().isEmpty());
+        assertEquals("brakePad1", single(caliper(brakesystem, "brakeCaliper2").getBrakePads()).getId());
     }
 
-    // Edit same parameter/attribute in both models and check if the change is
-    // propagated
-    // back and forth correctly
+    @Test void nestedPartOfACaliperIsOneOfItsPads(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
+        util.userInteraction.addNextSingleSelection(1); // Caliper
+        modifyCad(vsum, document -> document.getObjects().add(TestUtil.createPart("brakeCaliper1")));
+        util.userInteraction.addNextSingleSelection(1); // Caliper
+        modifyCad(vsum, document -> document.getObjects().add(TestUtil.createPart("brakeCaliper2")));
+
+        // No question for the caliper: the parent part decides
+        util.userInteraction.addNextSingleSelection(4); // Brake Pad
+        modifyCad(vsum, document -> {
+            Assembly pad = TestUtil.createPart("brakePad1");
+            TestUtil.findPart(document, "brakeCaliper1").getChildren().add(pad);
+            TestUtil.addLength(pad, "Thickness", 0.012);
+        });
+
+        BrakePad pad = single(caliper(brakesystem(vsum), "brakeCaliper1").getBrakePads());
+        assertEquals("brakePad1", pad.getId());
+        assertEquals(12, pad.getThicknessInMM());
+
+        // Moving the part into the other caliper's part moves the pad
+        modifyCad(vsum, document -> TestUtil.findPart(document, "brakeCaliper2").getChildren().add(TestUtil.findPart(document, "brakePad1")));
+        assertTrue(caliper(brakesystem(vsum), "brakeCaliper1").getBrakePads().isEmpty());
+        assertEquals("brakePad1", single(caliper(brakesystem(vsum), "brakeCaliper2").getBrakePads()).getId());
+
+        // ... and moving it to the top level detaches it from the calipers
+        modifyCad(vsum, document -> document.getObjects().add(TestUtil.findPart(document, "brakePad1")));
+        assertTrue(caliper(brakesystem(vsum), "brakeCaliper2").getBrakePads().isEmpty());
+        assertTrue(brakesystem(vsum).getBrakeComponents().stream().anyMatch(c -> c instanceof BrakePad && c.getId().equals("brakePad1")));
+    }
+
+    @Test void partNameIsComponentId(@TempDir Path tempDir) throws IOException {
+        VirtualModel vsum = createVsum(tempDir);
+        util.userInteraction.addNextSingleSelection(3); // BrakeDisk
+        modifyCad(vsum, document -> document.getObjects().add(TestUtil.createPart("brakeDisk1")));
+
+        modifyCad(vsum, document -> TestUtil.findPart(document, "brakeDisk1").setName("frontDisk"));
+
+        assertEquals("frontDisk", single(brakesystem(vsum).getBrakeComponents()).getId());
+    }
+
+    // Edit the same dimension in both models and check that it is propagated back and forth
     @Test void biDirectionalPropagationTest(@TempDir Path tempDir) throws IOException {
-        // Starting from the CAD model
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
-        // Setting the user interaction to 0, thus an ABSSensor should be created
-        util.userInteraction.addNextSingleSelection(0);
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
-            namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-
-            StringParameter parameter = CadFactory.eINSTANCE.createStringParameter();
-            parameter.setName("Specification Type");
-            parameter.setValue("some example specification");
-            namespace.getParameters().add(parameter);
+        VirtualModel vsum = createVsum(tempDir);
+        util.userInteraction.addNextSingleSelection(0); // ABSSensor
+        modifyCad(vsum, document -> {
+            Assembly part = TestUtil.createPart("sensor1");
+            document.getObjects().add(part);
+            TestUtil.addLength(part, "Length", 0.1);
         });
+        assertEquals(100, ((ABSSensor) single(brakesystem(vsum).getBrakeComponents())).getLengthInMM());
 
-        // Assert that the ABSSensor was created
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> !v.getRootObjects(Brakesystem.class)
-                        .iterator()
-                        .next()
-                        .getBrakeComponents()
-                        .isEmpty() &&
-                        v.getRootObjects(Brakesystem.class)
-                                .iterator()
-                                .next()
-                                .getBrakeComponents()
-                                .get(0) instanceof ABSSensor));
-
-        // Assert that the parameters were propagated correctly
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> {
-                    ABSSensor
-                            sensor =
-                            (ABSSensor) v.getRootObjects(Brakesystem.class)
-                                    .iterator()
-                                    .next()
-                                    .getBrakeComponents()
-                                    .get(0);
-                    return sensor.getSpecificationType().equals("some example specification");
-                }));
-
-        CommittableView
-                brakeView =
-                util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait();
-
-        util.modifyView(brakeView, (CommittableView v) -> {
-            ABSSensor
-                    sensor =
-                    (ABSSensor) v.getRootObjects(Brakesystem.class)
-                            .iterator()
-                            .next()
-                            .getBrakeComponents()
-                            .get(0);
-            sensor.setSpecificationType("new specification");
-        });
-
-        // Assert that the change was propagated back to the CAD model
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElse(null);
-                    if (namespace == null) {
-                        return false;
-                    } else {
-                        return TestUtil.expectStringParameter(namespace,
-                                "Specification Type",
-                                "new specification");
-                    }
-                }));
-
-    }
-
-    // CAD Model creates a ABSSensor
-    // Attribute changes to the ABSSensor are propagated to the CAD model
-    @Test void absSensorAttributePropagationTest(@TempDir Path tempDir) throws IOException {
-        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
-        util.registerRootObjects(vsum, tempDir);
-        // Setting the user interaction to 0, thus an ABSSensor should be created
-        util.userInteraction.addNextSingleSelection(0);
-        // add brake disk with parameters
-        CommittableView
-                view =
-                util.getDefaultView(vsum, List.of(CAD_Model.class)).withChangeRecordingTrait();
-        util.modifyView(view, (CommittableView v) -> {
-            Namespace namespace = createDefaultNamespace();
-            namespace.setId("brakeDisk1");
-            v.getRootObjects(CAD_Model.class).iterator().next().getNamespaces().add(namespace);
-        });
-
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(Brakesystem.class)),
-                (View v) -> !v.getRootObjects(Brakesystem.class)
-                        .iterator()
-                        .next()
-                        .getBrakeComponents()
-                        .isEmpty() &&
-                        v.getRootObjects(Brakesystem.class)
-                                .iterator()
-                                .next()
-                                .getBrakeComponents()
-                                .get(0) instanceof ABSSensor));
-
-        CommittableView
-                brakeView =
-                util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait();
-
-        util.modifyView(brakeView, (CommittableView v) -> {
-            ABSSensor
-                    sensor =
-                    (ABSSensor) v.getRootObjects(Brakesystem.class)
-                            .iterator()
-                            .next()
-                            .getBrakeComponents()
-                            .get(0);
+        util.modifyView(util.getDefaultView(vsum, List.of(Brakesystem.class)).withChangeRecordingTrait(), (CommittableView v) -> {
+            ABSSensor sensor = (ABSSensor) v.getRootObjects(Brakesystem.class).iterator().next().getBrakeComponents().get(0);
+            sensor.setLengthInMM(120);
             sensor.setFittingDepth(50);
             sensor.setNumberOfPins(4);
         });
 
-        // Assert that the changes were propagated back to the CAD model
-        Assertions.assertTrue(assertView(util.getDefaultView(vsum, List.of(CAD_Model.class)),
-                (View v) -> {
-                    Namespace
-                            namespace =
-                            v.getRootObjects(CAD_Model.class)
-                                    .iterator()
-                                    .next()
-                                    .getNamespaces()
-                                    .stream()
-                                    .filter(ns -> ns.getId().equals("brakeDisk1"))
-                                    .findFirst()
-                                    .orElse(null);
-                    if (namespace == null) {
-                        return false;
-                    } else {
-                        System.out.println("Params: " + namespace.getParameters());
-                        var
-                                fittingDepthParamCorrect =
-                                TestUtil.expectNumericParameter(namespace, "Fitting Depth", 50);
-                        var
-                                numberOfPinsParamCorrect =
-                                TestUtil.expectNumericParameter(namespace, "Number of Pins", 4);
-                        return fittingDepthParamCorrect && numberOfPinsParamCorrect;
-                    }
-                }));
+        Assembly part = part(vsum, "sensor1");
+        assertTrue(TestUtil.expectDimension(part, "Length", 0.12));
+        assertTrue(TestUtil.expectDimension(part, "Fitting Depth", 0.05));
+        // A count is no CAD dimension
+        assertNull(CadUtility.findParameter(part, "Number of Pins"));
     }
 
-    private Namespace createDefaultNamespace() {
-        Namespace namespace = CadFactory.eINSTANCE.createNamespace();
-        namespace.setName("myNamespace");
-        namespace.setId("myID");
-        return namespace;
+    private VirtualModel createVsum(Path tempDir) throws IOException {
+        VirtualModel vsum = util.createDefaultVirtualModel(tempDir, necessaryCPS);
+        util.registerRootObjects(vsum, tempDir);
+        return vsum;
+    }
+
+    private void modifyCad(VirtualModel vsum, Consumer<CADDocument> modification) {
+        util.modifyView(util.getDefaultView(vsum, List.of(CADDocument.class)).withChangeRecordingTrait(),
+                (CommittableView v) -> modification.accept(v.getRootObjects(CADDocument.class).iterator().next()));
+    }
+
+    private Brakesystem brakesystem(VirtualModel vsum) {
+        return util.getDefaultView(vsum, List.of(Brakesystem.class)).getRootObjects(Brakesystem.class).iterator().next();
+    }
+
+    private Assembly part(VirtualModel vsum, String name) {
+        CADDocument document = util.getDefaultView(vsum, List.of(CADDocument.class)).getRootObjects(CADDocument.class).iterator().next();
+        Assembly part = TestUtil.findPart(document, name);
+        assertNotNull(part, "no CAD part " + name);
+        return part;
+    }
+
+    private static BrakeCaliper caliper(Brakesystem brakesystem, String id) {
+        return brakesystem.getBrakeComponents().stream()
+                .filter(c -> c instanceof BrakeCaliper && c.getId().equals(id))
+                .map(BrakeCaliper.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static <T> T single(List<T> elements) {
+        assertEquals(1, elements.size(), elements.toString());
+        return elements.get(0);
     }
 }

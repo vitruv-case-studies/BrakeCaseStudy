@@ -12,10 +12,6 @@ import bom.NumericParameterValue;
 import bom.ParameterDefinition;
 import bom.ParameterValue;
 import bom.StringParameterValue;
-import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
-import edu.kit.ipd.sdq.metamodels.cad.Parameter;
-import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
-import edu.kit.ipd.sdq.metamodels.cad.Unit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -34,8 +30,8 @@ import org.eclipse.emf.ecore.util.EcoreUtil;
  *       brake components, the kind is the name of the brake component class.</li>
  *   <li>Parameter values are identified by the name of their definition, like the parameters in CAD
  *       and Simulink.</li>
- *   <li>Numeric values carry a unit given by the literal of the CAD unit (e.g. "mm"). An unset unit
- *       is interpreted as millimetres, like everywhere else in the case study.</li>
+ *   <li>Numeric values carry a unit given by the literal of a {@link MeasurementUnit} (e.g. "mm"). An
+ *       unset unit is interpreted as millimetres, like everywhere else in the case study.</li>
  *   <li>An item with quantity n corresponds to n instances in the other models, identified by
  *       "id", "id-2", ..., "id-n".</li>
  * </ul>
@@ -130,17 +126,6 @@ public final class BomUtility {
         return value;
     }
 
-    /** The BOM datatype for a CAD parameter. CAD stores numbers as floats, so they become doubles. */
-    public static DataType dataTypeOf(Parameter parameter) {
-        if (parameter instanceof StringParameter) {
-            return DataType.ESTRING;
-        }
-        if (parameter instanceof BooleanParameter) {
-            return DataType.EBOOLEAN;
-        }
-        return DataType.EDOUBLE;
-    }
-
     private static ParameterDefinition findOrCreateDefinition(ItemType type, String name, DataType dataType) {
         for (ParameterDefinition definition : type.getParameterDefinitions()) {
             if (Objects.equals(definition.getName(), name)) {
@@ -179,14 +164,14 @@ public final class BomUtility {
         boolean created = findValue(item, name) == null;
         if (findOrCreateValue(item, name, DataType.EINT) instanceof NumericParameterValue value) {
             if (created) {
-                value.setUnit(Unit.MM.getLiteral());
+                value.setUnit(MeasurementUnit.MM.getLiteral());
             }
             Integer current = lengthInMillimetres(value);
             if (current == null || current != millimetres) {
                 if (!ParameterValueUtility.isLengthUnit(unitOf(value))) {
-                    value.setUnit(Unit.MM.getLiteral());
+                    value.setUnit(MeasurementUnit.MM.getLiteral());
                 }
-                setNumber(value, ParameterValueUtility.convert(millimetres, Unit.MM, unitOf(value)));
+                setNumber(value, ParameterValueUtility.convert(millimetres, MeasurementUnit.MM, unitOf(value)));
             }
         }
     }
@@ -195,7 +180,7 @@ public final class BomUtility {
         boolean created = findValue(item, name) == null;
         if (findOrCreateValue(item, name, DataType.EINT) instanceof NumericParameterValue value) {
             if (created) {
-                value.setUnit(Unit.COUNT.getLiteral());
+                value.setUnit(MeasurementUnit.COUNT.getLiteral());
             }
             Integer current = count(value);
             if (current == null || current != count) {
@@ -220,7 +205,7 @@ public final class BomUtility {
         if (number == null || !ParameterValueUtility.isLengthUnit(unitOf((NumericParameterValue) value))) {
             return null;
         }
-        return (int) Math.round(ParameterValueUtility.convert(number, unitOf((NumericParameterValue) value), Unit.MM));
+        return (int) Math.round(ParameterValueUtility.convert(number, unitOf((NumericParameterValue) value), MeasurementUnit.MM));
     }
 
     /** The value as a whole number, or null if it is no number. */
@@ -229,40 +214,47 @@ public final class BomUtility {
         return number == null ? null : (int) Math.round(number);
     }
 
-    // CAD values (unit given by the CAD parameter)
+    // CAD values (metres for lengths, degrees for angles, see CadUtility)
 
     /** Whether the BOM value already represents the CAD value, so that it need not be written. */
-    public static boolean representsCadValue(NumericParameterValue value, float cadValue, Unit cadUnit) {
+    public static boolean representsCadValue(NumericParameterValue value, double cadValue, MeasurementUnit cadUnit) {
         Double number = numberOf(value);
         if (number == null) {
             return false;
         }
         double target = ParameterValueUtility.convert(cadValue, cadUnit, unitOf(value));
         return value instanceof IntegerParameterValue ? Math.round(target) == Math.round(number)
-                : ParameterValueUtility.sameNumber((float) target, number.floatValue());
+                : ParameterValueUtility.sameNumber(target, number.doubleValue());
     }
 
     /** Writes the CAD value in the unit of the BOM value. If the units are incompatible, the CAD unit is taken over. */
-    public static void setFromCad(NumericParameterValue value, float cadValue, Unit cadUnit) {
+    public static void setFromCad(NumericParameterValue value, double cadValue, MeasurementUnit cadUnit) {
         if (representsCadValue(value, cadValue, cadUnit) && ParameterValueUtility.isLengthUnit(unitOf(value)) == ParameterValueUtility.isLengthUnit(cadUnit)) {
             return;
         }
         if (ParameterValueUtility.isLengthUnit(unitOf(value)) != ParameterValueUtility.isLengthUnit(cadUnit)) {
-            value.setUnit(cadUnit == null ? null : cadUnit.getLiteral());
+            // A length in CAD is written in millimetres, like the values from the brake system
+            value.setUnit(ParameterValueUtility.isLengthUnit(cadUnit) ? MeasurementUnit.MM.getLiteral() : cadUnit.getLiteral());
         }
         setNumber(value, ParameterValueUtility.convert(cadValue, cadUnit, unitOf(value)));
     }
 
     /** The BOM value in the given CAD unit. */
-    public static float toCadValue(NumericParameterValue value, Unit cadUnit) {
+    public static double toCadValue(NumericParameterValue value, MeasurementUnit cadUnit) {
         Double number = numberOf(value);
-        return number == null ? 0 : (float) ParameterValueUtility.convert(number, unitOf(value), cadUnit);
+        return number == null ? 0 : ParameterValueUtility.convert(number, unitOf(value), cadUnit);
     }
 
-    /** The CAD unit for a new CAD parameter of the BOM value. */
-    public static Unit cadUnitOf(NumericParameterValue value) {
-        Unit unit = unitOf(value);
-        return unit == null ? Unit.MM : unit;
+    /**
+     * The CAD unit of the BOM value: degrees for angles, metres for lengths, or null if the value
+     * has no CAD dimension (counts, see also {@link CadUtility#isCount}).
+     */
+    public static MeasurementUnit cadUnitOf(NumericParameterValue value) {
+        MeasurementUnit unit = unitOf(value);
+        if (unit == MeasurementUnit.COUNT || value.getDefinition() == null || CadUtility.isCount(value.getDefinition().getName())) {
+            return null;
+        }
+        return unit == MeasurementUnit.DEG ? MeasurementUnit.DEG : MeasurementUnit.M;
     }
 
     // Simulink values (lengths in millimetres, see ParameterValueUtility)
@@ -306,16 +298,16 @@ public final class BomUtility {
         } else if (value instanceof NumericParameterValue numeric) {
             Float number = ParameterValueUtility.toFloat(text);
             if (number != null) {
-                Unit unit = unitOf(numeric);
-                setNumber(numeric, ParameterValueUtility.isLengthUnit(unit) ? ParameterValueUtility.convert(number, Unit.MM, unit) : number);
+                MeasurementUnit unit = unitOf(numeric);
+                setNumber(numeric, ParameterValueUtility.isLengthUnit(unit) ? ParameterValueUtility.convert(number, MeasurementUnit.MM, unit) : number);
             }
         }
     }
 
     private static float simulinkNumber(NumericParameterValue value) {
-        Unit unit = unitOf(value);
+        MeasurementUnit unit = unitOf(value);
         double number = numberOf(value);
-        return (float) (ParameterValueUtility.isLengthUnit(unit) ? ParameterValueUtility.convert(number, unit, Unit.MM) : number);
+        return (float) (ParameterValueUtility.isLengthUnit(unit) ? ParameterValueUtility.convert(number, unit, MeasurementUnit.MM) : number);
     }
 
     // Quantities
@@ -385,7 +377,7 @@ public final class BomUtility {
         return null;
     }
 
-    private static Unit unitOf(NumericParameterValue value) {
+    private static MeasurementUnit unitOf(NumericParameterValue value) {
         return ParameterValueUtility.parseUnit(value.getUnit());
     }
 

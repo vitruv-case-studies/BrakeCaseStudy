@@ -11,14 +11,12 @@ import org.eclipse.emf.common.util.URI;
 
 import brakesystem.Brakesystem;
 import brakesystem.BrakesystemFactory;
-import edu.kit.ipd.sdq.metamodels.cad.BooleanParameter;
-import edu.kit.ipd.sdq.metamodels.cad.Namespace;
-import edu.kit.ipd.sdq.metamodels.cad.NumericParameter;
-import edu.kit.ipd.sdq.metamodels.cad.StringParameter;
-import mir.reactions.brakesystem2cad.Brakesystem2cadChangePropagationSpecification;
-import mir.reactions.cad2brakesystem.Cad2brakesystemChangePropagationSpecification;
-import mir.reactions.cad2simulink.Cad2simulinkChangePropagationSpecification;
+import edu.kit.ipd.sdq.metamodels.cad.Assembly;
+import edu.kit.ipd.sdq.metamodels.cad.CADDocument;
+import edu.kit.ipd.sdq.metamodels.cad.Constraint;
+import edu.kit.ipd.sdq.metamodels.cad.ConstraintType;
 import simulink.Block;
+import tools.vitruv.casestudies.brakesystem.consistency.CadUtility;
 import tools.vitruv.change.propagation.ChangePropagationMode;
 import tools.vitruv.change.propagation.ChangePropagationSpecification;
 import tools.vitruv.change.testutils.TestUserInteraction;
@@ -75,52 +73,32 @@ public class TestUtil {
         return selector.createView();
     }
 
-    /**
-     * Tests whether there exists a StringParameter for namespace with the given name and value.
-     *
-     * @param namespace - Namespace
-     * @param name      - String
-     * @param value     - String
-     * @return boolean
-     */
-    public static boolean expectStringParameter(Namespace namespace, String name, String value) {
-        return namespace.getParameters()
-                .stream()
-                .filter(param -> param instanceof StringParameter)
-                .map(param -> (StringParameter) param)
-                .anyMatch(param -> param.getName().equals(name) && param.getValue().equals(value));
+    // CAD: parts are Assemblies, dimensions are named constraints in metres (see CadUtility)
+
+    /** A new CAD part with the given name, used as label as well. */
+    public static Assembly createPart(String name) {
+        return CadUtility.createPart(name, name);
     }
 
-    /**
-     * Tests whether there exists a NumericParameter for namespace with the given name and value.
-     *
-     * @param namespace - Namespace
-     * @param name      - String
-     * @param value     - float
-     * @return boolean
-     */
-    public static boolean expectNumericParameter(Namespace namespace, String name, float value) {
-        return namespace.getParameters()
-                .stream()
-                .filter(param -> param instanceof NumericParameter)
-                .map(param -> (NumericParameter) param)
-                .anyMatch(param -> param.getName().equals(name) && param.getValue() == value);
+    /** Adds a named length (in metres) to the part, as a user would in a sketch of the part. */
+    public static Constraint addLength(Assembly part, String name, double metres) {
+        return CadUtility.createParameter(part, name, CadUtility.defaultTypeFor(name), metres);
     }
 
-    /**
-     * Tests whether there exists a BooleanParameter for namespace with the given name and value.
-     *
-     * @param namespace - Namespace
-     * @param name      - String
-     * @param value     - boolean
-     * @return boolean
-     */
-    public static boolean expectBooleanParameter(Namespace namespace, String name, boolean value) {
-        return namespace.getParameters()
-                .stream()
-                .filter(param -> param instanceof BooleanParameter)
-                .map(param -> (BooleanParameter) param)
-                .anyMatch(param -> param.getName().equals(name) && param.isValue() == value);
+    /** Adds a named dimension of the given type to the part. */
+    public static Constraint addDimension(Assembly part, String name, ConstraintType type, double value) {
+        return CadUtility.createParameter(part, name, type, value);
+    }
+
+    /** The part with the given name anywhere in the document, or null. */
+    public static Assembly findPart(CADDocument document, String name) {
+        return CadUtility.allParts(document).stream().filter(part -> name.equals(part.getName())).findFirst().orElse(null);
+    }
+
+    /** Whether the part has a dimension with the given name and value (in metres or degrees). */
+    public static boolean expectDimension(Assembly part, String name, double value) {
+        Constraint dimension = CadUtility.findParameter(part, name);
+        return dimension != null && Math.abs(dimension.getValue() - value) < 1e-9;
     }
 
     public static boolean expectParameter(Block block, String name, String type, Object value) {

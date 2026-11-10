@@ -15,7 +15,7 @@
    <extension point="org.eclipse.emf.ecore.generated_package">
       <!-- @generated cad -->
       <package
-            uri="http://www.example.org/cad"
+            uri="http://demonstrator.kit.edu/cad"
             class="edu.kit.ipd.sdq.metamodels.cad.CadPackage"
             genModel="src/main/ecore/cad.genmodel"/>
    </extension>
